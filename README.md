@@ -14,15 +14,19 @@ instead of being merged upstream.
 
 Experimental. No API stability guarantees yet.
 
-Current scope (mirrors the `ast-phase3-html-renderer` line of work):
+Current scope:
 
 - AST compiler and node model (`ReVIEW::AST`)
 - Re:VIEW source round-trip (`review-ast-dump2re`)
-- HTML renderer (`ReVIEW::Renderer`)
-- Commands: `review-ast-dump`, `review-ast-dump2re`, `review-ast-compile`
+- Renderers (`ReVIEW::Renderer`): HTML, LaTeX, IDGXML, plaintext, TOP
+- Commands:
+  - `review-ast-dump` — dump AST as JSON
+  - `review-ast-dump2re` — regenerate Re:VIEW source from the AST
+  - `review-ast-compile` — render a chapter (`--target html|latex|idgxml`)
+  - `review-ast-pdfmaker` / `review-ast-idgxmlmaker` / `review-ast-textmaker` — book makers
 
-LaTeX / IDGXML / plaintext renderers and Markdown input exist in the upstream
-`ast-renderer` branch and can be brought in as follow-ups.
+EPUB maker and Markdown input exist in the upstream `ast-renderer` branch and can
+be brought in as follow-ups.
 
 ## Requirements
 
