@@ -239,6 +239,10 @@ module ReVIEW
       def visit_code_line(node)
         # Render children (TextNode and InlineNode) to process inline elements properly
         content = render_children(node)
+        # Expand tabs like LATEXBuilder#code_line so aligned code keeps its
+        # columns (literal tabs typeset to a different width than spaces).
+        tabwidth = config['tabwidth']
+        content = tabwidth ? detab(content, tabwidth.to_i) : detab(content)
         # Add proper newline for LaTeX code line formatting
         "#{content}\n"
       end

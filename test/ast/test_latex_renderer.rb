@@ -259,6 +259,22 @@ class TestLatexRenderer < Test::Unit::TestCase
     assert_equal expected, result
   end
 
+  def test_code_line_expands_tabs
+    # Regression: tabs in code lines must be expanded to spaces like
+    # LATEXBuilder#code_line (detab), otherwise aligned code typesets to a
+    # different width (found via DVI comparison). The text-canonical comparator
+    # ignores whitespace, so this is asserted on the exact output.
+    code_block = AST::CodeBlockNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), code_type: 'emlist')
+    line = AST::CodeLineNode.new(location: nil)
+    line.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: "a\tb\tc"))
+    code_block.add_child(line)
+
+    result = @renderer.visit(code_block)
+
+    assert_not_include(result, "\t")
+    assert_include(result, "a       b       c") # detab with default tab width 8
+  end
+
   def test_visit_table
     caption_node = AST::CaptionNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
     caption_node.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Test Table'))
