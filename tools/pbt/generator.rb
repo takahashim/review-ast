@@ -58,12 +58,14 @@ module ReVIEW
       EN_WORDS = %w[Re:VIEW LaTeX Markdown code list table image ident value
                     foo_bar baz.qux 100% a<b c>d {x} $y a&b].freeze
 
-      # Self-contained inline decorations (no id/file/reference needed) that
-      # BOTH LATEXBuilder and the AST renderer implement. Ops that are valid
-      # Re:VIEW but unsupported by LATEXBuilder (big, dfn, hint, kbd, q, samp,
-      # small, var) are excluded: we can only diff inputs both paths compile.
+      # Self-contained inline decorations that wrap arbitrary text and are
+      # implemented by BOTH LATEXBuilder and the AST renderer. Excluded:
+      #   - ops unsupported by LATEXBuilder (big, dfn, hint, kbd, q, samp,
+      #     small, var) -- we can only diff inputs both paths compile;
+      #   - uchar, which takes a numeric codepoint rather than text, so feeding
+      #     it words is invalid input (paths may disagree on garbage).
       DECOR_INLINES = %w[b i code tt kw em strong u ins del sup sub ttb tti
-                         bou ami uchar].freeze
+                         bou ami].freeze
 
       MINICOLUMNS = %w[note memo tip info warning important caution notice].freeze
       CODE_CMDS = %w[list emlist listnum cmd source].freeze

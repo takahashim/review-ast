@@ -275,6 +275,30 @@ class TestLatexRenderer < Test::Unit::TestCase
     assert_include(result, "a       b       c") # detab with default tab width 8
   end
 
+  def test_listnum_numbers_trailing_blank_line
+    # Regression (found by PBT): a trailing blank line in //listnum must be
+    # numbered like every other line, matching LATEXBuilder. The renderer used
+    # to drop it. text-canonical comparison catches this (it is a token diff).
+    content = <<~EOB
+      = Test Chapter
+
+      //listnum[lst][cap]{
+      code a
+      code b
+
+      //}
+    EOB
+
+    @chapter.content = content
+    compiler = ReVIEW::AST::Compiler.new
+    ast_root = compiler.compile_to_ast(@chapter)
+    result = Renderer::LatexRenderer.new(@chapter).visit(ast_root)
+
+    assert_include(result, ' 1: code a')
+    assert_include(result, ' 2: code b')
+    assert_include(result, " 3: \n") # the trailing blank line is numbered too
+  end
+
   def test_inline_br_at_line_end_no_spurious_blank
     # Regression: @<br>{} at the end of a source line must not produce a forced
     # break followed by a blank line ("\\\\" + blank = a spurious empty

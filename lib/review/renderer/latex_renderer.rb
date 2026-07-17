@@ -1064,21 +1064,18 @@ module ReVIEW
         end
       end
 
-      # Add line numbers to content like LATEXBuilder does
+      # Add line numbers to content like LATEXBuilder does. LATEXBuilder numbers
+      # every code line, including a trailing blank line, so we must too.
       def add_line_numbers(content, node = nil)
-        lines = content.split("\n")
-        numbered_lines = []
+        # `content` is a concatenation of "line\n" per code line; drop the single
+        # trailing-newline artifact, then keep every remaining line (a genuine
+        # trailing blank line included) via split(-1).
+        lines = content.chomp("\n").split("\n", -1)
 
         # Use node.first_line_num if set, otherwise start from 1
         start_num = node&.first_line_num || 1
 
-        lines.each_with_index do |line, i|
-          next if line.strip.empty? && i == lines.length - 1 # Skip last empty line
-
-          numbered_lines << sprintf('%2d: %s', start_num + i, line)
-        end
-
-        numbered_lines.join("\n")
+        lines.each_with_index.map { |line, i| sprintf('%2d: %s', start_num + i, line) }.join("\n")
       end
 
       # Render footnote content for footnotetext
