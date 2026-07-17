@@ -657,7 +657,7 @@ module ReVIEW
 
         begin
           list_item = @chapter.list(id)
-          chapter_number = @chapter.number
+          chapter_number = get_chap
           item_number = list_item.number
 
           # Use TextFormatter to generate caption
@@ -675,7 +675,7 @@ module ReVIEW
 
         begin
           table_item = @chapter.table(id)
-          chapter_number = @chapter.number
+          chapter_number = get_chap
           item_number = table_item.number
 
           # Use TextFormatter to generate caption
@@ -693,7 +693,7 @@ module ReVIEW
 
         begin
           image_item = @chapter.image(id)
-          chapter_number = @chapter.number
+          chapter_number = get_chap
           item_number = image_item.number
 
           # Use TextFormatter to generate caption

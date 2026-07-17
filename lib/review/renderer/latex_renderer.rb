@@ -876,7 +876,7 @@ module ReVIEW
             begin
               list_item = @chapter.list(node.id)
               list_num = list_item.number
-              chapter_num = @chapter.number
+              chapter_num = get_chap
               captionstr = "\\reviewlistcaption{#{text_formatter.format_caption('list', chapter_num, list_num, caption)}}"
               result << captionstr
             rescue ReVIEW::KeyError
@@ -982,8 +982,9 @@ module ReVIEW
         if @chapter && @chapter.equation_index
           begin
             equation_number = @chapter.equation_index.number(equation_id)
-            if @chapter.number
-              "#{@chapter.number}.#{equation_number}"
+            chapter_num = get_chap
+            if chapter_num
+              "#{chapter_num}.#{equation_number}"
             else
               equation_number.to_s
             end

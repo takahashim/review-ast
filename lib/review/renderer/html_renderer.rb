@@ -753,7 +753,7 @@ module ReVIEW
         raise NotImplementedError, "no such list: #{id}" unless list_item
 
         list_num = list_item.number
-        chapter_num = @chapter&.number
+        chapter_num = get_chap
 
         text_formatter.format_caption('list', chapter_num, list_num, caption)
       end
@@ -1174,7 +1174,7 @@ module ReVIEW
       def generate_table_header(id, caption)
         table_item = @chapter.table(id)
         table_num = table_item.number
-        chapter_num = @chapter.number
+        chapter_num = get_chap
 
         text_formatter.format_caption('table', chapter_num, table_num, caption)
       rescue ReVIEW::KeyError

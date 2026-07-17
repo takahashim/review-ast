@@ -285,4 +285,25 @@ class TestLatexRendererBuilderComparison < Test::Unit::TestCase
 
     assert result.equal?, 'ch03.re should produce equivalent LaTeX'
   end
+
+  # Regression test: within an appendix chapter, numbered captions
+  # (list/table/image/equation) must use the appendix letter (e.g. "A.1"),
+  # not the raw chapter number ("1.1"). Requires full book context so the
+  # chapter is recognized as an appendix.
+  def test_syntax_book_appA
+    book_dir = File.join(__dir__, '../../samples/syntax-book')
+    result_hash = @converter.convert_chapter_with_book_context(book_dir, 'appA')
+
+    builder_latex = result_hash[:builder]
+    renderer_latex = result_hash[:renderer]
+
+    result = @comparator.compare(builder_latex, renderer_latex)
+
+    if result.different?
+      puts 'appA.re differences found:'
+      puts result.pretty_diff
+    end
+
+    assert result.equal?, 'appA.re (appendix) should produce equivalent LaTeX'
+  end
 end
