@@ -275,6 +275,27 @@ class TestLatexRenderer < Test::Unit::TestCase
     assert_include(result, "a       b       c") # detab with default tab width 8
   end
 
+  def test_inline_br_at_line_end_no_spurious_blank
+    # Regression: @<br>{} at the end of a source line must not produce a forced
+    # break followed by a blank line ("\\\\" + blank = a spurious empty
+    # paragraph, ~0.95pt of extra vertical space). Found via DVI comparison.
+    content = <<~EOB
+      = Test Chapter
+
+      強制的に@<br>{}
+      改行@<br>{}
+      できます。
+    EOB
+
+    @chapter.content = content
+    compiler = ReVIEW::AST::Compiler.new
+    ast_root = compiler.compile_to_ast(@chapter)
+    result = Renderer::LatexRenderer.new(@chapter).visit(ast_root)
+
+    assert_not_match(/\\\\\n\n/, result)
+    assert_match(/強制的に\\\\\n改行/, result)
+  end
+
   def test_visit_table
     caption_node = AST::CaptionNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
     caption_node.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Test Table'))

@@ -142,6 +142,14 @@ module ReVIEW
       def visit_paragraph(node)
         content = render_children(node)
 
+        # @<br>{} renders to "\\\n"; when it sits at the end of a source line,
+        # the preserved source newline turns it into "\\\n\n", i.e. a forced
+        # break followed by a blank line (a spurious empty paragraph, ~0.95pt of
+        # extra vertical space). A paragraph never contains a real blank line, so
+        # collapse any blank line that immediately follows a forced break, to
+        # match LATEXBuilder.
+        content = content.gsub(/\\\\\n\n+/, "\\\\\\\\\n")
+
         # Check for noindent attribute
         if node.attribute?(:noindent)
           # Add \noindent command like LATEXBuilder
