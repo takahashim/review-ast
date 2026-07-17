@@ -766,15 +766,19 @@ module ReVIEW
         result << content.chomp
         result << "\\end{#{env_name}}"
 
-        output = result.join("\n") + "\n\n"
+        # Emit the block, then any \footnotetext from the caption, then the
+        # trailing blank line. This matches LATEXBuilder, which places
+        # \footnotetext immediately after \end{...} (no blank in between) and
+        # the paragraph break after it. When there is no footnotetext this is
+        # equivalent to "...\end{...}\n\n".
+        output = result.join("\n") + "\n"
 
-        # Add collected footnotetext commands from caption context
         if caption_collector && caption_collector.any?
           output += generate_footnotetext_from_collector(caption_collector)
           caption_collector.clear
         end
 
-        output
+        output + "\n"
       end
 
       def visit_caption(node)

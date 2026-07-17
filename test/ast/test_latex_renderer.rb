@@ -903,6 +903,34 @@ class TestLatexRenderer < Test::Unit::TestCase
     assert_equal expected, result
   end
 
+  def test_minicolumn_caption_footnote_placement
+    # Regression: a \footnotetext collected from a minicolumn caption footnote
+    # must be emitted immediately after \end{...} with the blank line AFTER it,
+    # matching LATEXBuilder. A blank line between \end{...} and \footnotetext
+    # introduces a spurious empty paragraph (~16pt of extra vertical space),
+    # which was found by comparing DVI output against the builder.
+    content = <<~EOB
+      = Test Chapter
+
+      //note[Caption with footnote@<fn>{fn1}]{
+      Body text.
+      //}
+
+      //footnote[fn1][Heading side footnote]
+
+      == Next Section
+    EOB
+
+    @chapter.content = content
+    compiler = ReVIEW::AST::Compiler.new
+    ast_root = compiler.compile_to_ast(@chapter)
+
+    result = Renderer::LatexRenderer.new(@chapter).visit(ast_root)
+
+    assert_match(/\\end\{reviewnote\}\n\\footnotetext/, result)
+    assert_no_match(/\\end\{reviewnote\}\n\n\\footnotetext/, result)
+  end
+
   def test_footnote_with_inline_markup
     # Test that footnote content with inline markup is properly rendered
     content = <<~EOB
