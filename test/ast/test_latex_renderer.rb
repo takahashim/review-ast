@@ -299,6 +299,20 @@ class TestLatexRenderer < Test::Unit::TestCase
     assert_include(result, " 3: \n") # the trailing blank line is numbered too
   end
 
+  def test_listnum_with_only_a_blank_line_is_numbered
+    # Regression (found by PBT): a //listnum whose sole content is a blank line
+    # is still one numbered line (" 1: "), matching LATEXBuilder. The empty
+    # case ([] -> no numbering) must stay distinct from one-blank-line ([""]).
+    content = "= Test Chapter\n\n//listnum[lst][cap]{\n\n//}\n"
+
+    @chapter.content = content
+    compiler = ReVIEW::AST::Compiler.new
+    ast_root = compiler.compile_to_ast(@chapter)
+    result = Renderer::LatexRenderer.new(@chapter).visit(ast_root)
+
+    assert_include(result, " 1: \n")
+  end
+
   def test_inline_br_at_line_end_no_spurious_blank
     # Regression: @<br>{} at the end of a source line must not produce a forced
     # break followed by a blank line ("\\\\" + blank = a spurious empty

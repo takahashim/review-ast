@@ -1067,10 +1067,12 @@ module ReVIEW
       # Add line numbers to content like LATEXBuilder does. LATEXBuilder numbers
       # every code line, including a trailing blank line, so we must too.
       def add_line_numbers(content, node = nil)
-        # `content` is a concatenation of "line\n" per code line; drop the single
-        # trailing-newline artifact, then keep every remaining line (a genuine
-        # trailing blank line included) via split(-1).
-        lines = content.chomp("\n").split("\n", -1)
+        # `content` is a concatenation of "line\n" per code line, so it always
+        # ends with one artifact newline. split(-1) keeps every field (including
+        # genuine blank lines); dropping the final field removes just that
+        # artifact. This correctly distinguishes "one blank line" ([""], numbered)
+        # from "no lines" ([], not numbered).
+        lines = content.split("\n", -1)[0...-1]
 
         # Use node.first_line_num if set, otherwise start from 1
         start_num = node&.first_line_num || 1
