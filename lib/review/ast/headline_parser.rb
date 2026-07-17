@@ -70,7 +70,10 @@ module ReVIEW
         validate_level!(level)
 
         tag = level_match[2]
-        remaining = @line[level_match.end(0)..-1].strip
+        # Do NOT strip here: an old-syntax label {label} is only a label when it
+        # immediately follows the =/[tag] with no space (matching Compiler's
+        # regex). "===== {x}" (with a space) is caption text, not a label.
+        remaining = @line[level_match.end(0)..-1].chomp
         label, caption = extract_label_and_caption(remaining)
 
         ParseResult.new(level: level, tag: tag, label: label, caption: caption)
@@ -99,7 +102,7 @@ module ReVIEW
         end
 
         # No label, or label is part of inline markup - treat everything as caption
-        [nil, text]
+        [nil, text.strip]
       end
     end
   end

@@ -313,6 +313,19 @@ class TestLatexRenderer < Test::Unit::TestCase
     assert_include(result, " 1: \n")
   end
 
+  def test_headline_braces_after_space_are_caption_not_label
+    # Regression (found by PBT): "===== {x} caption" (a space before the brace)
+    # is caption text, not a heading label, matching Compiler. Only "====={x}"
+    # (no space) is a label.
+    @chapter.content = "= Test Chapter\n\n===== {x}と幅。\n"
+    compiler = ReVIEW::AST::Compiler.new
+    ast_root = compiler.compile_to_ast(@chapter)
+    result = Renderer::LatexRenderer.new(@chapter).visit(ast_root)
+
+    assert_include(result, '\\{x\\}と幅。') # kept as caption, escaped
+    assert_not_match(/\\label\{x\}/, result) # not treated as a label
+  end
+
   def test_inline_br_at_line_end_no_spurious_blank
     # Regression: @<br>{} at the end of a source line must not produce a forced
     # break followed by a blank line ("\\\\" + blank = a spurious empty
