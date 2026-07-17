@@ -154,6 +154,30 @@ class ListStructureNormalizerTest < Test::Unit::TestCase
     end
   end
 
+  def test_consecutive_ordered_lists_not_merged
+    # Regression (found by PBT): two blank-separated ordered lists are
+    # independent, matching LATEXBuilder, which renders them as separate
+    # enumerate environments. Only //beginchild continuations merge (see
+    # test_consecutive_lists_merged); a plain blank line does not.
+    # Built explicitly: ordered-list lines require a leading space, which a
+    # squiggly heredoc would strip.
+    src = " 1. a\n 2. b\n\n 1. c\n 2. d\n"
+
+    ast = compile_ast(src)
+    ols = ast.children.select { |c| c.is_a?(ReVIEW::AST::ListNode) && c.list_type == :ol }
+    assert_equal 2, ols.size, 'blank-separated ordered lists must stay separate'
+    assert_equal 2, ols[0].children.size
+    assert_equal 2, ols[1].children.size
+  end
+
+  def test_consecutive_unordered_lists_not_merged
+    src = " * a\n * b\n\n * c\n * d\n"
+
+    ast = compile_ast(src)
+    uls = ast.children.select { |c| c.is_a?(ReVIEW::AST::ListNode) && c.list_type == :ul }
+    assert_equal 2, uls.size, 'blank-separated unordered lists must stay separate'
+  end
+
   def test_consecutive_lists_merged
     # Test that consecutive lists created by beginchild/endchild are merged
     src = <<~REVIEW

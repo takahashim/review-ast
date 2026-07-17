@@ -54,9 +54,15 @@ module ReVIEW
           children = node.children.dup
           idx = 0
           last_list_context = nil
+          # True only for the iteration immediately following a //beginchild ..
+          # //endchild block, whose trailing list (if any) is a *continuation*
+          # of the interrupted list and must be merged back into it.
+          after_child_block = false
 
           while idx < children.size
             child = children[idx]
+            resuming_list = after_child_block
+            after_child_block = false
 
             if beginchild_block?(child)
               unless last_list_context
@@ -68,11 +74,24 @@ module ReVIEW
               nested_nodes.each { |nested| last_list_context[:item].add_child(nested) }
               normalize_node(last_list_context[:item])
               last_list_context[:item] = last_list_context[:list_node].children.last
+              after_child_block = true
               next
             end
 
             if endchild_block?(child)
               raise ReVIEW::ApplicationError, "//endchild is shown, but any opened //beginchild doesn't exist"
+            end
+
+            # A list right after //endchild continues the interrupted list
+            # (same numbering context), so fold its items back in rather than
+            # leaving a second, separate list.
+            if resuming_list && child.is_a?(ReVIEW::AST::ListNode) &&
+               last_list_context && last_list_context[:list_node].list_type == child.list_type
+              normalize_node(child)
+              child.children.each { |item| last_list_context[:list_node].add_child(item) }
+              last_list_context[:item] = last_list_context[:list_node].children.last
+              idx += 1
+              next
             end
 
             if paragraph_node?(child) &&
@@ -166,11 +185,13 @@ module ReVIEW
           merged = []
 
           children.each do |child|
-            if child.is_a?(ReVIEW::AST::ListNode) &&
-               merged.last.is_a?(ReVIEW::AST::ListNode) &&
-               merged.last.list_type == child.list_type
-              # Merge the children from the second list into the first
-              # Note: item_number will be assigned later by ListItemNumberingProcessor
+            # Only definition lists merge across a blank-line boundary: this
+            # matches LATEXBuilder, which renders consecutive blank-separated
+            # ul/ol groups as *separate* environments but merges dl groups into
+            # one description list. (ul/ol continuations across //beginchild are
+            # handled inline in normalize_node.)
+            if child.is_a?(ReVIEW::AST::ListNode) && child.list_type == :dl &&
+               merged.last.is_a?(ReVIEW::AST::ListNode) && merged.last.list_type == :dl
               child.children.each do |item|
                 merged.last.add_child(item)
               end

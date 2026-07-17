@@ -82,6 +82,23 @@ test. They cluster into a few recurring shapes.
 | Verbatim | tab-aligned code typeset at the wrong width | code lines not detabbed like `LATEXBuilder#code_line` | detab in `visit_code_line` (honoring `tabwidth`) |
 | Forced break | `@<br>{}` at end of a source line adds ~0.95pt vertical space | `@<br>` emits `\\\n`; the preserved source newline makes it `\\\n\n` (a `\par`) | collapse a blank line right after a forced break in `visit_paragraph` |
 | Compiler (not render) | `==[column]` containing `====` subsections fatally errors on `==[/column]` | headlines reset the current node to root, losing column context; close couldn't find the column | keep the current node inside the column across subsections; walk ancestors to close |
+| Compiler (not render) | two blank-separated `ul`/`ol` merged into one list (numbers ran 1..6) | the list-structure normalizer merged *all* adjacent same-type lists | merge only `dl` across a blank line and only fold `ul`/`ol` continuations across `//beginchild` — matching LATEXBuilder |
+
+### A design note: list merging
+
+LATEXBuilder is the oracle, and it treats blank-separated lists per type:
+
+- **`ul` / `ol`**: a blank line ends the list; the next group is a *separate*
+  environment (numbering restarts). They only rejoin when interrupted by
+  `//beginchild .. //endchild` (an explicit nesting directive).
+- **`dl`**: consecutive blank-separated `: term` groups form *one* description
+  list.
+
+The AST originally merged all adjacent same-type lists unconditionally, which is
+a reasonable-looking design choice but disagrees with the builder for `ul`/`ol`.
+We aligned with the builder. If Re:VIEW ever decides blank-separated `ul`/`ol`
+*should* merge, this is the place to revisit — but then the builder would need to
+change too, so the two stay in sync.
 
 ### Recurring lessons
 
