@@ -41,3 +41,28 @@ Determinism note: the only nondeterministic part of a DVI is the build
 timestamp in the preamble comment, which is fixed via `-output-comment` and
 stripped from the dviasm dump before comparison. DVI output is otherwise tied
 to the TeXLive version, so cross-machine comparison requires a pinned toolchain.
+
+## Property-based differential testing
+
+`pbt/generator.rb` generates random, self-contained Re:VIEW documents (seed
+-deterministic). `pbt/runner.rb` renders each through both `LATEXBuilder` and the
+AST `LatexRenderer`, asserts they agree, and on a counterexample **shrinks** the
+document to a minimal reproducer.
+
+```sh
+# fast structural pass (canonical comparison, no TeX)
+BUNDLE_GEMFILE=Gemfile bundle exec ruby tools/pbt/runner.rb --mode canonical --seeds 100
+
+# strict pass (DVI comparison; sees whitespace differences, needs TeXLive)
+BUNDLE_GEMFILE=Gemfile bundle exec ruby tools/pbt/runner.rb --mode dvi --seeds 50
+```
+
+The generator covers the constructs where divergences tend to hide: inline
+commands in paragraphs (especially `@<br>{}`), code blocks (tabs, blank lines),
+lists, definition lists, minicolumns with captions/footnotes, and tables. It
+only emits inline ops that BOTH paths implement, so any divergence is a real
+disagreement rather than an unsupported-op error.
+
+Seeds are deterministic: a reported failing seed reproduces exactly. Fold real
+findings into permanent regression tests (see doc/differential-testing.md);
+don't rely on the seed, which can shift if the generator changes.
