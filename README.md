@@ -56,6 +56,13 @@ the AST HTML renderer and Re:VIEW's own `HTMLBuilder`, asserting the two outputs
 match. This parity signal is the basis for deciding when the AST path is ready to
 become opt-in inside Re:VIEW.
 
+Beyond the text-level comparators, the AST LaTeX renderer is checked against the
+legacy `LATEXBuilder` at the *typeset* (DVI) level, which catches whitespace-only
+divergences the text comparators are blind to. See
+[doc/differential-testing.md](doc/differential-testing.md) for the methodology,
+the localization workflow, and a catalog of divergence classes found so far, and
+[tools/README.md](tools/README.md) for the sweep tool.
+
 ## How the upstream hooks work
 
 `core_ext.rb` adds three things to the released `review` gem, each guarded so it
