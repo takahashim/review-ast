@@ -418,14 +418,17 @@ module ReVIEW
 
         # Validate that we're closing the correct tag by checking current AST node
         if open_tag == 'column'
-          unless @current_ast_node.is_a?(AST::ColumnNode)
+          # A column may contain nested subsections (e.g. ==== inside ==[column]),
+          # so @current_ast_node can be the ColumnNode or a descendant of it.
+          column = ancestor_column(@current_ast_node)
+          unless column
             raise ReVIEW::ApplicationError, "column is not opened#{@current_location.format_for_error}"
           end
+
+          @current_ast_node = column.parent || @ast_root
         else
           raise ReVIEW::ApplicationError, "Unknown closing tag: /#{open_tag}#{@current_location.format_for_error}"
         end
-
-        @current_ast_node = @current_ast_node.parent || @ast_root
       end
 
       def create_regular_headline(parse_result, caption_node, current_node)
@@ -437,7 +440,16 @@ module ReVIEW
           tag: parse_result.tag
         )
         current_node.add_child(node)
-        @current_ast_node = @ast_root
+        # Normally headlines flatten the current position back to the document
+        # root. Inside a column, however, the column stays open across its
+        # subsections until ==[/column], so keep the column as the current node.
+        @current_ast_node = ancestor_column(node) || @ast_root
+      end
+
+      # Nearest enclosing ColumnNode of a node (including itself), or nil.
+      def ancestor_column(node)
+        node = node.parent while node && !node.is_a?(AST::ColumnNode)
+        node
       end
 
       def compile_block_command_to_ast(f)

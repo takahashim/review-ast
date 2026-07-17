@@ -183,7 +183,70 @@ class TestColumnSections < Test::Unit::TestCase
     assert_include(result, '@<code>{code}')
   end
 
+  # Regression: a column may contain deeper subsections (==== inside
+  # ==[column]) and be closed explicitly with ==[/column]. The subsections and
+  # their content must stay inside the ColumnNode, and the close tag must not
+  # raise "column is not opened". Found by a DVI sweep of a real book.
+  def test_column_with_subsections_and_explicit_close
+    source = <<~EOS
+      = Chapter Title
+
+      ==[column] Column Title
+
+      Intro paragraph in the column.
+
+      ==== Subsection One
+
+      Content under subsection one.
+
+      ==== Subsection Two
+
+      Content under subsection two.
+
+      ==[/column]
+
+      == Regular Section
+
+      Back to regular content.
+    EOS
+
+    @chapter.content = source
+    ast_compiler = ReVIEW::AST::Compiler.new
+    ast_root = assert_nothing_raised { ast_compiler.compile_to_ast(@chapter) }
+
+    column_node = find_node_by_type(ast_root, ReVIEW::AST::ColumnNode)
+    assert_not_nil(column_node)
+
+    # Both subsections must live inside the column, not escape to the root.
+    headings = []
+    collect_headlines(column_node, headings)
+    captions = headings.map { |h| plain_caption(h) }
+    assert_include(captions, 'Subsection One')
+    assert_include(captions, 'Subsection Two')
+
+    # The regular section after ==[/column] must NOT be inside the column.
+    root_captions = []
+    ast_root.children.each { |c| root_captions << plain_caption(c) if c.is_a?(ReVIEW::AST::HeadlineNode) }
+    assert_include(root_captions, 'Regular Section')
+  end
+
   private
+
+  def collect_headlines(node, acc)
+    return unless node.respond_to?(:children) && node.children
+
+    node.children.each do |child|
+      acc << child if child.is_a?(ReVIEW::AST::HeadlineNode)
+      collect_headlines(child, acc)
+    end
+  end
+
+  def plain_caption(node)
+    cap = node.respond_to?(:caption_node) ? node.caption_node : nil
+    return nil unless cap
+
+    cap.children.map { |c| c.respond_to?(:content) ? c.content : '' }.join
+  end
 
   def find_node_by_type(node, node_type)
     return node if node.is_a?(node_type)

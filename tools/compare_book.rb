@@ -48,16 +48,26 @@ chapter_names = book.chapters.map(&:name)
 puts "Comparing #{chapter_names.size} chapters (DVI level)\n\n"
 
 results = chapter_names.map do |name|
-  bodies = comparator.convert_chapter_with_book_context(book_dir, name)
-  r = dvi.compare(bodies[:builder], bodies[:renderer])
+  begin
+    bodies = comparator.convert_chapter_with_book_context(book_dir, name)
+    r = dvi.compare(bodies[:builder], bodies[:renderer])
+  rescue StandardError => e
+    # A chapter that only one path can even compile is itself a divergence.
+    r = ReVIEW::Compare::DviComparator::Result.new(
+      identical: false, status: :compile_error, pages: nil,
+      diff: { error: "#{e.class}: #{e.message}" }
+    )
+  end
   mark = case r.status
          when :equal then "OK   "
          when :differ then "DIFF "
+         when :compile_error then "CERR "
          else "BUILD"
          end
-  line = format('  %-6s %-14s', mark, name)
+  line = format('  %-6s %-16s', mark, name)
   line += " page=#{r.diff[:page]} @dvi-line #{r.diff[:first_diff_line]} (-#{r.diff[:removed_count]}/+#{r.diff[:added_count]})" if r.status == :differ
-  line += " (#{r.status})" unless %i[equal differ].include?(r.status)
+  line += " #{r.diff[:error]}" if r.status == :compile_error
+  line += " (#{r.status})" unless %i[equal differ compile_error].include?(r.status)
   puts line
   [name, r]
 end

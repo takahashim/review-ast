@@ -61,9 +61,12 @@ module ReVIEW
         work = Dir.mktmpdir('review-ast-dvi-setup')
         src = File.join(work, 'src')
         FileUtils.cp_r(book_src_dir, src)
+        # Provide the review-jsbook cls/sty, but never overwrite the book's own
+        # sty (which may carry customizations and match the book's config).
         FileUtils.mkdir_p(File.join(src, 'sty'))
         Dir.glob(File.join(template_dir, 'review-jsbook', '*')).each do |f|
-          FileUtils.cp(f, File.join(src, 'sty'))
+          dest = File.join(src, 'sty', File.basename(f))
+          FileUtils.cp(f, dest) unless File.exist?(dest)
         end
 
         env = {}
