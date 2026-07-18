@@ -134,7 +134,7 @@ module ReVIEW
         nested_list_block code_block code_lang_block minicolumn_block
         wrapper_block footnote_block table_block empty_cell_table_block
         texequation_block column_block noindent_block blankline_block
-        beginchild_block comment_block
+        beginchild_block comment_block cross_ref_block
       ].freeze
 
       def random_block
@@ -246,6 +246,26 @@ module ReVIEW
       def footnote_block
         id = uid
         [phrase + "@<fn>{#{id}}。", "//footnote[#{id}][#{phrase(inlines: false)}]"]
+      end
+
+      # Define a target (heading/list/table) and reference it, exercising
+      # cross-reference resolution and number formatting.
+      def cross_ref_block
+        case @r.rand(3)
+        when 0 # heading label + @<hd>
+          label = uid
+          ["=={#{label}} " + phrase(inlines: false), '', "#{phrase}@<hd>{#{label}}を参照。"]
+        when 1 # list + @<list>
+          id = uid
+          ["//list[#{id}][#{phrase(inlines: false)}]{", 'code ' + pick(EN_WORDS), '//}', '',
+           "#{phrase}@<list>{#{id}}を参照。"]
+        else # table + @<table>
+          id = uid
+          rows = [pick(JA_WORDS) + "\t" + pick(JA_WORDS), '------------',
+                  pick(JA_WORDS) + "\t" + pick(JA_WORDS)]
+          ["//table[#{id}][#{phrase(inlines: false)}]{", *rows, '//}', '',
+           "#{phrase}@<table>{#{id}}を参照。"]
+        end
       end
 
       # A block or inline comment (invisible output).
