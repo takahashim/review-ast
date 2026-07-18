@@ -57,6 +57,8 @@ module ReVIEW
                     番号 空行 改行 桁 幅 組版 一致 検証 生成 構造].freeze
       EN_WORDS = %w[Re:VIEW LaTeX Markdown code list table image ident value
                     foo_bar baz.qux 100% a<b c>d {x} $y a&b].freeze
+      # Words free of LaTeX special characters, safe as inline-command arguments.
+      SAFE_WORDS = %w[Re:VIEW LaTeX Markdown code list table image ident value].freeze
 
       # Self-contained inline decorations that wrap arbitrary text and are
       # implemented by BOTH LATEXBuilder and the AST renderer. Excluded:
@@ -89,17 +91,21 @@ module ReVIEW
 
       def pick(arr) = arr[@r.rand(arr.size)]
       def chance(p) = @r.rand < p
+      def safe_word = chance(0.6) ? pick(JA_WORDS) : pick(SAFE_WORDS)
 
       # A random run of text, optionally sprinkled with inline commands and
       # @<br>{}. Returns a single string (one logical line of content).
       def phrase(inlines: true)
         parts = Array.new(1 + @r.rand(4)) do
-          w = chance(0.6) ? pick(JA_WORDS) : pick(EN_WORDS)
           if inlines && chance(0.4)
             cmd = pick(DECOR_INLINES)
-            "@<#{cmd}>{#{w}}"
+            # Inline arguments use only "safe" words: special characters inside
+            # fragile (underline-based) macros like @<ins>/@<del>/@<u> produce
+            # LaTeX that neither path can typeset, which is not a divergence,
+            # just lost coverage. Special-char words still appear as plain text.
+            "@<#{cmd}>{#{safe_word}}"
           else
-            w
+            chance(0.6) ? pick(JA_WORDS) : pick(EN_WORDS)
           end
         end
         s = parts.join(chance(0.5) ? '' : 'と')

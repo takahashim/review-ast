@@ -245,14 +245,19 @@ module ReVIEW
       end
 
       def visit_code_line(node)
-        # Render children (TextNode and InlineNode) to process inline elements properly
-        content = render_children(node)
-        # Expand tabs like LATEXBuilder#code_line so aligned code keeps its
-        # columns (literal tabs typeset to a different width than spaces).
-        tabwidth = config['tabwidth']
-        content = tabwidth ? detab(content, tabwidth.to_i) : detab(content)
-        # Add proper newline for LaTeX code line formatting
-        "#{content}\n"
+        # Render children (TextNode and InlineNode) to process inline elements
+        # properly. Tabs are NOT expanded here: for numbered lists LATEXBuilder
+        # detabs *after* prepending the " N: " prefix, so detab happens on the
+        # final line in the block wrappers (see detab_content).
+        "#{render_children(node)}\n"
+      end
+
+      # Expand tabs per line like LATEXBuilder#code_line/#code_line_num, applied
+      # to the final code content (after any line-number prefix) so tab stops
+      # align exactly as the builder's do.
+      def detab_content(text)
+        tw = config['tabwidth']
+        text.split("\n", -1).map { |line| tw ? detab(line, tw.to_i) : detab(line) }.join("\n")
       end
 
       def visit_table(node)
@@ -882,6 +887,7 @@ module ReVIEW
 
       # Code block type handlers
       def visit_list_block(node, content, caption)
+        content = detab_content(content)
         result = []
         result << '\\begin{reviewlistblock}'
 
@@ -912,6 +918,7 @@ module ReVIEW
       end
 
       def visit_emlist_block(_node, content, caption)
+        content = detab_content(content)
         result = []
         result << '\\begin{reviewlistblock}'
 
@@ -928,6 +935,7 @@ module ReVIEW
       end
 
       def visit_cmd_block(_node, content, caption)
+        content = detab_content(content)
         result = []
         result << '\\begin{reviewlistblock}'
 
@@ -943,6 +951,7 @@ module ReVIEW
       end
 
       def visit_source_block(_node, content, caption)
+        content = detab_content(content)
         result = []
         result << '\\begin{reviewlistblock}'
 

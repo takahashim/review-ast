@@ -299,6 +299,24 @@ class TestLatexRenderer < Test::Unit::TestCase
     assert_include(result, " 3: \n") # the trailing blank line is numbered too
   end
 
+  def test_listnum_detabs_after_line_number_prefix
+    # Regression (found by PBT/DVI): in a numbered list, tabs must be expanded
+    # *after* the " N: " prefix is prepended (like LATEXBuilder#code_line_num),
+    # so tab stops align including the prefix width. Detabbing the raw line
+    # first shifts the columns.
+    content = "= Test Chapter\n\n//listnum[lst][cap]{\ncol1\tcol2\tcol3\n//}\n"
+
+    @chapter.content = content
+    compiler = ReVIEW::AST::Compiler.new
+    ast_root = compiler.compile_to_ast(@chapter)
+    result = Renderer::LatexRenderer.new(@chapter).visit(ast_root)
+
+    # " 1: col1" is 8 columns, so the first tab stop lands at column 8 (the
+    # prefix must be counted): " 1: col1" + spaces to col 8 is already there.
+    assert_include(result, ' 1: col1        col2    col3')
+    assert_not_include(result, "\t")
+  end
+
   def test_listnum_with_only_a_blank_line_is_numbered
     # Regression (found by PBT): a //listnum whose sole content is a blank line
     # is still one numbered line (" 1: "), matching LATEXBuilder. The empty
