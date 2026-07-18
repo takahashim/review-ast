@@ -547,7 +547,12 @@ module ReVIEW
 
         # Format a single index item for mendex/upmendex
         def format_index_item(item)
-          if ascii_only?(item)
+          index_db = @ctx.index_db
+          # Match LATEXBuilder#index: a "key@display" entry is only produced when
+          # there is a real sort key -- a dictionary reading, or a MeCab-derived
+          # yomi for Japanese. Without MeCab (and no dictionary entry), Japanese
+          # terms are treated like ASCII: just the term, no "@".
+          if ascii_only?(item) || (@ctx.index_mecab.nil? && !(index_db && index_db[item]))
             format_ascii_index_item(item)
           else
             format_japanese_index_item(item)

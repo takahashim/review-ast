@@ -331,6 +331,19 @@ class TestLatexRenderer < Test::Unit::TestCase
     assert_include(result, " 1: \n")
   end
 
+  def test_idx_japanese_without_mecab_has_no_sort_key
+    # Regression (found by PBT): without MeCab (and no index dictionary), a
+    # Japanese @<idx> term must render as \index{term}, not \index{term@term}.
+    # LATEXBuilder only emits a "key@display" entry when a real sort key exists.
+    @chapter.content = "= Test Chapter\n\n本文@<idx>{空行}です。\n"
+    compiler = ReVIEW::AST::Compiler.new
+    ast_root = compiler.compile_to_ast(@chapter)
+    result = Renderer::LatexRenderer.new(@chapter).visit(ast_root)
+
+    assert_include(result, '\\index{空行}')
+    assert_not_include(result, '空行@空行')
+  end
+
   def test_visit_block_box
     # //box was previously unimplemented in the AST renderer. It renders an
     # optional \reviewboxcaption plus (inline-processed, detabbed) lines inside
