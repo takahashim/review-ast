@@ -96,6 +96,8 @@ test. They cluster into a few recurring shapes.
 | Renderer | `@<idx>{和文}` emitted `\index{語@語}` | always produced a "key@display" sort key | only emit a sort key when one exists (dictionary/MeCab); otherwise `\index{語}` |
 | Renderer | deep unnumbered headline TOC name wrong (level 5→subsection) | hardcoded `case` mapping capped at subsection | use the `HEADLINE` mapping (paragraph/subparagraph for 5/6) |
 | Compiler | nested block inside a minicolumn/quote moved to the end | content lines and nested blocks were collected separately, losing order | record each nested block's line position and interleave in source order |
+| Renderer | numbered-equation caption double-escaped (`a<b` → `a\reviewbackslash{}textless...`) | the already-escaped caption was escaped a second time | render it via `text_formatter.format_caption`, like the other captions |
+| Renderer | a paragraph after a block `//embed` merged into the embed | the block embed ended with a single `\n`, not a paragraph break | end block embeds with `\n\n` (the AST separates blocks by trailing blank lines) |
 
 ### A design note: list merging
 
