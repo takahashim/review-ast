@@ -1547,8 +1547,11 @@ module ReVIEW
           content = content.gsub('\\n', "\n")
         end
 
-        # For block embeds, add trailing newline
-        node.embed_type == :block ? content + "\n" : content
+        # For block embeds, end with a blank line so a following paragraph is a
+        # separate paragraph. (The AST renderer separates blocks by trailing
+        # blank lines; LATEXBuilder relies on the *next* element's leading blank,
+        # so a single "\n" here would merge the next paragraph into the embed.)
+        node.embed_type == :block ? content + "\n\n" : content
       end
     end
   end

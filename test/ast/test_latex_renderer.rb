@@ -360,6 +360,18 @@ class TestLatexRenderer < Test::Unit::TestCase
     assert(a < code && code < b, "order must be A < code < B, got #{[a, code, b].inspect}")
   end
 
+  def test_block_embed_separates_following_paragraph
+    # Regression (found by PBT/DVI): a block //embed must end with a blank line
+    # so a following paragraph is a separate paragraph. A single "\n" merged the
+    # paragraph into the embed (a visible layout change).
+    @chapter.content = "= Test Chapter\n\n//embed[latex]{\n\\textbf{x}\n//}\n\npara after\n"
+    compiler = ReVIEW::AST::Compiler.new
+    ast_root = compiler.compile_to_ast(@chapter)
+    result = Renderer::LatexRenderer.new(@chapter).visit(ast_root)
+
+    assert_match(/\\textbf\{x\}\n\n.*para after/m, result)
+  end
+
   def test_equation_caption_not_double_escaped
     # Regression (found by PBT): the numbered-equation caption was escaped twice
     # (once by rendering the caption node, once more by the block), turning
