@@ -682,6 +682,21 @@ module ReVIEW
         "\n\\begin{quote}\n#{content.chomp}\\end{quote}\n\n"
       end
 
+      # Visit box block. Like LATEXBuilder#box: an optional \reviewboxcaption
+      # followed by the (inline-processed, detabbed) lines inside reviewbox.
+      # Each child is a ParagraphNode holding one source line (empty lines kept).
+      def visit_block_box(node)
+        result = []
+        if node.caption_node
+          caption = render_children(node.caption_node)
+          result << "\\reviewboxcaption{#{caption}}" unless caption.empty?
+        end
+        result << '\\begin{reviewbox}'
+        node.children.each { |line_node| result << detab_content(render_children(line_node)) }
+        result << '\\end{reviewbox}'
+        "\n" + result.join("\n") + "\n\n"
+      end
+
       # Visit printendnotes block (print collected endnotes)
       def visit_block_printendnotes(_node)
         "\n\\theendnotes\n\n"

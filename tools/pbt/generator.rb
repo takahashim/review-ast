@@ -71,6 +71,9 @@ module ReVIEW
 
       MINICOLUMNS = %w[note memo tip info warning important caution notice].freeze
       CODE_CMDS = %w[list emlist listnum cmd source].freeze
+      # Valid LaTeX math fragments (always typeset) for @<m>/// texequation.
+      MATH = ['x^2 + y^2', 'E = mc^2', '\\alpha + \\beta', '\\sum_{i=1}^{n} i',
+              'a \\times b', '\\frac{1}{2}'].freeze
 
       def initialize(seed)
         @r = Random.new(seed)
@@ -93,17 +96,26 @@ module ReVIEW
       def chance(p) = @r.rand < p
       def safe_word = chance(0.6) ? pick(JA_WORDS) : pick(SAFE_WORDS)
 
+      # One inline command occurrence. Inline arguments use only "safe" words:
+      # special characters inside fragile (underline-based) macros like
+      # @<ins>/@<del>/@<u> produce LaTeX that neither path can typeset, which is
+      # not a divergence -- just lost coverage. Special-char words still appear
+      # as plain text elsewhere.
+      def inline_fragment
+        case @r.rand(10)
+        when 0 then "@<m>{#{pick(MATH)}}"                    # inline math
+        when 1 then "@<ruby>{#{pick(JA_WORDS)},#{safe_word}}" # ruby
+        when 2 then "@<idx>{#{safe_word}}"                    # index (invisible)
+        else "@<#{pick(DECOR_INLINES)}>{#{safe_word}}"
+        end
+      end
+
       # A random run of text, optionally sprinkled with inline commands and
       # @<br>{}. Returns a single string (one logical line of content).
       def phrase(inlines: true)
         parts = Array.new(1 + @r.rand(4)) do
           if inlines && chance(0.4)
-            cmd = pick(DECOR_INLINES)
-            # Inline arguments use only "safe" words: special characters inside
-            # fragile (underline-based) macros like @<ins>/@<del>/@<u> produce
-            # LaTeX that neither path can typeset, which is not a divergence,
-            # just lost coverage. Special-char words still appear as plain text.
-            "@<#{cmd}>{#{safe_word}}"
+            inline_fragment
           else
             chance(0.6) ? pick(JA_WORDS) : pick(EN_WORDS)
           end
@@ -113,18 +125,19 @@ module ReVIEW
         s
       end
 
+      BLOCK_GENERATORS = %i[
+        paragraph_block headline_block headline_option_block list_like_block
+        nested_list_block code_block code_lang_block minicolumn_block
+        wrapper_block footnote_block table_block empty_cell_table_block
+        texequation_block column_block noindent_block blankline_block
+        beginchild_block
+      ].freeze
+
       def random_block
-        case @r.rand(9)
-        when 0 then paragraph_block
-        when 1 then headline_block
-        when 2 then list_like_block
-        when 3 then code_block
-        when 4 then minicolumn_block
-        when 5 then quote_block
-        when 6 then footnote_block
-        when 7 then table_block
-        else paragraph_block
-        end
+        # Weight paragraphs a bit so documents read like prose with structure.
+        return paragraph_block if chance(0.25)
+
+        send(pick(BLOCK_GENERATORS))
       end
 
       # A paragraph that may span multiple source lines and contain @<br>{}.
@@ -142,6 +155,13 @@ module ReVIEW
         ['=' * level + ' ' + phrase(inlines: false)]
       end
 
+      # Headline with a nonum/notoc/nodisp option.
+      def headline_option_block
+        level = 2 + @r.rand(4)
+        opt = pick(%w[nonum notoc nodisp])
+        ["#{'=' * level}[#{opt}] " + phrase(inlines: false)]
+      end
+
       def list_like_block
         case @r.rand(3)
         when 0 # unordered
@@ -149,7 +169,16 @@ module ReVIEW
         when 1 # ordered
           Array.new(2 + @r.rand(3)).each_with_index.map { |_, i| " #{i + 1}. " + phrase }
         else # definition list
-          Array.new(1 + @r.rand(2)).flat_map { [' : ' + phrase, '    ' + phrase] }
+          Array.new(1 + @r.rand(2)).flat_map { [' : ' + phrase, "\t" + phrase] }
+        end
+      end
+
+      # Unordered/ordered list with a nested sublist (** / continuation).
+      def nested_list_block
+        if chance(0.5)
+          [' * ' + phrase, ' ** ' + phrase, ' ** ' + phrase, ' * ' + phrase]
+        else
+          [' 1. ' + phrase, ' 1. ' + phrase, ' 2. ' + phrase] # nested ordered via depth
         end
       end
 
@@ -172,14 +201,28 @@ module ReVIEW
         [head, *body, '//}']
       end
 
+      # //list or //emlist with an explicit language argument. //list takes an
+      # id ([id][caption][lang]); //emlist does not ([caption][lang]).
+      def code_lang_block
+        lang = pick(%w[ruby c java text])
+        body = ['code ' + pick(EN_WORDS), '//}']
+        if chance(0.5)
+          ["//list[#{uid}][#{phrase(inlines: false)}][#{lang}]{", *body]
+        else
+          ["//emlist[#{phrase(inlines: false)}][#{lang}]{", *body]
+        end
+      end
+
       def minicolumn_block
         kind = pick(MINICOLUMNS)
         cap = chance(0.7) ? "[#{phrase(inlines: false)}#{chance(0.3) ? '@<br>{}' : ''}]" : ''
         ["//#{kind}#{cap}{", phrase, '', phrase, '//}']
       end
 
-      def quote_block
-        ['//quote{', phrase, '', phrase, '//}']
+      # quote / centering / flushright / box / lead block wrappers.
+      def wrapper_block
+        kind = pick(%w[quote centering flushright lead box])
+        ["//#{kind}{", phrase, '', phrase, '//}']
       end
 
       # A footnote reference together with its definition (self-contained).
@@ -194,6 +237,45 @@ module ReVIEW
           Array.new(2 + @r.rand(2)) { pick(JA_WORDS) }.join("\t")
         end
         ["//table[#{id}][#{phrase(inlines: false)}]{", rows.first, '------------', *rows[1..], '//}']
+      end
+
+      # Table exercising empty cells ('.') and ragged rows.
+      def empty_cell_table_block
+        rows = [
+          %w[A B C].join("\t"),
+          '------------',
+          ['.', pick(JA_WORDS), '.'].join("\t"),
+          [pick(JA_WORDS), '.', pick(JA_WORDS)].join("\t")
+        ]
+        ["//table[#{uid}][#{phrase(inlines: false)}]{", *rows, '//}']
+      end
+
+      # Display math. Content is drawn from a fixed pool so it always typesets.
+      def texequation_block
+        ["//texequation{", pick(MATH), '//}']
+      end
+
+      # A column (==[column] .. ==[/column]) possibly with a subsection inside.
+      def column_block
+        body = [phrase, '']
+        body += ['==== ' + phrase(inlines: false), '', phrase, ''] if chance(0.5)
+        ['==[column] ' + phrase(inlines: false), '', *body, '==[/column]']
+      end
+
+      # A paragraph forced with //noindent.
+      def noindent_block
+        ['//noindent', phrase]
+      end
+
+      def blankline_block
+        ['//blankline']
+      end
+
+      # A list item interrupted by //beginchild .. //endchild and continued.
+      def beginchild_block
+        [' 1. ' + phrase, ' 2. ' + phrase, '',
+         '//beginchild', '', ' * ' + phrase, ' * ' + phrase, '', '//endchild', '',
+         ' 3. ' + phrase]
       end
     end
   end

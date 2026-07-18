@@ -64,12 +64,12 @@ end
 def check(doc, comparator:, canonical:, dvi:)
   begin
     builder_tex = comparator.convert_with_builder(doc.to_re)
-  rescue StandardError => e
+  rescue StandardError, ScriptError => e # ScriptError catches NotImplementedError
     be = e
   end
   begin
     renderer_tex = comparator.convert_with_renderer(doc.to_re)
-  rescue StandardError => e
+  rescue StandardError, ScriptError => e
     re = e
   end
 

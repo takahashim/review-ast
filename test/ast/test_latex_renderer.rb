@@ -331,6 +331,22 @@ class TestLatexRenderer < Test::Unit::TestCase
     assert_include(result, " 1: \n")
   end
 
+  def test_visit_block_box
+    # //box was previously unimplemented in the AST renderer. It renders an
+    # optional \reviewboxcaption plus (inline-processed, detabbed) lines inside
+    # a reviewbox environment, matching LATEXBuilder#box.
+    @chapter.content = "= Test Chapter\n\n//box[cap]{\n@<b>{x}\tcol\n//}\n"
+    compiler = ReVIEW::AST::Compiler.new
+    ast_root = compiler.compile_to_ast(@chapter)
+    result = Renderer::LatexRenderer.new(@chapter).visit(ast_root)
+
+    assert_include(result, '\\reviewboxcaption{cap}')
+    assert_include(result, '\\begin{reviewbox}')
+    assert_include(result, '\\end{reviewbox}')
+    assert_include(result, '\\reviewbold{x}') # inline processed
+    assert_not_include(result, "\t") # detabbed
+  end
+
   def test_headline_braces_after_space_are_caption_not_label
     # Regression (found by PBT): "===== {x} caption" (a space before the brace)
     # is caption text, not a heading label, matching Compiler. Only "====={x}"
