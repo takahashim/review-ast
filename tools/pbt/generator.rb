@@ -22,7 +22,12 @@ module ReVIEW
       def to_re
         # A leading level-1 headline so the chapter has a title; blocks are
         # separated by blank lines (the paragraph/block separator in Re:VIEW).
-        (["= 生成された章", ''] + @blocks.flat_map { |b| b + [''] }).join("\n") + "\n"
+        blocks = @blocks
+        # Endnotes require exactly one //printendnotes at the document level.
+        if blocks.any? { |b| b.any? { |l| l.include?('@<endnote>') } }
+          blocks += [['//printendnotes']]
+        end
+        (["= 生成された章", ''] + blocks.flat_map { |b| b + [''] }).join("\n") + "\n"
       end
 
       # Shrink candidates: documents that are strictly "smaller" than this one.
@@ -106,12 +111,14 @@ module ReVIEW
       # not a divergence -- just lost coverage. Special-char words still appear
       # as plain text elsewhere.
       def inline_fragment
-        case @r.rand(12)
+        case @r.rand(14)
         when 0 then "@<m>{#{pick(MATH_INLINE)}}"             # inline math (brace-free)
         when 1 then "@<ruby>{#{pick(JA_WORDS)},#{safe_word}}" # ruby
         when 2 then "@<idx>{#{safe_word}}"                    # index (invisible)
         when 3 then "@<kw>{#{safe_word},#{safe_word}}"        # keyword with reading
         when 4 then "@<hidx>{#{safe_word}}"                   # hidden index
+        when 5 then "@<href>{https://example.com/#{safe_word}, #{safe_word}}" # link with text
+        when 6 then '@<href>{https://example.com/}'           # bare link
         else "@<#{pick(DECOR_INLINES)}>{#{safe_word}}"
         end
       end
@@ -137,7 +144,7 @@ module ReVIEW
         wrapper_block footnote_block table_block empty_cell_table_block
         texequation_block column_block noindent_block blankline_block
         beginchild_block comment_block cross_ref_block image_block indepimage_block
-        numbered_equation_block embed_block
+        numbered_equation_block embed_block endnote_block tsize_table_block imgtable_block
       ].freeze
 
       def random_block
@@ -269,6 +276,28 @@ module ReVIEW
 
       def indepimage_block
         ["//indepimage[#{uid}][#{phrase(inlines: false)}]{", '//}']
+      end
+
+      # An endnote reference plus its definition. A single //printendnotes is
+      # appended by Document#to_re when any endnote is present.
+      def endnote_block
+        id = uid
+        [phrase + "@<endnote>{#{id}}。", "//endnote[#{id}][#{phrase(inlines: false)}]"]
+      end
+
+      # A //table preceded by a //tsize column specification.
+      def tsize_table_block
+        id = uid
+        spec = pick(['|latex||p{20mm}|p{20mm}|', '10,20', '|latex||l|c|r|'])
+        cols = spec.include?('r') ? 3 : 2
+        rows = [Array.new(cols) { pick(JA_WORDS) }.join("\t"), '------------',
+                Array.new(cols) { pick(JA_WORDS) }.join("\t")]
+        ["//tsize[#{spec}]", "//table[#{id}][#{phrase(inlines: false)}]{", *rows, '//}']
+      end
+
+      # An //imgtable (rendered as a dummy image when the file is missing).
+      def imgtable_block
+        ["//imgtable[#{uid}][#{phrase(inlines: false)}]{", '//}']
       end
 
       # Define a target (heading/list/table) and reference it, exercising

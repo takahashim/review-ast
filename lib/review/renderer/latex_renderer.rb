@@ -1394,13 +1394,22 @@ module ReVIEW
       # Render document children with proper separation
       def render_document_children(node)
         results = []
-        node.children.each_with_index do |child, _index|
+        node.children.each_with_index do |child, index|
           result = visit(child)
           next if result.nil? || result.empty?
 
           # Add proper separation after raw embeds
           if child.is_a?(ReVIEW::AST::EmbedNode) && child.embed_type == :raw && !result.end_with?("\n")
             result += "\n"
+          end
+
+          # A block embed is normally separated from the next paragraph by a
+          # blank line, but a following //noindent paragraph takes no leading
+          # blank (LATEXBuilder merges the embed content into it), so drop the
+          # trailing blank in that case.
+          if child.is_a?(ReVIEW::AST::EmbedNode) && child.embed_type == :block
+            nxt = node.children[index + 1]
+            result = result.sub(/\n\n\z/, "\n") if nxt.is_a?(ReVIEW::AST::ParagraphNode) && nxt.attribute?(:noindent)
           end
 
           results << result

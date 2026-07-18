@@ -360,6 +360,19 @@ class TestLatexRenderer < Test::Unit::TestCase
     assert(a < code && code < b, "order must be A < code < B, got #{[a, code, b].inspect}")
   end
 
+  def test_block_embed_then_noindent_no_blank
+    # Regression (found by PBT/DVI): a block //embed followed by a //noindent
+    # paragraph must NOT have a blank line between them -- LATEXBuilder merges
+    # the embed content into that paragraph (noindent takes no leading blank).
+    @chapter.content = "= Test Chapter\n\n//embed[latex]{\n\\textbf{x}\n//}\n\n//noindent\npara\n"
+    compiler = ReVIEW::AST::Compiler.new
+    ast_root = compiler.compile_to_ast(@chapter)
+    result = Renderer::LatexRenderer.new(@chapter).visit(ast_root)
+
+    assert_include(result, "\\textbf{x}\n\\noindent")
+    assert_not_include(result, "\\textbf{x}\n\n\\noindent")
+  end
+
   def test_block_embed_separates_following_paragraph
     # Regression (found by PBT/DVI): a block //embed must end with a blank line
     # so a following paragraph is a separate paragraph. A single "\n" merged the
