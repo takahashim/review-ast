@@ -62,6 +62,9 @@ divergences the text comparators are blind to. See
 [doc/differential-testing.md](doc/differential-testing.md) for the methodology,
 the localization workflow, and a catalog of divergence classes found so far, and
 [tools/README.md](tools/README.md) for the sweep tool.
+[doc/spec-questions.md](doc/spec-questions.md) tracks builder behaviours we match
+that are undocumented or look questionable, so they can be triaged rather than
+mistaken for AST bugs.
 
 ## How the upstream hooks work
 

@@ -10,6 +10,11 @@ This document describes how we answer that with **differential testing** — usi
 the legacy builder as an oracle — at two levels of strictness, and records the
 methodology and the classes of divergence it has found.
 
+Matching the builder means inheriting its behaviour whether or not that behaviour
+is intended. Undocumented/suspicious behaviours we match anyway are tracked
+separately in [spec-questions.md](spec-questions.md) so they can be triaged later
+rather than silently treated as correct.
+
 ## Two oracles, two strictness levels
 
 | Level | What it compares | Speed | Sees whitespace? |
