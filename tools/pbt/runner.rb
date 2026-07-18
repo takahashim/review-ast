@@ -79,8 +79,11 @@ def check(doc, comparator:, canonical:, dvi:)
 
   if dvi
     r = dvi.compare(builder_tex, renderer_tex)
-    return [:equal, nil] if r.identical?
-    return [:differ, r.diff]
+    # Propagate the DVI status faithfully. :build_error_both means the (identical
+    # or not) LaTeX cannot be typeset standalone under the harness preamble --
+    # that is a harness/generator limitation, not a builder-vs-renderer bug.
+    return [:equal, nil] if r.status == :equal
+    return [r.status, r.diff]
   else
     r = canonical.compare(builder_tex, renderer_tex)
     return [:equal, nil] if r.equal?
@@ -88,10 +91,15 @@ def check(doc, comparator:, canonical:, dvi:)
   end
 end
 
-# A divergence is anything other than "both agree" or "both reject" (the latter
-# just means the generated input was invalid for both).
+# A divergence is a genuine builder-vs-renderer disagreement: different output,
+# or only one path able to compile/typeset. "both fail" (compile or typeset)
+# just means the input was invalid or un-typesettable for both -- not a bug.
 def divergent?(status)
-  %i[differ builder_error renderer_error].include?(status)
+  %i[differ builder_error renderer_error build_error_a build_error_b].include?(status)
+end
+
+def both_failed?(status)
+  %i[both_error build_error_both].include?(status)
 end
 
 def shrink(doc, comparator:, canonical:, dvi:)
@@ -109,6 +117,7 @@ def shrink(doc, comparator:, canonical:, dvi:)
 end
 
 failures = []
+both_failed = 0
 range = (opts[:start]...(opts[:start] + opts[:seeds]))
 range.each do |seed|
   doc = ReVIEW::PBT::Generator.new(seed).document(n_blocks: opts[:blocks])
@@ -116,12 +125,16 @@ range.each do |seed|
   if divergent?(status)
     print 'X'
     failures << [seed, status, detail, doc]
+  elsif both_failed?(status)
+    print '!' # neither path could typeset/compile this input (not a divergence)
+    both_failed += 1
   else
     print '.'
   end
   $stdout.flush
 end
 puts "\n"
+puts "#{both_failed} input(s) neither path could typeset/compile (skipped)." if both_failed.positive?
 
 if failures.empty?
   puts "No divergence in seeds #{range.first}..#{range.last} (mode=#{opts[:mode]})."
