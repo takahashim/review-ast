@@ -562,12 +562,6 @@ module ReVIEW
         apply_noindent_if_needed(node, result)
       end
 
-      # Visit source block (code block without caption)
-      def visit_block_source(node)
-        content = render_children(node)
-        "\\begin{reviewcmd}\n#{content}\\end{reviewcmd}\n"
-      end
-
       # Visit lead block (lead paragraph)
       def visit_block_lead(node)
         content = render_children(node)
