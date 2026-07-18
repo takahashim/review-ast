@@ -61,8 +61,11 @@ module ReVIEW
 
           while idx < children.size
             child = children[idx]
+            # `after_child_block` is a one-shot flag consumed on the *next*
+            # iteration (a loop-carried read RuboCop's flow analysis misses),
+            # so clearing it here is not a useless assignment.
             resuming_list = after_child_block
-            after_child_block = false
+            after_child_block = false # rubocop:disable Lint/UselessAssignment
 
             if beginchild_block?(child)
               unless last_list_context

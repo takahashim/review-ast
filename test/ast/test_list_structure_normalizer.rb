@@ -154,6 +154,18 @@ class ListStructureNormalizerTest < Test::Unit::TestCase
     end
   end
 
+  def test_beginchild_continuation_then_independent_list_not_merged
+    # Regression: after a //beginchild continuation folds a list back in, the
+    # "resuming" state must be cleared so a *subsequent* independent list of the
+    # same type (blank-separated, no beginchild) stays separate. Guards against
+    # the one-shot flag being left set.
+    src = " 1. a\n 2. b\n\n//beginchild\n\n * n\n\n//endchild\n\n 3. c\n\n 1. d\n 2. e\n"
+    ast = compile_ast(src)
+    ols = ast.children.select { |c| c.is_a?(ReVIEW::AST::ListNode) && c.list_type == :ol }
+    assert_equal 2, ols.size, 'continuation list and a later independent list must not all merge'
+    assert_equal [3, 2], ols.map { |o| o.children.size }
+  end
+
   def test_consecutive_ordered_lists_not_merged
     # Regression (found by PBT): two blank-separated ordered lists are
     # independent, matching LATEXBuilder, which renders them as separate
