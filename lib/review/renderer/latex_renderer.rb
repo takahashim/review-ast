@@ -967,22 +967,25 @@ module ReVIEW
         content = node.content
 
         if node.id? && node.caption?
-          # Equation with ID and caption - use reviewequationblock like traditional compiler
-          equation_num = get_equation_number(node.id)
+          # Equation with ID and caption - use reviewequationblock like traditional compiler.
+          # caption_content is already inline-processed/escaped; format_caption
+          # (i18n-aware, like the list/image/table captions) must not escape it
+          # again -- doing so double-escaped LaTeX metacharacters.
+          item_num = @chapter.equation_index.number(node.id)
           caption_content = render_children(node.caption_node)
           result = []
           result << '\\begin{reviewequationblock}'
-          result << "\\reviewequationcaption{#{escape("式#{equation_num}: #{caption_content}")}}"
+          result << "\\reviewequationcaption{#{text_formatter.format_caption('equation', get_chap, item_num, caption_content)}}"
           result << '\\begin{equation*}'
           result << content
           result << '\\end{equation*}'
           result << '\\end{reviewequationblock}'
         elsif node.id?
           # Equation with ID only - still use reviewequationblock for consistency
-          equation_num = get_equation_number(node.id)
+          item_num = @chapter.equation_index.number(node.id)
           result = []
           result << '\\begin{reviewequationblock}'
-          result << "\\reviewequationcaption{#{escape("式#{equation_num}")}}"
+          result << "\\reviewequationcaption{#{text_formatter.format_caption('equation', get_chap, item_num, nil)}}"
           result << '\\begin{equation*}'
           result << content
           result << '\\end{equation*}'

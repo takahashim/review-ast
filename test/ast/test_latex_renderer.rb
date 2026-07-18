@@ -360,6 +360,20 @@ class TestLatexRenderer < Test::Unit::TestCase
     assert(a < code && code < b, "order must be A < code < B, got #{[a, code, b].inspect}")
   end
 
+  def test_equation_caption_not_double_escaped
+    # Regression (found by PBT): the numbered-equation caption was escaped twice
+    # (once by rendering the caption node, once more by the block), turning
+    # "a<b" into "a\reviewbackslash{}textless...". Use the already-escaped
+    # caption via format_caption, like the list/image/table captions.
+    @chapter.content = "= Test Chapter\n\n//texequation[eq1][a<b]{\nx=y\n//}\n"
+    compiler = ReVIEW::AST::Compiler.new
+    ast_root = compiler.compile_to_ast(@chapter)
+    result = Renderer::LatexRenderer.new(@chapter).visit(ast_root)
+
+    assert_include(result, 'a\\textless{}b')
+    assert_not_include(result, '\\reviewbackslash{}textless')
+  end
+
   def test_visit_block_box
     # //box was previously unimplemented in the AST renderer. It renders an
     # optional \reviewboxcaption plus (inline-processed, detabbed) lines inside

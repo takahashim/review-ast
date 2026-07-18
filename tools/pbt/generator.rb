@@ -106,10 +106,12 @@ module ReVIEW
       # not a divergence -- just lost coverage. Special-char words still appear
       # as plain text elsewhere.
       def inline_fragment
-        case @r.rand(10)
+        case @r.rand(12)
         when 0 then "@<m>{#{pick(MATH_INLINE)}}"             # inline math (brace-free)
         when 1 then "@<ruby>{#{pick(JA_WORDS)},#{safe_word}}" # ruby
         when 2 then "@<idx>{#{safe_word}}"                    # index (invisible)
+        when 3 then "@<kw>{#{safe_word},#{safe_word}}"        # keyword with reading
+        when 4 then "@<hidx>{#{safe_word}}"                   # hidden index
         else "@<#{pick(DECOR_INLINES)}>{#{safe_word}}"
         end
       end
@@ -135,6 +137,7 @@ module ReVIEW
         wrapper_block footnote_block table_block empty_cell_table_block
         texequation_block column_block noindent_block blankline_block
         beginchild_block comment_block cross_ref_block image_block indepimage_block
+        numbered_equation_block embed_block
       ].freeze
 
       def random_block
@@ -177,10 +180,10 @@ module ReVIEW
         end
       end
 
-      # Unordered/ordered list with a nested sublist (** / continuation).
+      # Unordered/ordered list with nested sublists (**/*** depth).
       def nested_list_block
         if chance(0.5)
-          [' * ' + phrase, ' ** ' + phrase, ' ** ' + phrase, ' * ' + phrase]
+          [' * ' + phrase, ' ** ' + phrase, ' *** ' + phrase, ' ** ' + phrase, ' * ' + phrase]
         else
           [' 1. ' + phrase, ' 1. ' + phrase, ' 2. ' + phrase] # nested ordered via depth
         end
@@ -319,6 +322,18 @@ module ReVIEW
       # Display math. Content is drawn from a fixed pool so it always typesets.
       def texequation_block
         ["//texequation{", pick(MATH), '//}']
+      end
+
+      # A numbered equation referenced via @<eq>.
+      def numbered_equation_block
+        id = uid
+        ["//texequation[#{id}][#{phrase(inlines: false)}]{", pick(MATH), '//}', '',
+         "#{phrase}@<eq>{#{id}}参照。"]
+      end
+
+      # Embedded raw LaTeX (passthrough). Fixed safe fragments so it typesets.
+      def embed_block
+        ['//embed[latex]{', pick(['\\textbf{bold}', '\\emph{em}', '\\LaTeX{}', 'plain']), '//}']
       end
 
       # A column (==[column] .. ==[/column]) possibly with a subsection inside.
