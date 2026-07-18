@@ -22,6 +22,10 @@ module ReVIEW
           @preserve_whitespace = preserve_whitespace
           @lines = []
           @nested_blocks = []
+          # For each nested block, the index into @lines at which it appeared,
+          # so structured blocks can interleave content and nested blocks in
+          # source order rather than emitting all lines then all blocks.
+          @nested_positions = []
           @block_depth = 1
         end
 
@@ -36,7 +40,7 @@ module ReVIEW
           end
 
           validate_block_closed!
-          [@lines, @nested_blocks]
+          [@lines, @nested_blocks, @nested_positions]
         end
 
         private
@@ -86,6 +90,7 @@ module ReVIEW
 
         def handle_nested_block(line)
           nested_block_data = @compiler.read_block_command(@f, line)
+          @nested_positions << @lines.size
           @nested_blocks << nested_block_data
         rescue CompileError => e
           raise CompileError, "#{e.message} (in nested block within //#{@parent_command})"

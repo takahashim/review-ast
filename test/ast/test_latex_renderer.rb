@@ -344,6 +344,22 @@ class TestLatexRenderer < Test::Unit::TestCase
     assert_not_include(result, '空行@空行')
   end
 
+  def test_nested_block_keeps_source_order_in_minicolumn
+    # Regression (found by PBT): a nested block (e.g. //emlist) inside a
+    # minicolumn must stay in source order relative to surrounding paragraphs,
+    # not be moved to the end. LATEXBuilder preserves the order.
+    @chapter.content = "= Test Chapter\n\n//note{\npara A\n\n//emlist{\ncode X\n//}\n\npara B\n//}\n"
+    compiler = ReVIEW::AST::Compiler.new
+    ast_root = compiler.compile_to_ast(@chapter)
+    result = Renderer::LatexRenderer.new(@chapter).visit(ast_root)
+
+    a = result.index('para A')
+    code = result.index('code X')
+    b = result.index('para B')
+    assert(a && code && b, 'all three elements present')
+    assert(a < code && code < b, "order must be A < code < B, got #{[a, code, b].inspect}")
+  end
+
   def test_visit_block_box
     # //box was previously unimplemented in the AST renderer. It renders an
     # optional \reviewboxcaption plus (inline-processed, detabbed) lines inside

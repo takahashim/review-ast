@@ -295,10 +295,11 @@ module ReVIEW
 
         # Read block content (with nesting support)
         if block_open?(line)
-          lines, nested_blocks = read_block_with_nesting(f, name, block_start_location)
+          lines, nested_blocks, nested_positions = read_block_with_nesting(f, name, block_start_location)
         else
           lines = []
           nested_blocks = []
+          nested_positions = []
         end
 
         BlockData.new(
@@ -306,6 +307,7 @@ module ReVIEW
           args: args,
           lines: lines,
           nested_blocks: nested_blocks,
+          nested_positions: nested_positions,
           location: block_start_location
         )
       rescue StandardError => e

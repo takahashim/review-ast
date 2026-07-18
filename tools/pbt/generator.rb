@@ -134,7 +134,7 @@ module ReVIEW
         nested_list_block code_block code_lang_block minicolumn_block
         wrapper_block footnote_block table_block empty_cell_table_block
         texequation_block column_block noindent_block blankline_block
-        beginchild_block
+        beginchild_block comment_block
       ].freeze
 
       def random_block
@@ -220,7 +220,20 @@ module ReVIEW
       def minicolumn_block
         kind = pick(MINICOLUMNS)
         cap = chance(0.7) ? "[#{phrase(inlines: false)}#{chance(0.3) ? '@<br>{}' : ''}]" : ''
-        ["//#{kind}#{cap}{", phrase, '', phrase, '//}']
+        body = [phrase, '']
+        # sometimes nest a list or code block inside the minicolumn
+        body += nested_inner if chance(0.4)
+        body << phrase
+        ["//#{kind}#{cap}{", *body, '//}']
+      end
+
+      # A small nested block (list or code) for embedding inside wrappers.
+      def nested_inner
+        if chance(0.5)
+          [' * ' + phrase, ' * ' + phrase, '']
+        else
+          ['//emlist{', 'code ' + pick(EN_WORDS), '//}', '']
+        end
       end
 
       # quote / centering / flushright / box / lead block wrappers.
@@ -233,6 +246,15 @@ module ReVIEW
       def footnote_block
         id = uid
         [phrase + "@<fn>{#{id}}。", "//footnote[#{id}][#{phrase(inlines: false)}]"]
+      end
+
+      # A block or inline comment (invisible output).
+      def comment_block
+        if chance(0.5)
+          ['//comment{', phrase(inlines: false), '//}']
+        else
+          ['#@# ' + phrase(inlines: false), phrase]
+        end
       end
 
       def table_block

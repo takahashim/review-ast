@@ -103,13 +103,30 @@ module ReVIEW
       #
       # @param parent_node [AST::Node] Parent node to add content to
       def process_structured_content_with_blocks(parent_node)
-        # Process regular lines
-        if @block_data.content?
-          @compiler.process_structured_content(parent_node, @block_data.lines)
+        positions = @block_data.nested_positions || []
+
+        # Without recorded positions, fall back to lines-then-blocks.
+        if positions.empty?
+          @compiler.process_structured_content(parent_node, @block_data.lines) if @block_data.content?
+          return process_nested_blocks(parent_node)
         end
 
-        # Process nested blocks
-        process_nested_blocks(parent_node)
+        # Interleave content lines and nested blocks in source order: each nested
+        # block was recorded at the line index where it appeared.
+        lines = @block_data.lines || []
+        blocks = @block_data.nested_blocks || []
+        @compiler.with_temporary_ast_node!(parent_node) do
+          cursor = 0
+          blocks.each_with_index do |block, i|
+            pos = positions[i]
+            segment = lines[cursor...pos]
+            @compiler.process_structured_content(parent_node, segment) if segment && !segment.empty?
+            @compiler.block_processor.process_block_command(block)
+            cursor = pos
+          end
+          tail = lines[cursor..]
+          @compiler.process_structured_content(parent_node, tail) if tail && !tail.empty?
+        end
       end
 
       # Safely get block data arguments
