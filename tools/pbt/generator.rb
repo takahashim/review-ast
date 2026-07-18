@@ -134,7 +134,7 @@ module ReVIEW
         nested_list_block code_block code_lang_block minicolumn_block
         wrapper_block footnote_block table_block empty_cell_table_block
         texequation_block column_block noindent_block blankline_block
-        beginchild_block comment_block cross_ref_block
+        beginchild_block comment_block cross_ref_block image_block indepimage_block
       ].freeze
 
       def random_block
@@ -246,6 +246,26 @@ module ReVIEW
       def footnote_block
         id = uid
         [phrase + "@<fn>{#{id}}。", "//footnote[#{id}][#{phrase(inlines: false)}]"]
+      end
+
+      # An //image (with optional metric) sometimes referenced via @<img>.
+      # The image file need not exist: Re:VIEW emits a reviewdummyimage
+      # placeholder, which typesets without a file.
+      def image_block
+        id = uid
+        cap = phrase(inlines: false)
+        head = if chance(0.4)
+                 "//image[#{id}][#{cap}][scale=#{pick(%w[0.5 0.8 1.2])}]{"
+               else
+                 "//image[#{id}][#{cap}]{"
+               end
+        lines = [head, '//}']
+        lines += ['', "#{phrase}@<img>{#{id}}参照。"] if chance(0.6)
+        lines
+      end
+
+      def indepimage_block
+        ["//indepimage[#{uid}][#{phrase(inlines: false)}]{", '//}']
       end
 
       # Define a target (heading/list/table) and reference it, exercising
