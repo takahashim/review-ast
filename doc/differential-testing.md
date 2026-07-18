@@ -83,6 +83,9 @@ test. They cluster into a few recurring shapes.
 | Forced break | `@<br>{}` at end of a source line adds ~0.95pt vertical space | `@<br>` emits `\\\n`; the preserved source newline makes it `\\\n\n` (a `\par`) | collapse a blank line right after a forced break in `visit_paragraph` |
 | Compiler (not render) | `==[column]` containing `====` subsections fatally errors on `==[/column]` | headlines reset the current node to root, losing column context; close couldn't find the column | keep the current node inside the column across subsections; walk ancestors to close |
 | Compiler (not render) | two blank-separated `ul`/`ol` merged into one list (numbers ran 1..6) | the list-structure normalizer merged *all* adjacent same-type lists | merge only `dl` across a blank line and only fold `ul`/`ol` continuations across `//beginchild` — matching LATEXBuilder |
+| Numbering | trailing / lone blank line in `//listnum` not numbered | `add_line_numbers` skipped the last empty line and `split("\n")` dropped trailing empties | `split("\n", -1)[0...-1]` — keep genuine blank lines, drop only the artifact |
+| Verbatim | tab-aligned code in `//listnum` mis-aligned by the `" N: "` width | detabbed the raw line before prepending the number | detab the final line *after* numbering (`detab_content` in the block wrappers) |
+| Parser | `"===== {x} caption"` treated `{x}` as a heading label | the parser stripped the leading space before checking for `{label}` | don't strip: a label only counts immediately after `=`/`[tag]` (no space), matching Compiler |
 
 ### A design note: list merging
 
@@ -116,6 +119,26 @@ change too, so the two stay in sync.
 - **Real books exercise constructs samples don't.** The column/subsection and
   `@<br>`-at-line-end bugs only surfaced on `FirstStepReVIEW-v3`; the bundled
   samples were already clean. Sweeping additional real books is high-value.
+
+## Property-based testing
+
+`tools/pbt/` generates random self-contained documents and runs the same two
+oracles over them, shrinking any counterexample to a minimal `.re` (see
+`tools/README.md`). The workflow is loop-until-dry: fix a finding, fold it into a
+regression test, re-run. Structural bugs surface in the fast `canonical` mode;
+whitespace-only bugs (e.g. the tab-after-number alignment above) surface only in
+`dvi` mode, so the productive order is **canonical until dry, then dvi**.
+
+At the time of writing both modes are dry across the first ~90 seeds. All five
+PBT-found classes in the table above were fixed and locked in with regression
+tests. Two operational notes learned here:
+
+- The generator must only emit inputs *both* paths can compile and typeset;
+  otherwise "both fail" noise (unsupported inline ops, `@<ins>{a<b}` breaking
+  underline macros) drowns real findings. The runner classifies "both fail"
+  separately from a genuine divergence.
+- Seeds are reproducible but not stable across generator changes — fold findings
+  into tests, never cite a seed as the regression.
 
 ## Scope and limits
 
