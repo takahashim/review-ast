@@ -136,6 +136,11 @@ module ReVIEW
         book_config['texstyle'] = 'reviewmacro'
         book_config['texdocumentclass'] = ['jsbook', 'oneside']
         book_config['language'] = 'ja'
+        # Match how the AST renderer runs for LaTeX in production (PDFMaker sets
+        # config['builder']='latex'); the TsizeProcessor needs it to apply
+        # latex-targeted //tsize. LATEXBuilder is inherently latex, so this keeps
+        # the two paths comparing the same target.
+        book_config['builder'] ||= 'latex'
 
         # Initialize I18n
         I18n.setup(book_config['language'])
