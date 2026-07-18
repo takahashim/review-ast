@@ -369,11 +369,9 @@ module ReVIEW
 
         # Check if image is bound like LATEXBuilder does
         unless node.id? && @chapter && @chapter.image_bound?(node.id)
-          # No ID or chapter, or image not bound - return dummy
-          result << '\\begin{reviewdummyimage}'
-          result << "% image not bound: #{node.id}" if node.id?
-          result << '\\end{reviewdummyimage}'
-          return result.join("\n") + "\n"
+          # Not bound: emit the same dummy image as a regular //image (path
+          # placeholder + label + caption), matching LATEXBuilder#image_dummy.
+          return render_dummy_image(node, caption, double_escape_id: false, with_label: true)
         end
 
         # Get image path - image is bound, so this should succeed

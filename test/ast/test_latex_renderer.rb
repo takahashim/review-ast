@@ -372,6 +372,21 @@ class TestLatexRenderer < Test::Unit::TestCase
     assert_match(/\\textbf\{x\}\n\n.*para after/m, result)
   end
 
+  def test_imgtable_unbound_image_renders_full_dummy
+    # Regression (found by PBT): //imgtable with a missing image must render the
+    # full dummy image (path placeholder, label, caption) like LATEXBuilder's
+    # image_dummy, not a bare "% image not bound" comment.
+    @chapter.content = "= Test Chapter\n\n//imgtable[it1][キャプ]{\n//}\n"
+    compiler = ReVIEW::AST::Compiler.new
+    ast_root = compiler.compile_to_ast(@chapter)
+    result = Renderer::LatexRenderer.new(@chapter).visit(ast_root)
+
+    assert_include(result, '\\begin{reviewdummyimage}')
+    assert_include(result, 'path = it1 (not exist)')
+    assert_include(result, '\\reviewimagecaption{キャプ}')
+    assert_not_include(result, '% image not bound')
+  end
+
   def test_equation_caption_not_double_escaped
     # Regression (found by PBT): the numbered-equation caption was escaped twice
     # (once by rendering the caption node, once more by the block), turning
