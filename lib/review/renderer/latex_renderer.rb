@@ -118,9 +118,7 @@ module ReVIEW
         # Match LATEXBuilder logic: only add to TOC if level is within toclevel
         if (level > config['secnolevel'] || (@chapter.number.to_s.empty? && level > 1)) &&
            level <= config['toclevel'].to_i
-          # Get the base section name for TOC entry
-          toc_section_name = get_base_section_name(level)
-          result << "\\addcontentsline{toc}{#{toc_section_name}}{#{caption}}"
+          result << "\\addcontentsline{toc}{#{get_base_section_name(level)}}{#{caption}}"
         end
 
         # Generate labels like LATEXBuilder - add both automatic and custom labels
@@ -864,19 +862,7 @@ module ReVIEW
 
         # Add TOC entry if within toclevel
         if node.level && caption && node.level <= config['toclevel'].to_i
-          toc_level = case node.level
-                      when 1
-                        'chapter'
-                      when 2
-                        'section'
-                      when 3
-                        'subsection'
-                      when 4
-                        'subsubsection'
-                      else # rubocop:disable Lint/DuplicateBranch
-                        'subsection' # fallback
-                      end
-          result << "\\addcontentsline{toc}{#{toc_level}}{#{caption}}"
+          result << "\\addcontentsline{toc}{#{get_base_section_name(node.level)}}{#{caption}}"
         end
 
         result << ''  # blank line after header
@@ -1511,32 +1497,13 @@ module ReVIEW
 
       # Generate TOC entry only (for nodisp headlines)
       def generate_toc_entry(level, caption)
-        toc_type = case level
-                   when 1
-                     'chapter'
-                   when 2
-                     'section'
-                   else
-                     'subsection'
-                   end
-        "\\addcontentsline{toc}{#{toc_type}}{#{caption}}\n"
+        "\\addcontentsline{toc}{#{get_base_section_name(level)}}{#{caption}}\n"
       end
 
       # Generate unnumbered headline with TOC entry (for nonum headlines)
       def generate_nonum_headline(level, caption, _node)
         section_command = get_base_section_name(level) + '*'
-
-        # Add TOC entry
-        toc_type = case level
-                   when 1
-                     'chapter'
-                   when 2
-                     'section'
-                   else
-                     'subsection'
-                   end
-
-        "\\#{section_command}{#{caption}}\n\\addcontentsline{toc}{#{toc_type}}{#{caption}}\n\n"
+        "\\#{section_command}{#{caption}}\n\\addcontentsline{toc}{#{HEADLINE[level]}}{#{caption}}\n\n"
       end
 
       # Generate unnumbered headline without TOC entry (for notoc headlines)
