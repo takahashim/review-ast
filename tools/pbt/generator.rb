@@ -71,9 +71,13 @@ module ReVIEW
 
       MINICOLUMNS = %w[note memo tip info warning important caution notice].freeze
       CODE_CMDS = %w[list emlist listnum cmd source].freeze
-      # Valid LaTeX math fragments (always typeset) for @<m>/// texequation.
+      # Valid LaTeX math fragments (always typeset) for //texequation.
       MATH = ['x^2 + y^2', 'E = mc^2', '\\alpha + \\beta', '\\sum_{i=1}^{n} i',
               'a \\times b', '\\frac{1}{2}'].freeze
+      # Brace-free math for inline @<m>{...}: a '}' inside would close the inline
+      # command early, producing invalid input.
+      MATH_INLINE = ['x^2 + y^2', 'E = mc^2', '\\alpha + \\beta', 'a \\times b',
+                     '\\pi r^2', 'n - 1'].freeze
 
       def initialize(seed)
         @r = Random.new(seed)
@@ -103,7 +107,7 @@ module ReVIEW
       # as plain text elsewhere.
       def inline_fragment
         case @r.rand(10)
-        when 0 then "@<m>{#{pick(MATH)}}"                    # inline math
+        when 0 then "@<m>{#{pick(MATH_INLINE)}}"             # inline math (brace-free)
         when 1 then "@<ruby>{#{pick(JA_WORDS)},#{safe_word}}" # ruby
         when 2 then "@<idx>{#{safe_word}}"                    # index (invisible)
         else "@<#{pick(DECOR_INLINES)}>{#{safe_word}}"
