@@ -86,6 +86,11 @@ test. They cluster into a few recurring shapes.
 | Numbering | trailing / lone blank line in `//listnum` not numbered | `add_line_numbers` skipped the last empty line and `split("\n")` dropped trailing empties | `split("\n", -1)[0...-1]` — keep genuine blank lines, drop only the artifact |
 | Verbatim | tab-aligned code in `//listnum` mis-aligned by the `" N: "` width | detabbed the raw line before prepending the number | detab the final line *after* numbering (`detab_content` in the block wrappers) |
 | Parser | `"===== {x} caption"` treated `{x}` as a heading label | the parser stripped the leading space before checking for `{label}` | don't strip: a label only counts immediately after `=`/`[tag]` (no space), matching Compiler |
+| Parser | trailing `"Caption{label}"` treated `{label}` as a label | AST had a non-standard trailing-label syntax | remove it — Re:VIEW labels are leading (`=={label} Caption`); a trailing `{...}` is caption text |
+| Renderer (gap) | `//box` raised NotImplementedError | the block was never implemented in the AST LaTeX renderer | implement `visit_block_box` (reviewbox env, detabbed inline-processed lines, optional caption) |
+| Renderer | `@<idx>{和文}` emitted `\index{語@語}` | always produced a "key@display" sort key | only emit a sort key when one exists (dictionary/MeCab); otherwise `\index{語}` |
+| Renderer | deep unnumbered headline TOC name wrong (level 5→subsection) | hardcoded `case` mapping capped at subsection | use the `HEADLINE` mapping (paragraph/subparagraph for 5/6) |
+| Compiler | nested block inside a minicolumn/quote moved to the end | content lines and nested blocks were collected separately, losing order | record each nested block's line position and interleave in source order |
 
 ### A design note: list merging
 
