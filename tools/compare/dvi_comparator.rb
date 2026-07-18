@@ -46,7 +46,7 @@ module ReVIEW
         @sty_dir = sty_dir
         @assets_dir = assets_dir
         @texcommand = texcommand
-        raise "dviasm not found (set DVIASM=)" unless DVIASM && File.exist?(DVIASM)
+        raise 'dviasm not found (set DVIASM=)' unless DVIASM && File.exist?(DVIASM)
       end
 
       # Harvest a reusable preamble + sty set by building a real Re:VIEW book
@@ -98,7 +98,7 @@ module ReVIEW
           File.write(File.join(dir, 'doc.tex'), tex)
 
           log = +''
-          2.times do  # two passes so intra-document references resolve
+          2.times do # two passes so intra-document references resolve
             out, = Open3.capture2e(
               { 'TEXINPUTS' => "#{dir}:" },
               @texcommand, '-interaction=nonstopmode', '-halt-on-error',
@@ -124,7 +124,8 @@ module ReVIEW
         if dump_a.nil? || dump_b.nil?
           status = if dump_a.nil? && dump_b.nil? then :build_error_both
                    elsif dump_a.nil? then :build_error_a
-                   else :build_error_b
+                   else
+                     :build_error_b
                    end
           return Result.new(identical: false, status: status, pages: nil, diff: nil)
         end

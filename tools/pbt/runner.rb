@@ -38,9 +38,9 @@ end.parse!(ARGV)
 
 require 'review'
 root = File.expand_path('../..', __dir__)
-$LOAD_PATH.unshift File.join(root, 'test', 'support')
-$LOAD_PATH.unshift File.join(root, 'tools', 'compare')
-$LOAD_PATH.unshift File.join(root, 'tools', 'pbt')
+$LOAD_PATH.unshift(File.join(root, 'test', 'support'))
+$LOAD_PATH.unshift(File.join(root, 'tools', 'compare'))
+$LOAD_PATH.unshift(File.join(root, 'tools', 'pbt'))
 require 'review/test/latex_comparator'
 require 'review/ast/diff/latex'
 require 'dvi_comparator'
@@ -73,7 +73,7 @@ def check(doc, comparator:, canonical:, dvi:)
     re = e
   end
 
-  return [:both_error, "#{be&.message}"] if be && re
+  return [:both_error, be&.message.to_s] if be && re
   return [:builder_error, be.message] if be
   return [:renderer_error, re.message] if re
 
@@ -83,10 +83,12 @@ def check(doc, comparator:, canonical:, dvi:)
     # or not) LaTeX cannot be typeset standalone under the harness preamble --
     # that is a harness/generator limitation, not a builder-vs-renderer bug.
     return [:equal, nil] if r.status == :equal
+
     return [r.status, r.diff]
   else
     r = canonical.compare(builder_tex, renderer_tex)
     return [:equal, nil] if r.equal?
+
     return [:differ, r.pretty_diff]
   end
 end
@@ -134,7 +136,7 @@ range.each do |seed|
   $stdout.flush
 end
 puts "\n"
-puts "#{both_failed} input(s) neither path could typeset/compile (skipped)." if both_failed.positive?
+puts "#{both_failed} input(s) neither path could typeset/compile (skipped)." if both_failed > 0
 
 if failures.empty?
   puts "No divergence in seeds #{range.first}..#{range.last} (mode=#{opts[:mode]})."
@@ -150,6 +152,6 @@ puts "seed=#{seed} status=#{status} -> minimal status=#{mstatus}"
 puts "other divergent seeds: #{failures[1..].map(&:first).join(', ')}" if failures.size > 1
 puts "\n===== minimal reproducer (.re) ====="
 puts minimal.to_re
-puts "===== detail ====="
+puts '===== detail ====='
 pp mdetail
 exit 1

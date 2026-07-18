@@ -27,7 +27,7 @@ module ReVIEW
         if blocks.any? { |b| b.any? { |l| l.include?('@<endnote>') } }
           blocks += [['//printendnotes']]
         end
-        (["= 生成された章", ''] + blocks.flat_map { |b| b + [''] }).join("\n") + "\n"
+        (['= 生成された章', ''] + blocks.flat_map { |b| b + [''] }).join("\n") + "\n"
       end
 
       # Shrink candidates: documents that are strictly "smaller" than this one.
@@ -84,6 +84,15 @@ module ReVIEW
       MATH_INLINE = ['x^2 + y^2', 'E = mc^2', '\\alpha + \\beta', 'a \\times b',
                      '\\pi r^2', 'n - 1'].freeze
 
+      BLOCK_GENERATORS = %i[
+        paragraph_block headline_block headline_option_block list_like_block
+        nested_list_block code_block code_lang_block minicolumn_block
+        wrapper_block footnote_block table_block empty_cell_table_block
+        texequation_block column_block noindent_block blankline_block
+        beginchild_block comment_block cross_ref_block image_block indepimage_block
+        numbered_equation_block embed_block endnote_block tsize_table_block imgtable_block
+      ].freeze
+
       def initialize(seed)
         @r = Random.new(seed)
         @counter = 0
@@ -112,13 +121,13 @@ module ReVIEW
       # as plain text elsewhere.
       def inline_fragment
         case @r.rand(14)
-        when 0 then "@<m>{#{pick(MATH_INLINE)}}"             # inline math (brace-free)
+        when 0 then "@<m>{#{pick(MATH_INLINE)}}" # inline math (brace-free)
         when 1 then "@<ruby>{#{pick(JA_WORDS)},#{safe_word}}" # ruby
         when 2 then "@<idx>{#{safe_word}}"                    # index (invisible)
         when 3 then "@<kw>{#{safe_word},#{safe_word}}"        # keyword with reading
         when 4 then "@<hidx>{#{safe_word}}"                   # hidden index
         when 5 then "@<href>{https://example.com/#{safe_word}, #{safe_word}}" # link with text
-        when 6 then '@<href>{https://example.com/}'           # bare link
+        when 6 then '@<href>{https://example.com/}' # bare link
         else "@<#{pick(DECOR_INLINES)}>{#{safe_word}}"
         end
       end
@@ -138,15 +147,6 @@ module ReVIEW
         s
       end
 
-      BLOCK_GENERATORS = %i[
-        paragraph_block headline_block headline_option_block list_like_block
-        nested_list_block code_block code_lang_block minicolumn_block
-        wrapper_block footnote_block table_block empty_cell_table_block
-        texequation_block column_block noindent_block blankline_block
-        beginchild_block comment_block cross_ref_block image_block indepimage_block
-        numbered_equation_block embed_block endnote_block tsize_table_block imgtable_block
-      ].freeze
-
       def random_block
         # Weight paragraphs a bit so documents read like prose with structure.
         return paragraph_block if chance(0.25)
@@ -156,17 +156,16 @@ module ReVIEW
 
       # A paragraph that may span multiple source lines and contain @<br>{}.
       def paragraph_block
-        lines = Array.new(1 + @r.rand(3)) do
+        Array.new(1 + @r.rand(3)) do
           s = phrase
           s += '@<br>{}' if chance(0.35) # often at end of a source line
           s
         end
-        lines
       end
 
       def headline_block
         level = 2 + @r.rand(4) # == .. =====
-        ['=' * level + ' ' + phrase(inlines: false)]
+        [('=' * level) + ' ' + phrase(inlines: false)]
       end
 
       # Headline with a nonum/notoc/nodisp option.
@@ -229,7 +228,11 @@ module ReVIEW
 
       def minicolumn_block
         kind = pick(MINICOLUMNS)
-        cap = chance(0.7) ? "[#{phrase(inlines: false)}#{chance(0.3) ? '@<br>{}' : ''}]" : ''
+        cap = if chance(0.7)
+                "[#{phrase(inlines: false)}#{chance(0.3) ? '@<br>{}' : ''}]"
+              else
+                ''
+              end
         body = [phrase, '']
         # sometimes nest a list or code block inside the minicolumn
         body += nested_inner if chance(0.4)
@@ -350,7 +353,7 @@ module ReVIEW
 
       # Display math. Content is drawn from a fixed pool so it always typesets.
       def texequation_block
-        ["//texequation{", pick(MATH), '//}']
+        ['//texequation{', pick(MATH), '//}']
       end
 
       # A numbered equation referenced via @<eq>.
