@@ -94,15 +94,15 @@ class TestASTIndexer < Test::Unit::TestCase
     source = <<~EOS
       = Chapter Title
 
-      == Section 1{sec1}
+      =={sec1} Section 1
 
       Basic text.
 
-      == Section 2{sec2}
+      =={sec2} Section 2
 
       More text.
 
-      === Subsection 2.1{subsec21}
+      ==={subsec21} Subsection 2.1
 
       Subsection content.
     EOS

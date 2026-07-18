@@ -360,6 +360,19 @@ class TestLatexRenderer < Test::Unit::TestCase
     assert_not_include(result, "\t") # detabbed
   end
 
+  def test_headline_trailing_braces_are_caption_not_label
+    # Regression (found by PBT): Re:VIEW has no trailing "Caption{label}" syntax
+    # (labels are leading: "=={label} Caption"). A trailing {...} is caption
+    # text, escaped, matching Compiler/LATEXBuilder.
+    @chapter.content = "= Test Chapter\n\n=== 見出し{lbl}\n"
+    compiler = ReVIEW::AST::Compiler.new
+    ast_root = compiler.compile_to_ast(@chapter)
+    result = Renderer::LatexRenderer.new(@chapter).visit(ast_root)
+
+    assert_include(result, '見出し\\{lbl\\}')
+    assert_not_match(/\\label\{lbl\}/, result)
+  end
+
   def test_headline_braces_after_space_are_caption_not_label
     # Regression (found by PBT): "===== {x} caption" (a space before the brace)
     # is caption text, not a heading label, matching Compiler. Only "====={x}"

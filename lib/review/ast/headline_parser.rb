@@ -91,17 +91,14 @@ module ReVIEW
       end
 
       def extract_label_and_caption(text)
-        # Check for old syntax: {label} Caption
+        # A label is only the {label} that immediately follows the =/[tag] (no
+        # space), matching Compiler's regex. Anything else -- including a
+        # trailing "Caption{...}" -- is caption text. (Re:VIEW has no trailing
+        # label syntax; LATEXBuilder renders the braces literally.)
         if text =~ /\A\{([^}]+)\}\s*(.+)/
           return [$1, $2.strip]
         end
 
-        # Check for new syntax: Caption{label} - but only if the last {...} is not part of inline markup
-        if text.match(/\A(.+?)\{([^}]+)\}\s*\z/) && !$1.match?(/@<[^>]+>\s*\z/)
-          return [$2, $1.strip]
-        end
-
-        # No label, or label is part of inline markup - treat everything as caption
         [nil, text.strip]
       end
     end
