@@ -210,24 +210,6 @@ class TestListProcessor < Test::Unit::TestCase
   end
 
   # Test utility methods
-  def test_build_list_from_items
-    items = [
-      ReVIEW::AST::ListParser::ListItemData.new(
-        type: :ul,
-        level: 1,
-        content: 'Test item',
-        continuation_lines: [],
-        metadata: {}
-      )
-    ]
-
-    list_node = @processor.build_list_from_items(items, :ul)
-
-    assert_instance_of(ReVIEW::AST::ListNode, list_node)
-    assert_equal :ul, list_node.list_type
-    assert_equal 1, list_node.children.size
-  end
-
   def test_parse_list_items_ul
     input = create_line_input(
       "   * Item 1\n" +
@@ -278,15 +260,6 @@ class TestListProcessor < Test::Unit::TestCase
     assert_raises(ReVIEW::CompileError) do
       @processor.parse_list_items(input, :unknown)
     end
-  end
-
-  # Test access to internal components
-  def test_parser_access
-    assert_instance_of(ReVIEW::AST::ListParser, @processor.parser)
-  end
-
-  def test_builder_access
-    assert_instance_of(ReVIEW::AST::ListProcessor::NestedListAssembler, @processor.nested_list_assembler)
   end
 
   # Test complex scenarios

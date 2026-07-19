@@ -27,28 +27,9 @@ module ReVIEW
       # - Create proper AST hierarchy for complex nested lists
       #
       class NestedListAssembler
-        def initialize(location_provider, inline_processor)
-          @location_provider = location_provider
+        def initialize(compiler, inline_processor)
+          @compiler = compiler
           @inline_processor = inline_processor
-        end
-
-        # Build nested list structure from flat list items
-        # @param items [Array<ListParser::ListItemData>] Parsed list items
-        # @param list_type [Symbol] List type (:ul, :ol, :dl)
-        # @return [ListNode] Root list node with nested structure
-        def build_nested_structure(items, list_type)
-          return create_list_node(list_type) if items.empty?
-
-          case list_type
-          when :ul
-            build_unordered_list(items)
-          when :ol
-            build_ordered_list(items)
-          when :dl
-            build_definition_list(items)
-          else
-            raise ReVIEW::CompileError, "Unknown list type: #{list_type}"
-          end
         end
 
         # Build unordered list with proper nesting
@@ -56,7 +37,7 @@ module ReVIEW
         # @return [ReVIEW::AST::ListNode] Root unordered list node
         def build_unordered_list(items)
           create_list_node(:ul) do |root_list|
-            build_proper_nested_structure(items, root_list, :ul)
+            build_nested_items(items, root_list, :ul)
           end
         end
 
@@ -70,7 +51,7 @@ module ReVIEW
               root_list.start_number = items.first.metadata[:number]
             end
 
-            build_proper_nested_structure(items, root_list, :ol)
+            build_nested_items(items, root_list, :ol)
           end
         end
 
@@ -94,8 +75,9 @@ module ReVIEW
 
         private
 
-        # Build proper nested structure as Re:VIEW expects
-        def build_proper_nested_structure(items, root_list, list_type)
+        # Assemble the flat items into the nested ListNode/ListItemNode tree,
+        # tracking the current list at each level and validating level jumps.
+        def build_nested_items(items, root_list, list_type)
           return if items.empty?
 
           current_lists = { 1 => root_list }
@@ -105,7 +87,7 @@ module ReVIEW
             # 1. Validate and adjust level
             level = item_data.level
             if level > previous_level && (level - previous_level) > 1
-              @location_provider.error('too many *.')
+              @compiler.error('too many *.')
               level = previous_level + 1
             end
             previous_level = level
@@ -241,7 +223,7 @@ module ReVIEW
         # Get current location for node creation
         # @return [SourceLocation] Current location
         def current_location
-          @location_provider.location
+          @compiler.location
         end
       end
     end

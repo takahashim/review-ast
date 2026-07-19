@@ -37,8 +37,12 @@ class TestNestedListAssembler < Test::Unit::TestCase
   end
 
   def test_build_empty_lists
-    %i[ul ol dl].each do |list_type|
-      list_node = @assembler.build_nested_structure([], list_type)
+    {
+      ul: :build_unordered_list,
+      ol: :build_ordered_list,
+      dl: :build_definition_list
+    }.each do |list_type, build_method|
+      list_node = @assembler.public_send(build_method, [])
       assert_instance_of(ReVIEW::AST::ListNode, list_node)
       assert_equal list_type, list_node.list_type
       assert_equal [], list_node.children
