@@ -1390,15 +1390,22 @@ module ReVIEW
         { rows: processed_rows }
       end
 
-      # Generate table header
-      # Per-column width specs (e.g. ["p{10mm}", "l"]) derived from the table's
-      # source //tsize for IDGXML, or nil when there is none targeting IDGXML.
-      # generate_table_rows extracts the numeric widths from these specs.
+      # The per-column widths for IDGXML come straight from the source //tsize,
+      # which for IDGXML is a numeric CSV in millimetres (e.g. "10,18,50"). Read
+      # the source values directly -- matching IDGXMLBuilder#table
+      # (@tsize.split(/\s*,\s*/)) -- instead of routing through the LaTeX p{Nmm}
+      # vocabulary and re-extracting the numbers (doc/design-improvements #5).
+      #
+      # A non-numeric spec (a LaTeX column spec like "|l|c|r|") is meaningless for
+      # IDGXML, so it yields no widths and the columns are distributed equally --
+      # the same result the legacy builder reaches (its tsize target-filter drops
+      # such specs) and the previous parse-then-extract code reached by discarding
+      # the non-numeric parts. Returns nil when there is no usable //tsize.
       def idgxml_cellwidth(table)
         value = table.tsize_value_for('idgxml')
-        return nil unless value
+        return nil unless value && /\A[\d.,\s]+\z/.match?(value)
 
-        ReVIEW::AST::TableColumnWidthParser.new(value, table.column_count).parse.cellwidth
+        value.split(/\s*,\s*/)
       end
 
       def generate_table_header(id, caption, definition_number)
@@ -1422,21 +1429,9 @@ module ReVIEW
             # No tsize specified - distribute width equally
             @col.times { |n| cellwidth[n] = @tablewidth / @col }
           else
-            # Extract numeric values from cellwidth specifications
-            # For simple format: ["p{10mm}", "p{20mm}", "p{30mm}"] -> ["10", "20", "30"]
-            # For IDGXML simple format: ["10", "20", "30"] (already numeric)
-            cellwidth = @table_node_cellwidth.map do |spec|
-              # Extract numeric part from p{Nmm} format or use as-is if already numeric
-              if /\A(\d+(?:\.\d+)?)\z/.match?(spec)
-                spec
-              elsif spec =~ /p\{(\d+(?:\.\d+)?)mm\}/
-                $1
-              else # rubocop:disable Style/EmptyElse
-                # Unknown format - use default
-                nil
-              end
-            end.compact
-
+            # The stored widths are the source numeric CSV; convert to internal
+            # units directly, matching IDGXMLBuilder#table.
+            cellwidth = @table_node_cellwidth.dup
             totallength = 0
             cellwidth.size.times do |n|
               cellwidth[n] = cellwidth[n].to_f / config['pt_to_mm_unit']
