@@ -962,3 +962,114 @@ config の読みは約 30 キー、約 100 箇所。
   - 既知の限界: HtmlRenderer は `//graph`(img_graph)未対応。graph を含む本の EPUB では画像参照が不足しうる(HTML レンダラ側の別課題)。
 - 積み残し(規模順)
   - 手順 5(config キーの契約化): 項目 6 と同時(大)。
+
+---
+
+## 9. レンダラのオラクル比較と、形式をまたぐ契約の一本化
+
+`lib/review/renderer/` 全体のレビューを起点とする項目。指摘の大半は重複整理だったが、
+調査の過程で「同じ判断が複数箇所に複製され、片方だけ正しい」型の実バグが 9 件出た。
+根因は次の一点に集約される。
+
+検証の空白: LaTeX / HTML / IDGXML には比較ハーネス(`test/support/review/test/*_comparator.rb`)が
+あるのに、plaintext と TOP には無かった。既存の round-trip / render-identity テストは
+AST 対 AST の自己整合性であってオラクル比較ではないため、この 2 形式は誰にも見られないまま
+レガシービルダーから乖離していた。
+
+- 実装済み(手順 1: plaintext/TOP のオラクル比較器と、それが検出した乖離の修正)
+  - `ReVIEW::Test::TextComparator`(`test/support/review/test/text_comparator.rb`)を追加。
+    既存 3 形式と同じ流儀で、`format:`(`:plaintext` / `:top`)を受けて legacy builder と
+    AST renderer の両方を回す。オラクルは `builder.result`(`check_printendnotes` と
+    `solve_nest` を含む。TEXTMaker が書き出すのはこれ)。
+  - 検出・修正した乖離(いずれもテキスト出力から情報が失われていたもの):
+    - 節番号が全欠落。`headline_prefix` が章より下のレベルで空文字を返しており、コードにも
+      「section counter needs proper implementation」と書かれたままだった。両レンダラを
+      `ReVIEW::SecCounter` 駆動にし、番号と secnolevel の挙動をビルダーに揃えた。
+    - `[nonum]`/`[notoc]`/`[nodisp]` が通常見出し扱い。採番されるうえカウンタも進めるため、
+      以降の節番号が全てずれていた。ビルダーは `nonum_begin`/`notoc_begin` へ振り分けて
+      `headline_prefix` を呼ばない(= 非採番かつカウンタ不変)。`nodisp` は出力なし。
+    - TOP が `//firstlinenum` を無視(開始行 1 固定)。
+    - TOP の画像マーカーが束縛済みファイルパスでなく id を出力し、metric も未パースで
+      他ターゲット用の値が混入していた。未束縛時は warn してブロック本体へフォールバック。
+    - TOP が `caption_position` を完全に無視(既定 image=bottom に反して常に上)。
+    - TOP のコラムがブロックマーカーと `■` 前置ごと消失し、本文と区別できなかった。
+      ほかに定義語の `★` 欠落、`//indepimage` の `■id■` 表記、独自の `連番付きリスト` マーカー。
+    - plaintext が `//listnum` キャプションから番号を欠落(ビルダーは `list_header` を通す)。
+    - TOP に `@logger` が無く、`Loggable#warn` が例外になる状態だった。
+  - テスト `test/ast/test_text_renderer_semantics.rb`。バイト一致ではなく「出力が担うべき情報」を
+    検証する(後述の許容差があるため)。
+- 実装済み(手順 2: 重複 API の統合と dead code の一掃)
+  - `TextFormatter#format_reference_text`(公開 1 + private 7、約 118 行)を削除。「装飾なし版」と
+    説明されていたが、全 11 参照型で `format_reference` と出力が同一だった(背後の private 対が
+    共有ではなくコピーだったため)。呼び出し 4 箇所はすべて HTML の inline handler。
+    `_text` 側のテストが参照整形の唯一のカバレッジだったので、削除せず `format_reference` に付け替えた。
+  - dead code 削除: latex `@ast_indexer`/`@list_structure_normalizer`、idgxml `@ast_indexer`/
+    `parse_tsize_target`/`over_secnolevel?`、plaintext `@blank_seen`/`over_secnolevel?`、
+    top `@minicolumn_stack`(push/pop のみで読み出しなし)/`@rendering_context`、
+    TextFormatter `numeric_string?`・未使用の `chapter` 引数とリーダー・`html_css_class` 引数。
+  - レビューの誤指摘 2 件は残した: `@ast_compiler`(latex/idgxml)は memoize されて入れ子コンパイルに
+    使われており dead ではない。plaintext の `@logger` は `Loggable#warn` が必要とする
+    (TOP でこれが無いために手順 1 のバグが起きていた)。
+- 実装済み(手順 3: 状態逆流の解消と、共通化できる範囲の見極め)
+  - handler が renderer の ivar を `handler → ctx → proxy → renderer` と 3 クラス貫通で書き換えていた
+    2 つの状態(LaTeX の遅延 `\footnotetext` id、IDGXML のインライン数式カウンタ)を、双方が既に
+    共有している inline context の所有に移した。`InlineRenderProxy` から形式固有メソッドと
+    `respond_to?` ガードが消え、本来のアクセス制限に戻った。
+  - 3 形式で 41 箇所に逐語コピーされていた resolved ガード(4 行)を `ResolvedReference` モジュールの
+    `resolved_reference_node(node)` に集約。IDGXML の寛容版 3 箇所(raise せず content へフォールバック)は
+    意図的な差なので温存。
+  - plaintext の `visit_reference` が `ReferenceNode#content`(= 参照自身の id)を返しており、
+    `@<img>{img1}` が `図1.1` でなく `img1` と出力されていた。TextFormatter 経由の整形に修正。
+  - plaintext/top の共通基底は見送った。同名 36 メソッドのうち完全同一は 5 件のみで、TOP はほぼ全ブロックを
+    `◆→開始:…←◆` で囲む形式、plaintext には対応物がない。残り 31 件は装飾差ではなく実質的な差であり、
+    テンプレートメソッド基底にすると「実装が 1 つしかないフック」が並ぶ。実際に同一だった 5 件だけを
+    `TextRendererCommon` に切り出した(`visit_block_printendnotes` はコメントまで逐語同一だった)。
+- 実装済み(手順 4: config を読む述語の一本化)
+  - `caption_top?` が 3 実装。legacy は「`'bottom'` でなければ top」(未設定も top)で、LaTeX の実装だけが
+    一致。Base と IDGXML は `== 'top'` を判定していたため、caption_position が無い設定では全キャプションが
+    下に落ちていた。Base を legacy 準拠にし override を削除。
+  - `over_secnolevel?` が 3 実装。legacy は章を含むドット文字列の階層数を数えるが、AST が渡すのは章を含まない
+    配列 `headline_number`。latex/idgxml の実装は文字列前提のままで、`[1, 2].to_s.split('.').size` は 1 に
+    なるため、どの深さの見出しも「secnolevel 内」と判定していた。配列を正しく扱う HTML の規則を
+    `SectionNumbering` モジュールへ集約。
+  - 述語だけでは足りなかった: IDGXML の `@<hd>`/`@<secref>` はそもそも述語を通らず、
+    `TextFormatter#format_headline_reference` が深さに関わらず番号を付けていた(ビルダーは secnolevel を
+    超えると `hd_quote_without_number` に切り替える)。formatter 側にも secnolevel を適用。
+  - レンダラのコンストラクタから `I18n.setup` を撤去。生成のたびにグローバルを書き換えており、最後に
+    生成されたレンダラがロケールを決める状態だった。legacy はビルダーではなく maker 側で設定しており、
+    AST の maker はその経路を継承している(`review-ast-compile` は自前で設定済み)。
+- 検証: 全テスト緑(1106 tests)、rubocop クリーン、syntax-book は DVI 6/6 一致・IDGXML 6/6 バイト一致。
+  `I18n.setup` 撤去は実ビルドでも確認(review-ast-textmaker が `■H1■第1章　章見出し`、
+  review-ast-idgxmlmaker が `第1章　章見出し` を出力)。
+  構文スイープ(27 構文)での内容差は TOP 12 → 2、plaintext 5 → 1 に減少。残ったのはいずれも
+  下記「許容している残差」に該当するもの(TOP は入れ子リストと表の罫線幅、plaintext は入れ子リスト)で、
+  未修正の乖離は無い。なお同スイープの `//bibpaper` は bib ファイルを要するためハーネス側の制約で
+  エラーになり、集計から除いている。
+
+### 意図的に許容している残差(plaintext / TOP)
+
+この 2 形式はバイト一致を目標にしない(方針決定済み)。意味的に正しければよく、次の差は許容する。
+乖離として「修正」しないこと。
+
+- 入れ子リストのインデント: AST は入れ子を字下げで保持し、ビルダーは平坦化して空行で区切る。
+  AST の方が情報を保っているため、こちらを採る。
+- 空行の位置: ビルダーは `blank`/`@blank_seen` による連続空行の抑制を持つが、AST は再現していない。
+- 表の罫線幅: 区切り行のダッシュ数と末尾タブの有無。
+
+上記のため `test_text_renderer_semantics.rb` はバイト一致ではなく情報の有無を検証している。
+LaTeX / HTML / IDGXML の目標(DVI 一致 / rendered-equivalence / byte 一致)は従来どおり変更なし。
+
+### 見送り(理由付き)
+
+いずれも挙動を変えない整理であり、レンダラは現状オラクルと一致しているため、利益のない変更で
+退行リスクを負わない判断とした。
+
+- HTML `post_process` の WebPageAssembler 抽出: 「webmaker を育てるなら投資効率が良い」という条件付きの
+  提案。webmaker 手順 4-5(progressive enhancement CSS、build-time MathML、静的検索)に着手する際、
+  その作業の一部として行う方が、必要な形が分かってからになる。
+- verbatim 重複ペアの統合(html `format_emlistnum_content` ≡ `format_listnum_content`、idgxml の
+  quotedlist 系、top の caption 3 つ子): 安全だが得られるのは行数削減のみ。
+- 巨大メソッドの分割(latex `visit_table` 109 行、top `render_inline_element` 64 行 29 分岐)。
+- ただし idgxml `visit_graph` が描画メソッド内で `system("dot ...")` と Tempfile I/O を行っている点は
+  設計として筋が悪く、いつか ImgGraph 側(既に遅延生成を持つ)へ寄せる価値がある。挙動に触れるため、
+  単独で検証する変更として切り出すこと。
