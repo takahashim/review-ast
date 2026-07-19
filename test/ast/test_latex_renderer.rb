@@ -21,20 +21,20 @@ class TestLatexRenderer < Test::Unit::TestCase
   end
 
   def test_visit_text
-    node = AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Hello World')
+    node = AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Hello World')
     result = @renderer.visit(node)
     assert_equal 'Hello World', result
   end
 
   def test_visit_text_with_special_characters
-    node = AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Hello & World $ Test')
+    node = AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Hello & World $ Test')
     result = @renderer.visit(node)
     assert_equal 'Hello \\& World \\textdollar{} Test', result
   end
 
   def test_visit_paragraph
-    paragraph = AST::ParagraphNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    text = AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'This is a paragraph.')
+    paragraph = AST::ParagraphNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    text = AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'This is a paragraph.')
     paragraph.add_child(text)
 
     result = @renderer.visit(paragraph)
@@ -42,8 +42,8 @@ class TestLatexRenderer < Test::Unit::TestCase
   end
 
   def test_visit_paragraph_dual
-    paragraph = AST::ParagraphNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    text = AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: "This is a paragraph.\n\nNext paragraph.\n")
+    paragraph = AST::ParagraphNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    text = AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: "This is a paragraph.\n\nNext paragraph.\n")
     paragraph.add_child(text)
 
     result = @renderer.visit(paragraph)
@@ -51,20 +51,20 @@ class TestLatexRenderer < Test::Unit::TestCase
   end
 
   def test_visit_headline_level1
-    caption_node = AST::CaptionNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    caption_node.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Chapter Title'))
+    caption_node = AST::CaptionNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    caption_node.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Chapter Title'))
 
-    headline = AST::HeadlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), level: 1, caption_node: caption_node, label: 'chap1')
+    headline = AST::HeadlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), level: 1, caption_node: caption_node, label: 'chap1')
     result = @renderer.visit(headline)
 
     assert_equal "\\chapter{Chapter Title}\n\\label{chap:test}\n\n", result
   end
 
   def test_visit_headline_level2
-    caption_node = AST::CaptionNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    caption_node.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Section Title'))
+    caption_node = AST::CaptionNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    caption_node.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Section Title'))
 
-    headline = AST::HeadlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), level: 2, caption_node: caption_node)
+    headline = AST::HeadlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), level: 2, caption_node: caption_node)
     result = @renderer.visit(headline)
 
     assert_equal "\\section{Section Title}\n\\label{sec:1-1}\n\n", result
@@ -73,10 +73,10 @@ class TestLatexRenderer < Test::Unit::TestCase
   def test_visit_headline_with_secnolevel_default
     # Default secnolevel is 2, so level 3 should be subsection*
     @config['secnolevel'] = 2
-    caption_node = AST::CaptionNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    caption_node.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Subsection Title'))
+    caption_node = AST::CaptionNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    caption_node.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Subsection Title'))
 
-    headline = AST::HeadlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), level: 3, caption_node: caption_node)
+    headline = AST::HeadlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), level: 3, caption_node: caption_node)
     result = @renderer.visit(headline)
 
     expected = "\\subsection*{Subsection Title}\n\\addcontentsline{toc}{subsection}{Subsection Title}\n\\label{sec:1-0-1}\n\n"
@@ -88,16 +88,16 @@ class TestLatexRenderer < Test::Unit::TestCase
     @config['secnolevel'] = 3
 
     # Level 3 - normal subsection
-    caption_node3 = AST::CaptionNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    caption_node3.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Subsection Title'))
-    headline3 = AST::HeadlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), level: 3, caption_node: caption_node3)
+    caption_node3 = AST::CaptionNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    caption_node3.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Subsection Title'))
+    headline3 = AST::HeadlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), level: 3, caption_node: caption_node3)
     result3 = @renderer.visit(headline3)
     assert_equal "\\subsection{Subsection Title}\n\\label{sec:1-0-1}\n\n", result3
 
     # Level 4 - subsubsection* without addcontentsline (exceeds default toclevel of 3)
-    caption_node4 = AST::CaptionNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    caption_node4.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Subsubsection Title'))
-    headline4 = AST::HeadlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), level: 4, caption_node: caption_node4)
+    caption_node4 = AST::CaptionNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    caption_node4.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Subsubsection Title'))
+    headline4 = AST::HeadlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), level: 4, caption_node: caption_node4)
     result4 = @renderer.visit(headline4)
     expected4 = "\\subsubsection*{Subsubsection Title}\n\\label{sec:1-0-1-1}\n\n"
     assert_equal expected4, result4
@@ -106,10 +106,10 @@ class TestLatexRenderer < Test::Unit::TestCase
   def test_visit_headline_with_secnolevel1
     # secnolevel 1, so level 2 and above should be section*
     @config['secnolevel'] = 1
-    caption_node = AST::CaptionNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    caption_node.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Section Title'))
+    caption_node = AST::CaptionNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    caption_node.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Section Title'))
 
-    headline = AST::HeadlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), level: 2, caption_node: caption_node)
+    headline = AST::HeadlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), level: 2, caption_node: caption_node)
     result = @renderer.visit(headline)
 
     expected = "\\section*{Section Title}\n\\addcontentsline{toc}{section}{Section Title}\n\\label{sec:1-1}\n\n"
@@ -121,10 +121,10 @@ class TestLatexRenderer < Test::Unit::TestCase
     @chapter.instance_variable_set(:@number, '') # Make chapter numberless
     @config['secnolevel'] = 3
 
-    caption_node = AST::CaptionNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    caption_node.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Section Title'))
+    caption_node = AST::CaptionNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    caption_node.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Section Title'))
 
-    headline = AST::HeadlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), level: 2, caption_node: caption_node)
+    headline = AST::HeadlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), level: 2, caption_node: caption_node)
     result = @renderer.visit(headline)
 
     expected = "\\section*{Section Title}\n\\addcontentsline{toc}{section}{Section Title}\n\\label{sec:-1}\n\n"
@@ -136,17 +136,17 @@ class TestLatexRenderer < Test::Unit::TestCase
     @config['secnolevel'] = 0
 
     # Level 1 - chapter*
-    caption_node1 = AST::CaptionNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    caption_node1.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Chapter Title'))
-    headline1 = AST::HeadlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), level: 1, caption_node: caption_node1)
+    caption_node1 = AST::CaptionNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    caption_node1.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Chapter Title'))
+    headline1 = AST::HeadlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), level: 1, caption_node: caption_node1)
     result1 = @renderer.visit(headline1)
     expected1 = "\\chapter*{Chapter Title}\n\\addcontentsline{toc}{chapter}{Chapter Title}\n\\label{chap:test}\n\n"
     assert_equal expected1, result1
 
     # Level 2 - section*
-    caption_node2 = AST::CaptionNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    caption_node2.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Section Title'))
-    headline2 = AST::HeadlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), level: 2, caption_node: caption_node2)
+    caption_node2 = AST::CaptionNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    caption_node2.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Section Title'))
+    headline2 = AST::HeadlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), level: 2, caption_node: caption_node2)
     result2 = @renderer.visit(headline2)
     expected2 = "\\section*{Section Title}\n\\addcontentsline{toc}{section}{Section Title}\n\\label{sec:1-1}\n\n"
     assert_equal expected2, result2
@@ -158,9 +158,9 @@ class TestLatexRenderer < Test::Unit::TestCase
     part.generate_indexes
     part_renderer = Renderer::LatexRenderer.new(part)
 
-    caption_node = AST::CaptionNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    caption_node.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Part Title'))
-    headline = AST::HeadlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), level: 1, caption_node: caption_node)
+    caption_node = AST::CaptionNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    caption_node.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Part Title'))
+    headline = AST::HeadlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), level: 1, caption_node: caption_node)
     result = part_renderer.visit(headline)
 
     expected = "\\part{Part Title}\n\\label{chap:part1}\n\n"
@@ -174,9 +174,9 @@ class TestLatexRenderer < Test::Unit::TestCase
     part.generate_indexes
     part_renderer = Renderer::LatexRenderer.new(part)
 
-    caption_node = AST::CaptionNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    caption_node.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Part Title'))
-    headline = AST::HeadlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), level: 1, caption_node: caption_node)
+    caption_node = AST::CaptionNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    caption_node.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Part Title'))
+    headline = AST::HeadlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), level: 1, caption_node: caption_node)
     result = part_renderer.visit(headline)
 
     expected = "\\part*{Part Title}\n\\addcontentsline{toc}{part}{Part Title}\n\\label{chap:part1}\n\n"
@@ -189,9 +189,9 @@ class TestLatexRenderer < Test::Unit::TestCase
     part.generate_indexes
     part_renderer = Renderer::LatexRenderer.new(part)
 
-    caption_node = AST::CaptionNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    caption_node.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Chapter in Part'))
-    headline = AST::HeadlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), level: 2, caption_node: caption_node)
+    caption_node = AST::CaptionNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    caption_node.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Chapter in Part'))
+    headline = AST::HeadlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), level: 2, caption_node: caption_node)
     result = part_renderer.visit(headline)
 
     expected = "\\section{Chapter in Part}\n\\label{sec:1-1}\n\n"
@@ -205,9 +205,9 @@ class TestLatexRenderer < Test::Unit::TestCase
     part.generate_indexes
     part_renderer = Renderer::LatexRenderer.new(part)
 
-    caption_node = AST::CaptionNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    caption_node.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Chapter in Numberless Part'))
-    headline = AST::HeadlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), level: 2, caption_node: caption_node)
+    caption_node = AST::CaptionNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    caption_node.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Chapter in Numberless Part'))
+    headline = AST::HeadlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), level: 2, caption_node: caption_node)
     result = part_renderer.visit(headline)
 
     expected = "\\section*{Chapter in Numberless Part}\n\\addcontentsline{toc}{section}{Chapter in Numberless Part}\n\\label{sec:-1}\n\n"
@@ -215,24 +215,24 @@ class TestLatexRenderer < Test::Unit::TestCase
   end
 
   def test_visit_inline_bold
-    inline = AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :b)
-    inline.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'bold text'))
+    inline = AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :b)
+    inline.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'bold text'))
 
     result = @renderer.visit(inline)
     assert_equal '\\reviewbold{bold text}', result
   end
 
   def test_visit_inline_italic
-    inline = AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :i)
-    inline.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'italic text'))
+    inline = AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :i)
+    inline.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'italic text'))
 
     result = @renderer.visit(inline)
     assert_equal '\\reviewit{italic text}', result
   end
 
   def test_visit_inline_code
-    inline = AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :tt)
-    inline.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'code text'))
+    inline = AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :tt)
+    inline.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'code text'))
 
     result = @renderer.visit(inline)
     assert_equal '\\reviewtt{code text}', result
@@ -240,12 +240,12 @@ class TestLatexRenderer < Test::Unit::TestCase
 
   def test_visit_code_block_with_caption
     caption = 'Code Example'
-    caption_node = AST::CaptionNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    caption_node.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: caption))
+    caption_node = AST::CaptionNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    caption_node.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: caption))
 
-    code_block = AST::CodeBlockNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), caption_node: caption_node, code_type: 'emlist')
+    code_block = AST::CodeBlockNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), caption_node: caption_node, code_type: 'emlist')
     line1 = AST::CodeLineNode.new(location: nil)
-    line1.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'puts "Hello"'))
+    line1.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'puts "Hello"'))
     code_block.add_child(line1)
 
     result = @renderer.visit(code_block)
@@ -264,15 +264,15 @@ class TestLatexRenderer < Test::Unit::TestCase
     # LATEXBuilder#code_line (detab), otherwise aligned code typesets to a
     # different width (found via DVI comparison). The text-canonical comparator
     # ignores whitespace, so this is asserted on the exact output.
-    code_block = AST::CodeBlockNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), code_type: 'emlist')
+    code_block = AST::CodeBlockNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), code_type: 'emlist')
     line = AST::CodeLineNode.new(location: nil)
-    line.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: "a\tb\tc"))
+    line.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: "a\tb\tc"))
     code_block.add_child(line)
 
     result = @renderer.visit(code_block)
 
     assert_not_include(result, "\t")
-    assert_include(result, "a       b       c") # detab with default tab width 8
+    assert_include(result, 'a       b       c') # detab with default tab width 8
   end
 
   def test_listnum_numbers_trailing_blank_line
@@ -478,17 +478,17 @@ class TestLatexRenderer < Test::Unit::TestCase
   end
 
   def test_visit_table
-    caption_node = AST::CaptionNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    caption_node.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Test Table'))
+    caption_node = AST::CaptionNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    caption_node.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Test Table'))
 
-    table = AST::TableNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), id: 'table1', caption_node: caption_node)
+    table = AST::TableNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), id: 'table1', caption_node: caption_node)
 
     # Header row
     header_row = AST::TableRowNode.new(location: nil, row_type: :header)
     header_cell1 = AST::TableCellNode.new(location: nil, cell_type: :th)
-    header_cell1.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Header 1'))
+    header_cell1.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Header 1'))
     header_cell2 = AST::TableCellNode.new(location: nil, cell_type: :th)
-    header_cell2.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Header 2'))
+    header_cell2.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Header 2'))
     header_row.add_child(header_cell1)
     header_row.add_child(header_cell2)
     table.add_header_row(header_row)
@@ -496,9 +496,9 @@ class TestLatexRenderer < Test::Unit::TestCase
     # Body row
     body_row = AST::TableRowNode.new(location: nil, row_type: :body)
     body_cell1 = AST::TableCellNode.new(location: nil)
-    body_cell1.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Data 1'))
+    body_cell1.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Data 1'))
     body_cell2 = AST::TableCellNode.new(location: nil)
-    body_cell2.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Data 2'))
+    body_cell2.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Data 2'))
     body_row.add_child(body_cell1)
     body_row.add_child(body_cell2)
     table.add_body_row(body_row)
@@ -522,10 +522,10 @@ class TestLatexRenderer < Test::Unit::TestCase
 
   def test_visit_image
     # Test for missing image (no image file bound to chapter)
-    caption_node = AST::CaptionNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    caption_node.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Test Image'))
+    caption_node = AST::CaptionNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    caption_node.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Test Image'))
 
-    image = AST::ImageNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), id: 'image1', caption_node: caption_node)
+    image = AST::ImageNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), id: 'image1', caption_node: caption_node)
     result = @renderer.visit(image)
 
     expected_lines = [
@@ -540,13 +540,13 @@ class TestLatexRenderer < Test::Unit::TestCase
   end
 
   def test_visit_list_unordered
-    list = AST::ListNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), list_type: :ul)
+    list = AST::ListNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), list_type: :ul)
 
-    item1 = AST::ListItemNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    item1.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'First item'))
+    item1 = AST::ListItemNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    item1.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'First item'))
 
-    item2 = AST::ListItemNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    item2.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Second item'))
+    item2 = AST::ListItemNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    item2.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Second item'))
 
     list.add_child(item1)
     list.add_child(item2)
@@ -558,13 +558,13 @@ class TestLatexRenderer < Test::Unit::TestCase
   end
 
   def test_visit_list_ordered
-    list = AST::ListNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), list_type: :ol)
+    list = AST::ListNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), list_type: :ol)
 
-    item1 = AST::ListItemNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    item1.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'First item'))
+    item1 = AST::ListItemNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    item1.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'First item'))
 
-    item2 = AST::ListItemNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    item2.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Second item'))
+    item2 = AST::ListItemNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    item2.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Second item'))
 
     list.add_child(item1)
     list.add_child(item2)
@@ -576,11 +576,11 @@ class TestLatexRenderer < Test::Unit::TestCase
   end
 
   def test_visit_minicolumn_note
-    caption_node = AST::CaptionNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    caption_node.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Note Caption'))
+    caption_node = AST::CaptionNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    caption_node.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Note Caption'))
 
-    minicolumn = AST::MinicolumnNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), minicolumn_type: :note, caption_node: caption_node)
-    minicolumn.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'This is a note.'))
+    minicolumn = AST::MinicolumnNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), minicolumn_type: :note, caption_node: caption_node)
+    minicolumn.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'This is a note.'))
 
     result = @renderer.visit(minicolumn)
     expected = "\\begin{reviewnote}[Note Caption]\n\nThis is a note.\n\\end{reviewnote}\n\n"
@@ -589,11 +589,11 @@ class TestLatexRenderer < Test::Unit::TestCase
   end
 
   def test_visit_document
-    document = AST::DocumentNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
+    document = AST::DocumentNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
 
     # Add a paragraph
-    paragraph = AST::ParagraphNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    paragraph.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Hello World'))
+    paragraph = AST::ParagraphNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    paragraph.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Hello World'))
     document.add_child(paragraph)
 
     result = @renderer.visit(document)
@@ -601,22 +601,22 @@ class TestLatexRenderer < Test::Unit::TestCase
   end
 
   def test_render_inline_element_href_with_args
-    inline = AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :href, args: ['http://example.com', 'Example'])
+    inline = AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :href, args: ['http://example.com', 'Example'])
 
     result = @renderer.visit(inline)
     assert_equal '\\href{http://example.com}{Example}', result
   end
 
   def test_render_inline_element_href_internal_reference_with_label
-    inline = AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :href, args: ['#anchor', 'Jump to anchor'])
+    inline = AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :href, args: ['#anchor', 'Jump to anchor'])
 
     result = @renderer.visit(inline)
     assert_equal '\\hyperref[anchor]{Jump to anchor}', result
   end
 
   def test_render_inline_element_href_internal_reference_without_label
-    inline = AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :href, args: ['#anchor'])
-    inline.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: '#anchor'))
+    inline = AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :href, args: ['#anchor'])
+    inline.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: '#anchor'))
 
     result = @renderer.visit(inline)
     assert_equal '\\hyperref[anchor]{\\#anchor}', result
@@ -624,7 +624,7 @@ class TestLatexRenderer < Test::Unit::TestCase
 
   def test_generic_visitor_error
     # Create an unknown node type by using a BlockNode with unknown type
-    unknown_node = AST::BlockNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), block_type: :UnknownNode)
+    unknown_node = AST::BlockNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), block_type: :UnknownNode)
 
     assert_raise(NotImplementedError) do
       @renderer.visit(unknown_node)
@@ -638,17 +638,17 @@ class TestLatexRenderer < Test::Unit::TestCase
     part_renderer = Renderer::LatexRenderer.new(part)
 
     # Create a document with a level 1 headline and some content
-    document = AST::DocumentNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
+    document = AST::DocumentNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
 
     # Add level 1 headline (Part title)
-    caption_node = AST::CaptionNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    caption_node.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Part Title'))
-    headline = AST::HeadlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), level: 1, caption_node: caption_node)
+    caption_node = AST::CaptionNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    caption_node.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Part Title'))
+    headline = AST::HeadlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), level: 1, caption_node: caption_node)
     document.add_child(headline)
 
     # Add a paragraph
-    paragraph = AST::ParagraphNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    paragraph.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Part content here.'))
+    paragraph = AST::ParagraphNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    paragraph.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Part content here.'))
     document.add_child(paragraph)
 
     result = part_renderer.visit(document)
@@ -668,18 +668,18 @@ class TestLatexRenderer < Test::Unit::TestCase
     part.generate_indexes
     part_renderer = Renderer::LatexRenderer.new(part)
 
-    document = AST::DocumentNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
+    document = AST::DocumentNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
 
     # Add first level 1 headline
-    caption_node1 = AST::CaptionNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    caption_node1.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Part Title'))
-    headline1 = AST::HeadlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), level: 1, caption_node: caption_node1)
+    caption_node1 = AST::CaptionNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    caption_node1.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Part Title'))
+    headline1 = AST::HeadlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), level: 1, caption_node: caption_node1)
     document.add_child(headline1)
 
     # Add second level 1 headline (should not open reviewpart again)
-    caption_node2 = AST::CaptionNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    caption_node2.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Another Part Title'))
-    headline2 = AST::HeadlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), level: 1, caption_node: caption_node2)
+    caption_node2 = AST::CaptionNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    caption_node2.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Another Part Title'))
+    headline2 = AST::HeadlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), level: 1, caption_node: caption_node2)
     document.add_child(headline2)
 
     result = part_renderer.visit(document)
@@ -700,12 +700,12 @@ class TestLatexRenderer < Test::Unit::TestCase
     part.generate_indexes
     part_renderer = Renderer::LatexRenderer.new(part)
 
-    document = AST::DocumentNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
+    document = AST::DocumentNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
 
     # Add level 2 headline first
-    caption_node = AST::CaptionNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    caption_node.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Section Title'))
-    headline = AST::HeadlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), level: 2, caption_node: caption_node)
+    caption_node = AST::CaptionNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    caption_node.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Section Title'))
+    headline = AST::HeadlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), level: 2, caption_node: caption_node)
     document.add_child(headline)
 
     result = part_renderer.visit(document)
@@ -720,17 +720,17 @@ class TestLatexRenderer < Test::Unit::TestCase
 
   def test_visit_chapter_document_no_reviewpart
     # Test that regular Chapter documents do not get reviewpart environment
-    document = AST::DocumentNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
+    document = AST::DocumentNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
 
     # Add level 1 headline
-    caption_node = AST::CaptionNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    caption_node.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Chapter Title'))
-    headline = AST::HeadlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), level: 1, caption_node: caption_node)
+    caption_node = AST::CaptionNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    caption_node.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Chapter Title'))
+    headline = AST::HeadlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), level: 1, caption_node: caption_node)
     document.add_child(headline)
 
     # Add a paragraph
-    paragraph = AST::ParagraphNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    paragraph.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Chapter content here.'))
+    paragraph = AST::ParagraphNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    paragraph.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Chapter content here.'))
     document.add_child(paragraph)
 
     result = @renderer.visit(document)
@@ -744,10 +744,10 @@ class TestLatexRenderer < Test::Unit::TestCase
 
   def test_visit_headline_nonum
     # Test [nonum] option - unnumbered section with TOC entry
-    caption_node = AST::CaptionNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    caption_node.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Unnumbered Section'))
+    caption_node = AST::CaptionNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    caption_node.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Unnumbered Section'))
 
-    headline = AST::HeadlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), level: 2, caption_node: caption_node, tag: 'nonum')
+    headline = AST::HeadlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), level: 2, caption_node: caption_node, tag: 'nonum')
     result = @renderer.visit(headline)
 
     # nonum does NOT get labels (matching LATEXBuilder behavior)
@@ -759,10 +759,10 @@ class TestLatexRenderer < Test::Unit::TestCase
 
   def test_visit_headline_notoc
     # Test [notoc] option - unnumbered section without TOC entry
-    caption_node = AST::CaptionNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    caption_node.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'No TOC Section'))
+    caption_node = AST::CaptionNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    caption_node.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'No TOC Section'))
 
-    headline = AST::HeadlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), level: 2, caption_node: caption_node, tag: 'notoc')
+    headline = AST::HeadlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), level: 2, caption_node: caption_node, tag: 'notoc')
     result = @renderer.visit(headline)
 
     # notoc does NOT get labels (matching LATEXBuilder behavior)
@@ -773,10 +773,10 @@ class TestLatexRenderer < Test::Unit::TestCase
 
   def test_visit_headline_nodisp
     # Test [nodisp] option - TOC entry only, no visible heading
-    caption_node = AST::CaptionNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    caption_node.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Hidden Section'))
+    caption_node = AST::CaptionNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    caption_node.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Hidden Section'))
 
-    headline = AST::HeadlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), level: 2, caption_node: caption_node, tag: 'nodisp')
+    headline = AST::HeadlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), level: 2, caption_node: caption_node, tag: 'nodisp')
     result = @renderer.visit(headline)
 
     expected = "\\addcontentsline{toc}{section}{Hidden Section}\n"
@@ -786,10 +786,10 @@ class TestLatexRenderer < Test::Unit::TestCase
 
   def test_visit_headline_nonum_level1
     # Test [nonum] option for level 1 (chapter)
-    caption_node = AST::CaptionNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    caption_node.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Unnumbered Chapter'))
+    caption_node = AST::CaptionNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    caption_node.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Unnumbered Chapter'))
 
-    headline = AST::HeadlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), level: 1, caption_node: caption_node, tag: 'nonum')
+    headline = AST::HeadlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), level: 1, caption_node: caption_node, tag: 'nonum')
     result = @renderer.visit(headline)
 
     # nonum does NOT get labels (matching LATEXBuilder behavior)
@@ -801,10 +801,10 @@ class TestLatexRenderer < Test::Unit::TestCase
 
   def test_visit_headline_nonum_level3
     # Test [nonum] option for level 3 (subsection)
-    caption_node = AST::CaptionNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    caption_node.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Unnumbered Subsection'))
+    caption_node = AST::CaptionNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    caption_node.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Unnumbered Subsection'))
 
-    headline = AST::HeadlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), level: 3, caption_node: caption_node, tag: 'nonum')
+    headline = AST::HeadlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), level: 3, caption_node: caption_node, tag: 'nonum')
     result = @renderer.visit(headline)
 
     # nonum does NOT get labels (matching LATEXBuilder behavior)
@@ -820,9 +820,9 @@ class TestLatexRenderer < Test::Unit::TestCase
     part.generate_indexes
     part_renderer = Renderer::LatexRenderer.new(part)
 
-    caption_node = AST::CaptionNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    caption_node.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Unnumbered Part'))
-    headline = AST::HeadlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), level: 1, caption_node: caption_node, tag: 'nonum')
+    caption_node = AST::CaptionNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    caption_node.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Unnumbered Part'))
+    headline = AST::HeadlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), level: 1, caption_node: caption_node, tag: 'nonum')
     result = part_renderer.visit(headline)
 
     # Part level 1 with nonum does NOT get a label (matching LATEXBuilder behavior)
@@ -834,10 +834,10 @@ class TestLatexRenderer < Test::Unit::TestCase
 
   def test_headline_node_tag_methods
     # Test HeadlineNode tag checking methods
-    nonum_headline = AST::HeadlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), level: 2, tag: 'nonum')
-    notoc_headline = AST::HeadlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), level: 2, tag: 'notoc')
-    nodisp_headline = AST::HeadlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), level: 2, tag: 'nodisp')
-    regular_headline = AST::HeadlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), level: 2)
+    nonum_headline = AST::HeadlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), level: 2, tag: 'nonum')
+    notoc_headline = AST::HeadlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), level: 2, tag: 'notoc')
+    nodisp_headline = AST::HeadlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), level: 2, tag: 'nodisp')
+    regular_headline = AST::HeadlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), level: 2)
 
     assert_true(nonum_headline.nonum?)
     assert_false(nonum_headline.notoc?)
@@ -859,8 +859,8 @@ class TestLatexRenderer < Test::Unit::TestCase
   def test_render_inline_column
     # Test that inline element rendering works with basic elements
     # Create a simple inline node
-    inline_node = AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :b)
-    inline_node.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'bold text'))
+    inline_node = AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :b)
+    inline_node.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'bold text'))
 
     # Test that inline element processing works by visiting an inline node
     # This will internally create a new inline renderer each time (no caching)
@@ -876,12 +876,12 @@ class TestLatexRenderer < Test::Unit::TestCase
   def test_visit_column_basic
     # Test basic column rendering
     caption = 'Test Column'
-    caption_node = AST::CaptionNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    caption_node.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: caption))
+    caption_node = AST::CaptionNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    caption_node.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: caption))
 
-    column = AST::ColumnNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), level: 3, caption_node: caption_node, column_type: :column, auto_id: 'column-1', column_number: 1)
-    paragraph = AST::ParagraphNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    paragraph.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Column content here.'))
+    column = AST::ColumnNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), level: 3, caption_node: caption_node, column_type: :column, auto_id: 'column-1', column_number: 1)
+    paragraph = AST::ParagraphNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    paragraph.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Column content here.'))
     column.add_child(paragraph)
 
     result = @renderer.visit(column)
@@ -900,9 +900,9 @@ class TestLatexRenderer < Test::Unit::TestCase
 
   def test_visit_column_no_caption
     # Test column without caption
-    column = AST::ColumnNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), level: 3, column_type: :column, auto_id: 'column-1', column_number: 1)
-    paragraph = AST::ParagraphNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    paragraph.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'No caption column.'))
+    column = AST::ColumnNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), level: 3, column_type: :column, auto_id: 'column-1', column_number: 1)
+    paragraph = AST::ParagraphNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    paragraph.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'No caption column.'))
     column.add_child(paragraph)
 
     result = @renderer.visit(column)
@@ -922,12 +922,12 @@ class TestLatexRenderer < Test::Unit::TestCase
     @config['toclevel'] = 2 # Only levels 1-2 should get TOC entries
 
     caption = 'Level 3 Column'
-    caption_node = AST::CaptionNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    caption_node.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: caption))
+    caption_node = AST::CaptionNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    caption_node.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: caption))
 
-    column = AST::ColumnNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), level: 3, caption_node: caption_node, column_type: :column, auto_id: 'column-1', column_number: 1)
-    paragraph = AST::ParagraphNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    paragraph.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'This should not get TOC entry.'))
+    column = AST::ColumnNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), level: 3, caption_node: caption_node, column_type: :column, auto_id: 'column-1', column_number: 1)
+    paragraph = AST::ParagraphNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    paragraph.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'This should not get TOC entry.'))
     column.add_child(paragraph)
 
     result = @renderer.visit(column)
@@ -945,7 +945,7 @@ class TestLatexRenderer < Test::Unit::TestCase
 
   def test_visit_embed_raw_basic
     # Test basic //raw command without builder specification
-    embed = AST::EmbedNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0),
+    embed = AST::EmbedNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0),
                                embed_type: :raw,
                                arg: 'Raw content with \\n newline',
                                target_builders: nil,
@@ -959,7 +959,7 @@ class TestLatexRenderer < Test::Unit::TestCase
 
   def test_visit_embed_raw_latex_targeted
     # Test //raw command targeted for LaTeX
-    embed = AST::EmbedNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0),
+    embed = AST::EmbedNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0),
                                embed_type: :raw,
                                arg: '|latex|\\textbf{Bold LaTeX text}',
                                target_builders: ['latex'],
@@ -973,7 +973,7 @@ class TestLatexRenderer < Test::Unit::TestCase
 
   def test_visit_embed_raw_html_targeted
     # Test //raw command targeted for HTML (should output nothing)
-    embed = AST::EmbedNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0),
+    embed = AST::EmbedNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0),
                                embed_type: :raw,
                                arg: '|html|<div>HTML content</div>',
                                target_builders: ['html'],
@@ -987,7 +987,7 @@ class TestLatexRenderer < Test::Unit::TestCase
 
   def test_visit_embed_raw_complex_example
     # Test complex example: //raw[|html|<div class="custom">HTML用カスタム要素</div>]
-    embed = AST::EmbedNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0),
+    embed = AST::EmbedNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0),
                                embed_type: :raw,
                                arg: '|html|<div class="custom">HTML用カスタム要素</div>',
                                target_builders: ['html'],
@@ -1001,7 +1001,7 @@ class TestLatexRenderer < Test::Unit::TestCase
 
   def test_visit_embed_raw_latex_with_clearpage
     # Test: //raw[|latex|\clearpage]
-    embed = AST::EmbedNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0),
+    embed = AST::EmbedNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0),
                                embed_type: :raw,
                                arg: '|latex|\\clearpage',
                                target_builders: ['latex'],
@@ -1015,7 +1015,7 @@ class TestLatexRenderer < Test::Unit::TestCase
 
   def test_visit_embed_raw_multiple_builders
     # Test //raw command targeted for multiple builders including LaTeX
-    embed = AST::EmbedNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0),
+    embed = AST::EmbedNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0),
                                embed_type: :raw,
                                arg: '|html,latex|Content for both',
                                target_builders: ['html', 'latex'],
@@ -1029,7 +1029,7 @@ class TestLatexRenderer < Test::Unit::TestCase
 
   def test_visit_embed_raw_inline
     # Test inline @<raw> command
-    embed = AST::EmbedNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0),
+    embed = AST::EmbedNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0),
                                embed_type: :inline,
                                arg: '|latex|\\LaTeX{}',
                                target_builders: ['latex'],
@@ -1043,7 +1043,7 @@ class TestLatexRenderer < Test::Unit::TestCase
 
   def test_visit_embed_raw_newline_conversion
     # Test \n to newline conversion
-    embed = AST::EmbedNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0),
+    embed = AST::EmbedNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0),
                                embed_type: :raw,
                                arg: 'Line 1\\nLine 2\\nLine 3',
                                target_builders: nil,
@@ -1057,7 +1057,7 @@ class TestLatexRenderer < Test::Unit::TestCase
 
   def test_visit_embed_raw_no_builder_specification
     # Test //raw without builder specification (should output content)
-    embed = AST::EmbedNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0),
+    embed = AST::EmbedNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0),
                                embed_type: :raw,
                                arg: 'Raw content without builder spec',
                                target_builders: nil,
@@ -1071,20 +1071,20 @@ class TestLatexRenderer < Test::Unit::TestCase
 
   def test_visit_list_definition
     # Test definition list
-    list = AST::ListNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), list_type: :dl)
+    list = AST::ListNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), list_type: :dl)
 
     # First definition item: : Alpha \n    RISC CPU made by DEC.
     # Set term as term_children (not regular children)
-    term1 = AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Alpha')
-    item1 = AST::ListItemNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Alpha', level: 1, term_children: [term1])
+    term1 = AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Alpha')
+    item1 = AST::ListItemNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Alpha', level: 1, term_children: [term1])
     # Add definition as regular child
-    def1 = AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'RISC CPU made by DEC.')
+    def1 = AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'RISC CPU made by DEC.')
     item1.add_child(def1)
 
     # Second definition item with brackets in term
-    term2 = AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'POWER [IBM]')
-    item2 = AST::ListItemNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'POWER [IBM]', level: 1, term_children: [term2])
-    def2 = AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'RISC CPU made by IBM and Motorola.')
+    term2 = AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'POWER [IBM]')
+    item2 = AST::ListItemNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'POWER [IBM]', level: 1, term_children: [term2])
+    def2 = AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'RISC CPU made by IBM and Motorola.')
     item2.add_child(def2)
 
     list.add_child(item1)
@@ -1104,11 +1104,11 @@ class TestLatexRenderer < Test::Unit::TestCase
 
   def test_visit_list_definition_single_child
     # Test definition list with term only (no definition)
-    list = AST::ListNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), list_type: :dl)
+    list = AST::ListNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), list_type: :dl)
 
     # Set term as term_children, no regular children (no definition)
-    term = AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Term Only')
-    item = AST::ListItemNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Term Only', level: 1, term_children: [term])
+    term = AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Term Only')
+    item = AST::ListItemNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Term Only', level: 1, term_children: [term])
 
     list.add_child(item)
 
@@ -1373,11 +1373,11 @@ class TestLatexRenderer < Test::Unit::TestCase
 
   # Integration test for image with metric (missing image case)
   def test_visit_image_with_metric
-    caption_node = AST::CaptionNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    caption_node.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Test Image'))
+    caption_node = AST::CaptionNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    caption_node.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Test Image'))
 
     # Create an image node with metric (image doesn't exist)
-    image = AST::ImageNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), id: 'image1', caption_node: caption_node, metric: 'latex::width=80mm')
+    image = AST::ImageNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), id: 'image1', caption_node: caption_node, metric: 'latex::width=80mm')
     result = @renderer.visit(image)
 
     expected_lines = [
@@ -1393,14 +1393,14 @@ class TestLatexRenderer < Test::Unit::TestCase
 
   def test_visit_table_without_caption
     # Test table without caption (should not output \begin{table} and \end{table})
-    table = AST::TableNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), id: 'table1')
+    table = AST::TableNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), id: 'table1')
 
     # Header row
     header_row = AST::TableRowNode.new(location: nil, row_type: :header)
     header_cell1 = AST::TableCellNode.new(location: nil, cell_type: :th)
-    header_cell1.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Header 1'))
+    header_cell1.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Header 1'))
     header_cell2 = AST::TableCellNode.new(location: nil, cell_type: :th)
-    header_cell2.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Header 2'))
+    header_cell2.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Header 2'))
     header_row.add_child(header_cell1)
     header_row.add_child(header_cell2)
     table.add_header_row(header_row)
@@ -1408,9 +1408,9 @@ class TestLatexRenderer < Test::Unit::TestCase
     # Body row
     body_row = AST::TableRowNode.new(location: nil, row_type: :body)
     body_cell1 = AST::TableCellNode.new(location: nil)
-    body_cell1.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Data 1'))
+    body_cell1.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Data 1'))
     body_cell2 = AST::TableCellNode.new(location: nil)
-    body_cell2.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Data 2'))
+    body_cell2.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Data 2'))
     body_row.add_child(body_cell1)
     body_row.add_child(body_cell2)
     table.add_body_row(body_row)
@@ -1421,9 +1421,9 @@ class TestLatexRenderer < Test::Unit::TestCase
     assert_false(result.include?('\\begin{table}'), 'Should not include \\begin{table} without caption')
     assert_false(result.include?('\\end{table}'), 'Should not include \\end{table} without caption')
 
-    # Should contain table structure with label (label is output regardless of caption)
+    # A caption-less table emits NO label either (LATEXBuilder only emits the
+    # label inside table_header, which is gated on the caption being present).
     expected_lines = [
-      '\\label{table:test:table1}',
       '\\begin{reviewtable}{|l|l|}',
       '\\hline',
       '\\reviewth{Header 1} & \\reviewth{Header 2} \\\\  \\hline',
@@ -1436,17 +1436,17 @@ class TestLatexRenderer < Test::Unit::TestCase
 
   def test_visit_table_with_empty_caption_node
     # Test table with empty caption node (should not output \begin{table} and \end{table})
-    empty_caption_node = AST::CaptionNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
+    empty_caption_node = AST::CaptionNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
     # Empty caption node with no children
 
-    table = AST::TableNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), id: 'table1', caption_node: empty_caption_node)
+    table = AST::TableNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), id: 'table1', caption_node: empty_caption_node)
 
     # Header row
     header_row = AST::TableRowNode.new(location: nil, row_type: :header)
     header_cell1 = AST::TableCellNode.new(location: nil, cell_type: :th)
-    header_cell1.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Header 1'))
+    header_cell1.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Header 1'))
     header_cell2 = AST::TableCellNode.new(location: nil, cell_type: :th)
-    header_cell2.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Header 2'))
+    header_cell2.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Header 2'))
     header_row.add_child(header_cell1)
     header_row.add_child(header_cell2)
     table.add_header_row(header_row)
@@ -1454,9 +1454,9 @@ class TestLatexRenderer < Test::Unit::TestCase
     # Body row
     body_row = AST::TableRowNode.new(location: nil, row_type: :body)
     body_cell1 = AST::TableCellNode.new(location: nil)
-    body_cell1.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Data 1'))
+    body_cell1.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Data 1'))
     body_cell2 = AST::TableCellNode.new(location: nil)
-    body_cell2.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Data 2'))
+    body_cell2.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Data 2'))
     body_row.add_child(body_cell1)
     body_row.add_child(body_cell2)
     table.add_body_row(body_row)
@@ -1467,9 +1467,8 @@ class TestLatexRenderer < Test::Unit::TestCase
     assert_false(result.include?('\\begin{table}'), 'Should not include \\begin{table} with empty caption')
     assert_false(result.include?('\\end{table}'), 'Should not include \\end{table} with empty caption')
 
-    # Should contain table structure with label
+    # An empty caption is treated as no caption -> no float and no label.
     expected_lines = [
-      '\\label{table:test:table1}',
       '\\begin{reviewtable}{|l|l|}',
       '\\hline',
       '\\reviewth{Header 1} & \\reviewth{Header 2} \\\\  \\hline',
@@ -1496,13 +1495,85 @@ class TestLatexRenderer < Test::Unit::TestCase
     )
 
     # Create ReferenceNode with resolved data
-    ref_node = AST::ReferenceNode.new('lins', nil, location: ReVIEW::SnapshotLocation.new(nil, 0), resolved_data: resolved_data)
+    ref_node = AST::ReferenceNode.new('lins', nil, location: ReVIEW::AST::SourceLocation.new(nil, 0), resolved_data: resolved_data)
 
-    inline = AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :bib, args: ['lins'])
+    inline = AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :bib, args: ['lins'])
     inline.add_child(ref_node)
 
     result = @renderer.visit(inline)
     assert_equal '\\reviewbibref{[1]}{bib:lins}', result
+  end
+
+  # Regression: @<endnote>{id} inline-compiles the endnote content (like
+  # LATEXBuilder#inline_endnote's compile_inline), so inline ops in the content
+  # are processed -- it used to escape the plain caption_text, dropping markup.
+  def test_inline_endnote_compiles_content_inline
+    caption_node = AST::CaptionNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    caption_node.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'see '))
+    inline_b = AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :b, args: ['bold'])
+    inline_b.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'bold'))
+    caption_node.add_child(inline_b)
+
+    resolved_data = AST::ResolvedData.endnote(item_number: 1, item_id: 'e1', caption_node: caption_node)
+    ref_node = AST::ReferenceNode.new('e1', nil, location: ReVIEW::AST::SourceLocation.new(nil, 0), resolved_data: resolved_data)
+    inline = AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :endnote, args: ['e1'])
+    inline.add_child(ref_node)
+
+    assert_equal '\\endnote{see \\reviewbold{bold}}', @renderer.visit(inline)
+  end
+
+  # Regression: a //bibpaper caption is inline-compiled (like
+  # LATEXBuilder#bibpaper_header's compile_inline), not raw-escaped, so inline
+  # ops such as @<b>{...} in the caption are processed.
+  def test_bibpaper_caption_is_inline_compiled
+    bibpaper_index = ReVIEW::Book::BibpaperIndex.new
+    bibpaper_index.add_item(ReVIEW::Book::Index::Item.new('ref1', 1, 'cap'))
+    @book.bibpaper_index = bibpaper_index
+
+    caption_node = AST::CaptionNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    caption_node.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Cap '))
+    inline = AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :b, args: ['x'])
+    inline.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'x'))
+    caption_node.add_child(inline)
+
+    node = AST::BlockNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0),
+                              block_type: :bibpaper, args: ['ref1', 'Cap @<b>{x}'],
+                              caption_node: caption_node)
+    para = AST::ParagraphNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    para.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'body'))
+    node.add_child(para)
+    node.definition_number = AST::DefinitionNumber.new(number: 1)
+
+    result = @renderer.visit(node)
+
+    assert_include(result, '[1] Cap \\reviewbold{x}')
+    assert_not_include(result, '@\\textless{}b\\textgreater{}') # not raw-escaped
+  end
+
+  # Regression: rendering a //bibpaper under join_lines_by_lang must not crash.
+  # visit_bibpaper used to call TextUtils#split_paragraph, which needs
+  # pre_paragraph/post_paragraph (undefined on the renderer) -> NameError.
+  def test_bibpaper_join_lines_by_lang_does_not_crash
+    config = ReVIEW::Configure.values
+    config['builder'] = 'latex'
+    config['join_lines_by_lang'] = true
+    book = ReVIEW::Book::Base.new(config: config)
+    chapter = ReVIEW::Book::Chapter.new(book, 1, 'test', 'test.re', StringIO.new)
+    chapter.generate_indexes
+    bibpaper_index = ReVIEW::Book::BibpaperIndex.new
+    bibpaper_index.add_item(ReVIEW::Book::Index::Item.new('ref1', 1, 'cap'))
+    book.bibpaper_index = bibpaper_index
+    renderer = Renderer::LatexRenderer.new(chapter)
+
+    node = AST::BlockNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0),
+                              block_type: :bibpaper, args: ['ref1', 'Cap'])
+    para = AST::ParagraphNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    para.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'body line'))
+    node.add_child(para)
+
+    result = nil
+    assert_nothing_raised { result = renderer.visit(node) }
+    assert_include(result, '\\label{bib:ref1}')
   end
 
   def test_inline_bib_reference_multiple
@@ -1520,9 +1591,9 @@ class TestLatexRenderer < Test::Unit::TestCase
       item_id: 'lins',
       caption_node: nil
     )
-    ref_node1 = AST::ReferenceNode.new('lins', nil, location: ReVIEW::SnapshotLocation.new(nil, 0), resolved_data: resolved_data1)
+    ref_node1 = AST::ReferenceNode.new('lins', nil, location: ReVIEW::AST::SourceLocation.new(nil, 0), resolved_data: resolved_data1)
 
-    inline1 = AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :bib, args: ['lins'])
+    inline1 = AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :bib, args: ['lins'])
     inline1.add_child(ref_node1)
 
     result1 = @renderer.visit(inline1)
@@ -1534,9 +1605,9 @@ class TestLatexRenderer < Test::Unit::TestCase
       item_id: 'knuth',
       caption_node: nil
     )
-    ref_node2 = AST::ReferenceNode.new('knuth', nil, location: ReVIEW::SnapshotLocation.new(nil, 0), resolved_data: resolved_data2)
+    ref_node2 = AST::ReferenceNode.new('knuth', nil, location: ReVIEW::AST::SourceLocation.new(nil, 0), resolved_data: resolved_data2)
 
-    inline2 = AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :bib, args: ['knuth'])
+    inline2 = AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :bib, args: ['knuth'])
     inline2.add_child(ref_node2)
 
     result2 = @renderer.visit(inline2)
@@ -1559,11 +1630,11 @@ class TestLatexRenderer < Test::Unit::TestCase
 
     # Create ReferenceNode with resolved data
     ref_node = AST::ReferenceNode.new('lins', nil,
-                                      location: ReVIEW::SnapshotLocation.new(nil, 0),
+                                      location: ReVIEW::AST::SourceLocation.new(nil, 0),
                                       resolved_data: resolved_data)
 
     # Create InlineNode and add ReferenceNode as child
-    inline = AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :bibref, args: ['lins'])
+    inline = AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :bibref, args: ['lins'])
     inline.add_child(ref_node)
 
     result = @renderer.visit(inline)
@@ -1572,16 +1643,16 @@ class TestLatexRenderer < Test::Unit::TestCase
 
   def test_inline_idx_simple
     # Test @<idx>{term} - simple index entry
-    inline = AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :idx, args: ['keyword'])
-    inline.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'keyword'))
+    inline = AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :idx, args: ['keyword'])
+    inline.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'keyword'))
     result = @renderer.visit(inline)
     assert_equal 'keyword\\index{keyword}', result
   end
 
   def test_inline_idx_hierarchical
     # Test @<idx>{親項目<<>>子項目} - hierarchical index entry
-    inline = AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :idx, args: ['親項目<<>>子項目'])
-    inline.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: '子項目'))
+    inline = AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :idx, args: ['親項目<<>>子項目'])
+    inline.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: '子項目'))
     result = @renderer.visit(inline)
     # Should process hierarchical index: split by <<>>, escape, and join with !
     # Japanese text should get yomi conversion
@@ -1590,22 +1661,22 @@ class TestLatexRenderer < Test::Unit::TestCase
 
   def test_inline_idx_ascii
     # Test @<idx>{term} with ASCII characters
-    inline = AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :idx, args: ['Ruby'])
-    inline.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Ruby'))
+    inline = AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :idx, args: ['Ruby'])
+    inline.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Ruby'))
     result = @renderer.visit(inline)
     assert_equal 'Ruby\\index{Ruby}', result
   end
 
   def test_inline_hidx_simple
     # Test @<hidx>{term} - hidden index entry
-    inline = AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :hidx, args: ['keyword'])
+    inline = AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :hidx, args: ['keyword'])
     result = @renderer.visit(inline)
     assert_equal '\\index{keyword}', result
   end
 
   def test_inline_hidx_hierarchical
     # Test @<hidx>{索引<<>>idx} - hierarchical hidden index entry
-    inline = AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :hidx, args: ['索引<<>>idx'])
+    inline = AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :hidx, args: ['索引<<>>idx'])
     result = @renderer.visit(inline)
     # Should process hierarchical index: split by <<>>, escape, and join with !
     # Japanese text should get yomi conversion, ASCII should not
@@ -1614,8 +1685,8 @@ class TestLatexRenderer < Test::Unit::TestCase
 
   def test_inline_idx_with_special_chars
     # Test @<idx> with special characters that need escaping
-    inline = AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :idx, args: ['term@example'])
-    inline.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'term@example'))
+    inline = AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :idx, args: ['term@example'])
+    inline.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'term@example'))
     result = @renderer.visit(inline)
     # @ should be escaped as "@ by escape_index
     # Format: key@display where key is used for sorting, display is shown
@@ -1626,13 +1697,13 @@ class TestLatexRenderer < Test::Unit::TestCase
   def test_inline_column_same_chapter
     # Test @<column>{column1} - same-chapter column reference
     # Setup: add a column to the current chapter's column_index
-    caption_node = AST::CaptionNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    caption_node.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Test Column'))
-    column_item = ReVIEW::Book::Index::Item.new('column1', 1, 'Test Column', caption_node: caption_node)
+    caption_node = AST::CaptionNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    caption_node.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Test Column'))
+    column_item = ReVIEW::Book::Index::Item.new('column1', 1, 'Test Column')
     @chapter.column_index.add_item(column_item)
 
     # Create InlineNode with ReferenceNode child containing resolved_data
-    inline = AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :column, args: ['column1'])
+    inline = AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :column, args: ['column1'])
     resolved_data = AST::ResolvedData.column(
       chapter_number: 1, chapter_type: :chapter,
       item_number: 1,
@@ -1640,7 +1711,7 @@ class TestLatexRenderer < Test::Unit::TestCase
       chapter_id: nil, # Same chapter
       caption_node: caption_node
     )
-    ref_node = AST::ReferenceNode.new('column1', nil, location: ReVIEW::SnapshotLocation.new(nil, 0), resolved_data: resolved_data)
+    ref_node = AST::ReferenceNode.new('column1', nil, location: ReVIEW::AST::SourceLocation.new(nil, 0), resolved_data: resolved_data)
     inline.add_child(ref_node)
 
     result = @renderer.visit(inline)
@@ -1663,13 +1734,13 @@ class TestLatexRenderer < Test::Unit::TestCase
     @book.instance_variable_set(:@parts, [part])
 
     # Add a column to ch03's column_index
-    caption_node = AST::CaptionNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    caption_node.add_child(AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Column in Ch03'))
-    column_item = ReVIEW::Book::Index::Item.new('column2', 1, 'Column in Ch03', caption_node: caption_node)
+    caption_node = AST::CaptionNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    caption_node.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Column in Ch03'))
+    column_item = ReVIEW::Book::Index::Item.new('column2', 1, 'Column in Ch03')
     ch03.column_index.add_item(column_item)
 
     # Create InlineNode with ReferenceNode child containing resolved_data for cross-chapter reference
-    inline = AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :column, args: ['ch03', 'column2'])
+    inline = AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :column, args: ['ch03', 'column2'])
     resolved_data = AST::ResolvedData.column(
       chapter_number: 3, chapter_type: :chapter,
       item_number: 1,
@@ -1677,7 +1748,7 @@ class TestLatexRenderer < Test::Unit::TestCase
       chapter_id: 'ch03', # Cross-chapter reference
       caption_node: caption_node
     )
-    ref_node = AST::ReferenceNode.new('column2', 'ch03', location: ReVIEW::SnapshotLocation.new(nil, 0), resolved_data: resolved_data)
+    ref_node = AST::ReferenceNode.new('column2', 'ch03', location: ReVIEW::AST::SourceLocation.new(nil, 0), resolved_data: resolved_data)
     inline.add_child(ref_node)
 
     result = @renderer.visit(inline)

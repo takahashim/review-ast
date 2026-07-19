@@ -23,11 +23,12 @@ module ReVIEW
       def initialize(location:, cell_type: :td, **kwargs)
         super
         @children = []
-        @cell_type = cell_type # :th or :td
+        @cell_type = (cell_type || :td).to_sym # :th or :td (canonicalized at construction)
       end
 
       def self.deserialize_from_hash(hash)
-        node = new(location: ReVIEW::AST::JSONSerializer.restore_location(hash))
+        node = new(location: ReVIEW::AST::JSONSerializer.restore_location(hash),
+                   cell_type: hash['cell_type'])
         if hash['children']
           hash['children'].each do |child_hash|
             child = ReVIEW::AST::JSONSerializer.deserialize_from_hash(child_hash)

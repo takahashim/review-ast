@@ -8,6 +8,7 @@
 
 require 'review/ast/node'
 require 'review/ast/block_node'
+require 'review/ast/directive_node'
 require 'review/ast/list_node'
 require 'review/ast/paragraph_node'
 require 'review/ast/text_node'
@@ -158,11 +159,11 @@ module ReVIEW
         end
 
         def beginchild_block?(node)
-          node.is_a?(ReVIEW::AST::BlockNode) && node.block_type == :beginchild
+          node.is_a?(ReVIEW::AST::DirectiveNode) && node.directive_type == :beginchild
         end
 
         def endchild_block?(node)
-          node.is_a?(ReVIEW::AST::BlockNode) && node.block_type == :endchild
+          node.is_a?(ReVIEW::AST::DirectiveNode) && node.directive_type == :endchild
         end
 
         def paragraph_node?(node)

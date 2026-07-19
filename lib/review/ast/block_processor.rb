@@ -373,7 +373,15 @@ module ReVIEW
           elsif context.content?
             case context.name
             when :quote, :lead, :blockquote, :read, :centering, :flushright, :address, :talk
-              @ast_compiler.process_structured_content(node, context.lines)
+              # These wrappers do not re-parse list markup in ANY Re:VIEW builder:
+              # a "* x" / "1. x" / ": term" line inside //quote is literal text,
+              # not a list, in LaTeX, HTML and IDGXML alike (each builder's
+              # read_block only inline-compiles the lines). So flat parsing here is
+              # the shared source semantics, not one builder's decision baked in.
+              # The AST keeps each source line as a boundary ("\n"); each renderer
+              # joins per join_lines_to_paragraph. Leading whitespace is preserved
+              # (these builders pass the lines to split_paragraph untouched).
+              @ast_compiler.process_structured_content(node, context.lines, parse_lists: false, preserve_leading_whitespace: true)
             else
               context.lines.each { |line| context.process_inline_elements(line, node) }
             end
@@ -430,6 +438,24 @@ module ReVIEW
       def build_control_command_ast(context)
         context.append_new_node(AST::BlockNode,
                                 block_type: context.name,
+                                args: context.args) do |node|
+          if context.content?
+            context.lines.each do |line|
+              text_node = context.create_node(AST::TextNode, content: line)
+              node.add_child(text_node)
+            end
+          end
+        end
+      end
+
+      # Build a parser-instruction directive (//noindent, //olnum, //tsize,
+      # //firstlinenum, //beginchild, //endchild). Kept in the surface tree and
+      # lowered to a sibling attribute by a post-process pass. See DirectiveNode.
+      def build_directive_ast(context)
+        require_relative('directive_node')
+
+        context.append_new_node(AST::DirectiveNode,
+                                directive_type: context.name,
                                 args: context.args) do |node|
           if context.content?
             context.lines.each do |line|
@@ -584,19 +610,22 @@ module ReVIEW
 
         # Control commands
         comment: :build_control_command_ast,
-        olnum: :build_control_command_ast,
         blankline: :build_control_command_ast,
-        noindent: :build_control_command_ast,
         pagebreak: :build_control_command_ast,
-        firstlinenum: :build_control_command_ast,
-        tsize: :build_control_command_ast,
         label: :build_control_command_ast,
         printendnotes: :build_control_command_ast,
         hr: :build_control_command_ast,
         bpo: :build_control_command_ast,
         parasep: :build_control_command_ast,
-        beginchild: :build_control_command_ast,
-        endchild: :build_control_command_ast,
+
+        # Parser-instruction directives (lowered to a sibling attribute and
+        # removed by a post-process pass; see DirectiveNode)
+        olnum: :build_directive_ast,
+        noindent: :build_directive_ast,
+        firstlinenum: :build_directive_ast,
+        tsize: :build_directive_ast,
+        beginchild: :build_directive_ast,
+        endchild: :build_directive_ast,
 
         # Math blocks
         texequation: :build_tex_equation_ast

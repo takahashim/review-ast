@@ -20,7 +20,7 @@ class TestASTEmbed < Test::Unit::TestCase
 
   def test_embed_node_creation
     node = ReVIEW::AST::EmbedNode.new(
-      location: ReVIEW::SnapshotLocation.new(nil, 0),
+      location: ReVIEW::AST::SourceLocation.new(nil, 0),
       embed_type: :block,
       target_builders: ['html'],
       content: "content line 1\ncontent line 2"

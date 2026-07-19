@@ -4,24 +4,38 @@ require_relative 'node'
 require_relative 'caption_node'
 require_relative 'captionable'
 require_relative 'json_serializer'
+require_relative 'table_column_width_parser'
 
 module ReVIEW
   module AST
     class TableNode < Node
       include Captionable
 
-      attr_accessor :col_spec, :cellwidth
       attr_reader :table_type, :metric
+      # The raw //tsize argument that precedes this table (e.g. "10,18,50" or
+      # "|latex|10,18,50" or "|l|c|r|"), or nil. This is a source fact kept
+      # target-neutral: the LaTeX column spec is derived by the renderer, not
+      # baked here. See doc/design-improvements #5.
+      attr_accessor :tsize
 
-      def initialize(location:, id: nil, caption_node: nil, table_type: :table, metric: nil, col_spec: nil, cellwidth: nil, **kwargs)
+      def initialize(location:, id: nil, caption_node: nil, table_type: :table, metric: nil, tsize: nil, **kwargs)
         super(location: location, id: id, **kwargs)
         @caption_node = caption_node
-        @table_type = table_type # :table, :emtable, :imgtable
+        # Canonicalize at construction so the field is always a symbol regardless
+        # of the path (fresh compile vs. deserialized string), and no consumer or
+        # serializer has to remember to coerce it.
+        @table_type = (table_type || :table).to_sym # :table, :emtable, :imgtable
         @metric = metric
-        @col_spec = col_spec # Column specification string (e.g., "|l|c|r|")
-        @cellwidth = cellwidth # Array of column width specifications
+        @tsize = tsize
         @header_rows = []
         @body_rows = []
+      end
+
+      # The //tsize spec that applies to this table for +format+ (nil if none),
+      # after resolving any |builder| target prefix. Renderers parse it into
+      # their own column vocabulary.
+      def tsize_value_for(format)
+        TableColumnWidthParser.value_for_target(@tsize, format)
       end
 
       def header_rows
@@ -63,26 +77,6 @@ module ReVIEW
         all_rows.first&.children&.length || 1
       end
 
-      # Get default column specification (left-aligned with borders)
-      def default_col_spec
-        '|' + ('l|' * column_count)
-      end
-
-      # Get default cellwidth array (all left-aligned)
-      def default_cellwidth
-        ['l'] * column_count
-      end
-
-      # Parse tsize value and set col_spec and cellwidth on this table
-      # @param tsize_value [String] tsize specification
-      def parse_and_set_tsize(tsize_value)
-        require_relative('table_column_width_parser')
-        parser = TableColumnWidthParser.new(tsize_value, column_count)
-        result = parser.parse
-        @col_spec = result.col_spec
-        @cellwidth = result.cellwidth
-      end
-
       # Update table attributes after creation
       # This is used by MarkdownAdapter to set id and caption from attribute blocks
       # @param id [String, nil] Table ID
@@ -100,8 +94,7 @@ module ReVIEW
           body_rows: body_rows.map(&:to_h)
         )
         result[:metric] = metric if metric
-        result[:col_spec] = col_spec if col_spec
-        result[:cellwidth] = cellwidth if cellwidth
+        result[:tsize] = tsize if tsize
         result
       end
 
@@ -124,10 +117,9 @@ module ReVIEW
         hash[:header_rows] = header_rows.map { |row| row.serialize_to_hash(options) }
         hash[:body_rows] = body_rows.map { |row| row.serialize_to_hash(options) }
         hash[:metric] = metric if metric
-        hash[:col_spec] = col_spec if col_spec
-        hash[:cellwidth] = cellwidth if cellwidth
+        hash[:tsize] = tsize if tsize
 
-        hash
+        serialize_common_node_fields(hash)
       end
 
       def self.deserialize_from_hash(hash)
@@ -135,8 +127,9 @@ module ReVIEW
           location: ReVIEW::AST::JSONSerializer.restore_location(hash),
           id: hash['id'],
           caption_node: deserialize_caption_from_hash(hash),
-          table_type: hash['table_type'] || :table,
-          metric: hash['metric']
+          table_type: hash['table_type'],
+          metric: hash['metric'],
+          tsize: hash['tsize']
         )
         # Process header and body rows
         (hash['header_rows'] || []).each do |row_hash|

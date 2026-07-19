@@ -63,8 +63,8 @@ module ReVIEW
         @ast_root = nil
         @current_ast_node = nil
 
-        # Location tracking - initialize with default location
-        @current_location = SnapshotLocation.new(nil, 0)
+        # Location tracking - initialize with default location (column unknown)
+        @current_location = SourceLocation.new(nil, 0)
 
         # Processors for specialized AST handling
         @inline_processor = InlineProcessor.new(self)
@@ -113,7 +113,7 @@ module ReVIEW
         f = LineInput.from_string(@chapter.content)
 
         @ast_root = AST::DocumentNode.new(
-          location: SnapshotLocation.new(@chapter.basename, f.lineno + 1)
+          location: SourceLocation.new(@chapter.basename, f.lineno + 1, 1)
         )
         @current_ast_node = @ast_root
 
@@ -159,7 +159,7 @@ module ReVIEW
 
       # Force override current location - FOR TESTING ONLY
       # This method bypasses normal location tracking and should only be used in tests
-      # @param location [SnapshotLocation] The location to force set
+      # @param location [SourceLocation] The location to force set
       def force_override_location!(location)
         @current_location = location
       end
@@ -167,7 +167,7 @@ module ReVIEW
       # Update current location based on file input position
       # @param file_input [LineInput] The file input object
       def update_current_location(file_input)
-        @current_location = SnapshotLocation.new(@chapter.basename, file_input.lineno)
+        @current_location = SourceLocation.new(@chapter.basename, file_input.lineno, 1)
       end
 
       # Override error method to accumulate errors (similar to HTMLBuilder's Compiler)
@@ -197,7 +197,7 @@ module ReVIEW
       # Temporarily override location information and execute block
       # Automatically restore original location information after block execution
       #
-      # @param new_location [SnapshotLocation] Location information to set temporarily
+      # @param new_location [SourceLocation] Location information to set temporarily
       # @yield New location information is effective during block execution
       # @return [Object] Block execution result
       def with_temporary_location!(new_location)
@@ -229,7 +229,11 @@ module ReVIEW
       # Universal block content processing method for HTML Builder compatibility
       # This method processes structured content within block elements using the same
       # parsing logic as regular document processing, ensuring consistent behavior
-      def process_structured_content(parent_node, lines)
+      # @param parse_lists [Boolean] when false, list markers (*, 1., :) are not
+      #   recognized and their lines become plain paragraph text. Matches the
+      #   LATEXBuilder :block wrappers (//quote, //lead, //flushright,
+      #   //centering, ...), whose read_block only inline-compiles lines.
+      def process_structured_content(parent_node, lines, parse_lists: true, preserve_leading_whitespace: false)
         return unless lines && lines.any?
 
         # Create StringIO from lines to simulate file input for line processing
@@ -246,21 +250,21 @@ module ReVIEW
         # Process lines using the same logic as main document processing
         while line_input.next?
           # Create location that reflects position within the block
-          @current_location = SnapshotLocation.new(@chapter&.basename || 'block', line_input.lineno)
+          @current_location = SourceLocation.new(@chapter&.basename || 'block', line_input.lineno, 1)
           line_content = line_input.peek
 
           case line_content
           when /\A\s*\z/ # blank line
             line_input.gets # consume blank line but don't create node
-          when /\A\s+\*+\s/ # unordered list (must start with space, supports nesting with **)
+          when ->(l) { parse_lists && l =~ /\A\s+\*+\s/ } # unordered list (must start with space, supports nesting with **)
             compile_ul_to_ast(line_input)
-          when /\A\s+\d+\.\s/ # ordered list (must start with space)
+          when ->(l) { parse_lists && l =~ /\A\s+\d+\.\s/ } # ordered list (must start with space)
             compile_ol_to_ast(line_input)
-          when /\A\s+:\s/ # definition list (must start with space)
+          when ->(l) { parse_lists && l =~ /\A\s+:\s/ } # definition list (must start with space)
             compile_dl_to_ast(line_input)
           else
             # Regular paragraph content
-            compile_paragraph_to_ast(line_input)
+            compile_paragraph_to_ast(line_input, preserve_leading_whitespace: preserve_leading_whitespace)
           end
         end
 
@@ -338,8 +342,8 @@ module ReVIEW
 
         # Build the complete AST structure
         while f.next?
-          # Create a snapshot location that captures the current line number
-          @current_location = SnapshotLocation.new(@chapter.basename, f.lineno + 1)
+          # Create a location that captures the current line number (column 1)
+          @current_location = SourceLocation.new(@chapter.basename, f.lineno + 1, 1)
           line_content = f.peek
           case line_content
           when /\A\#@/
@@ -362,13 +366,18 @@ module ReVIEW
         end
       end
 
-      def compile_paragraph_to_ast(f)
+      def compile_paragraph_to_ast(f, preserve_leading_whitespace: false)
         raw_lines = []
         f.until_match(%r{\A//|\A\#@}) do |line|
           break if line.strip.empty?
 
-          # Match ReVIEW::Compiler behavior: preserve tabs, strip other whitespace
-          processed_line = strip_preserving_leading_tabs(line)
+          # A document-level paragraph strips leading whitespace like
+          # ReVIEW::Compiler (keeping only leading tabs). Content of the
+          # verbatim-ish //quote family (//flushright, //lead, //centering, ...)
+          # keeps leading whitespace: LATEXBuilder/HTMLBuilder/IDGXMLBuilder pass
+          # those lines to split_paragraph untouched, so the author's indent
+          # survives. See doc block on build_quote_block_ast.
+          processed_line = preserve_leading_whitespace ? line.rstrip : strip_preserving_leading_tabs(line)
           raw_lines.push(processed_line)
         end
 
@@ -504,6 +513,22 @@ module ReVIEW
           processor_klass = Object.const_get(processor_name)
           processor_klass.process(@ast_root, chapter: @chapter, compiler: self)
         end
+        assert_directives_lowered(@ast_root)
+      end
+
+      # Stage-boundary check: fail fast (with source location) if a directive
+      # marker leaked past the post-process passes. Because directives carry
+      # their own type (DirectiveNode), this is simply "no DirectiveNode survives
+      # into the core tree". Turns "a marker reached the final tree" from a silent
+      # divergence -- the class of bug that commit d6d6273 fixed after a RuboCop
+      # auto-fix quietly disabled a pass -- into an immediate, located error.
+      def assert_directives_lowered(node)
+        if node.directive?
+          raise ReVIEW::ApplicationError,
+                "//#{node.directive_type} directive was not lowered (it leaked into the core tree)#{node.location&.format_for_error}"
+        end
+
+        node.children.each { |child| assert_directives_lowered(child) }
       end
 
       # Strip leading and trailing whitespace while preserving leading tabs

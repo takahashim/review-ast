@@ -2,7 +2,7 @@
 
 require_relative '../test_helper'
 require_relative 'caption_parser_helper'
-require 'review/snapshot_location'
+require 'review/ast/source_location'
 require 'review/ast/caption_node'
 require 'review/ast/text_node'
 require 'review/ast/inline_node'
@@ -10,7 +10,7 @@ require 'review/ast/compiler'
 
 class TestCaptionParser < Test::Unit::TestCase
   def setup
-    @location = ReVIEW::SnapshotLocation.new('test.re', 1)
+    @location = ReVIEW::AST::SourceLocation.new('test.re', 1)
   end
 
   def test_parser_initialization

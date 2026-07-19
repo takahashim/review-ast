@@ -206,7 +206,7 @@ module ReVIEW
         unless caption.empty?
           result += if node.id && (code_type == :list || code_type == :listnum)
                       # For list/listnum, use I18n formatting to match TOPBuilder
-                      format_list_caption(node.id, caption)
+                      format_list_caption(node.id, caption, node.definition_number)
                     elsif node.id
                       "■#{node.id}■#{caption}\n"
                     else
@@ -279,7 +279,7 @@ module ReVIEW
         unless caption.empty?
           result += if node.id
                       # Use I18n formatting to match TOPBuilder
-                      format_table_caption(node.id, caption)
+                      format_table_caption(node.id, caption, node.definition_number)
                     else
                       "■#{caption}\n"
                     end
@@ -342,7 +342,7 @@ module ReVIEW
         unless caption.empty?
           result += if node.id
                       # Use I18n formatting to match TOPBuilder
-                      format_image_caption(node.id, caption)
+                      format_image_caption(node.id, caption, node.definition_number)
                     else
                       "■#{caption}\n"
                     end
@@ -500,7 +500,7 @@ module ReVIEW
         unless caption.empty?
           result += if node.id
                       # Use I18n formatting to match TOPBuilder
-                      format_table_caption(node.id, caption)
+                      format_table_caption(node.id, caption, node.definition_number)
                     else
                       "■#{caption}\n"
                     end
@@ -652,57 +652,30 @@ module ReVIEW
       end
 
       # Format list caption using I18n (matches TOPBuilder)
-      def format_list_caption(id, caption_text)
+      def format_list_caption(id, caption_text, definition_number)
         return "■#{caption_text}\n" unless @chapter
+        return "■#{id}■#{caption_text}\n" unless definition_number
 
-        begin
-          list_item = @chapter.list(id)
-          chapter_number = get_chap
-          item_number = list_item.number
-
-          # Use TextFormatter to generate caption
-          formatted = text_formatter.format_caption_plain('list', chapter_number, item_number, caption_text)
-          "#{formatted}\n"
-        rescue KeyError, NoMethodError
-          # Fallback if list not found or chapter doesn't have list index
-          "■#{id}■#{caption_text}\n"
-        end
+        formatted = text_formatter.format_caption_plain('list', definition_number.chapter_number, definition_number.number, caption_text)
+        "#{formatted}\n"
       end
 
       # Format table caption using I18n (matches TOPBuilder)
-      def format_table_caption(id, caption_text)
+      def format_table_caption(id, caption_text, definition_number)
         return "■#{caption_text}\n" unless @chapter
+        return "■#{id}■#{caption_text}\n" unless definition_number
 
-        begin
-          table_item = @chapter.table(id)
-          chapter_number = get_chap
-          item_number = table_item.number
-
-          # Use TextFormatter to generate caption
-          formatted = text_formatter.format_caption_plain('table', chapter_number, item_number, caption_text)
-          "#{formatted}\n"
-        rescue KeyError, NoMethodError
-          # Fallback if table not found or chapter doesn't have table index
-          "■#{id}■#{caption_text}\n"
-        end
+        formatted = text_formatter.format_caption_plain('table', definition_number.chapter_number, definition_number.number, caption_text)
+        "#{formatted}\n"
       end
 
       # Format image caption using I18n (matches TOPBuilder)
-      def format_image_caption(id, caption_text)
+      def format_image_caption(id, caption_text, definition_number)
         return "■#{caption_text}\n" unless @chapter
+        return "■#{id}■#{caption_text}\n" unless definition_number
 
-        begin
-          image_item = @chapter.image(id)
-          chapter_number = get_chap
-          item_number = image_item.number
-
-          # Use TextFormatter to generate caption
-          formatted = text_formatter.format_caption_plain('image', chapter_number, item_number, caption_text)
-          "#{formatted}\n"
-        rescue KeyError, NoMethodError
-          # Fallback if image not found or chapter doesn't have image index
-          "■#{id}■#{caption_text}\n"
-        end
+        formatted = text_formatter.format_caption_plain('image', definition_number.chapter_number, definition_number.number, caption_text)
+        "#{formatted}\n"
       end
 
       def render_caption_inline(caption_node)
@@ -821,12 +794,8 @@ module ReVIEW
 
         result = +''
         if id && @chapter
-          begin
-            bibpaper_number = @chapter.bibpaper(id).number
-            result += "[#{bibpaper_number}]"
-          rescue KeyError
-            result += "[#{id}]"
-          end
+          bibpaper_number = node.definition_number&.number
+          result += bibpaper_number ? "[#{bibpaper_number}]" : "[#{id}]"
         end
 
         # Render caption with inline elements if it has a caption_node

@@ -21,7 +21,7 @@ module ReVIEW
       # @param ref_id [String] reference ID (primary reference target)
       # @param context_id [String] context ID (chapter ID, etc., optional)
       # @param resolved_data [ResolvedData, nil] structured resolved data
-      # @param location [SnapshotLocation, nil] location in source code
+      # @param location [SourceLocation, nil] location in source code
       def initialize(ref_id, context_id = nil, location:, resolved_data: nil)
         # Display resolved_data's item_id if resolved, otherwise display original reference ID
         # This content is used for debugging/display purposes in the AST
@@ -140,10 +140,8 @@ module ReVIEW
       def location_to_h
         return nil unless location
 
-        {
-          filename: location.filename,
-          lineno: location.lineno
-        }
+        # Delegate to the location so the column is included when present.
+        location.to_h
       end
     end
   end

@@ -186,7 +186,7 @@ class TestHtmlRenderer < Test::Unit::TestCase
 
   def test_visit_embed_raw_basic
     # Test basic //raw command without builder specification
-    embed = ReVIEW::AST::EmbedNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0),
+    embed = ReVIEW::AST::EmbedNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0),
                                        embed_type: :raw,
                                        arg: 'Raw HTML content with <br> tag',
                                        target_builders: nil,
@@ -202,7 +202,7 @@ class TestHtmlRenderer < Test::Unit::TestCase
 
   def test_visit_embed_raw_html_targeted
     # Test //raw command targeted for HTML
-    embed = ReVIEW::AST::EmbedNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0),
+    embed = ReVIEW::AST::EmbedNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0),
                                        embed_type: :raw,
                                        arg: '|html|<div class="custom">HTML content</div>',
                                        target_builders: ['html'],
@@ -218,7 +218,7 @@ class TestHtmlRenderer < Test::Unit::TestCase
 
   def test_visit_embed_raw_latex_targeted
     # Test //raw command targeted for LaTeX (should output nothing)
-    embed = ReVIEW::AST::EmbedNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0),
+    embed = ReVIEW::AST::EmbedNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0),
                                        embed_type: :raw,
                                        arg: '|latex|\\textbf{LaTeX content}',
                                        target_builders: ['latex'],
@@ -234,7 +234,7 @@ class TestHtmlRenderer < Test::Unit::TestCase
 
   def test_visit_embed_raw_multiple_builders
     # Test //raw command targeted for multiple builders including HTML
-    embed = ReVIEW::AST::EmbedNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0),
+    embed = ReVIEW::AST::EmbedNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0),
                                        embed_type: :raw,
                                        arg: '|html,latex|Content for both',
                                        target_builders: ['html', 'latex'],
@@ -250,7 +250,7 @@ class TestHtmlRenderer < Test::Unit::TestCase
 
   def test_visit_embed_raw_inline
     # Test inline @<raw> command
-    embed = ReVIEW::AST::EmbedNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0),
+    embed = ReVIEW::AST::EmbedNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0),
                                        embed_type: :inline,
                                        arg: '|html|<span class="inline">HTML</span>',
                                        target_builders: ['html'],
@@ -266,7 +266,7 @@ class TestHtmlRenderer < Test::Unit::TestCase
 
   def test_visit_embed_raw_newline_conversion
     # Test \\n to newline conversion
-    embed = ReVIEW::AST::EmbedNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0),
+    embed = ReVIEW::AST::EmbedNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0),
                                        embed_type: :raw,
                                        arg: 'Line 1\\nLine 2\\nLine 3',
                                        target_builders: nil,
@@ -282,7 +282,7 @@ class TestHtmlRenderer < Test::Unit::TestCase
 
   def test_visit_embed_raw_xhtml_compliance
     # Test XHTML compliance for self-closing tags
-    embed = ReVIEW::AST::EmbedNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0),
+    embed = ReVIEW::AST::EmbedNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0),
                                        embed_type: :raw,
                                        arg: '<hr><br><img src="test.png"><input type="text">',
                                        target_builders: nil,
@@ -298,26 +298,26 @@ class TestHtmlRenderer < Test::Unit::TestCase
 
   def test_visit_list_definition
     # Test definition list
-    list = ReVIEW::AST::ListNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), list_type: :dl)
+    list = ReVIEW::AST::ListNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), list_type: :dl)
 
     # First definition item
-    item1 = ReVIEW::AST::ListItemNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), level: 1)
+    item1 = ReVIEW::AST::ListItemNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), level: 1)
     item1.parent = list # Set parent for list type detection
     # Term goes to term_children
-    term1 = ReVIEW::AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Alpha')
+    term1 = ReVIEW::AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Alpha')
     item1.term_children << term1
     # Definition goes to children
-    def1 = ReVIEW::AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'RISC CPU made by DEC.')
+    def1 = ReVIEW::AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'RISC CPU made by DEC.')
     item1.add_child(def1)
 
     # Second definition item
-    item2 = ReVIEW::AST::ListItemNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), level: 1)
+    item2 = ReVIEW::AST::ListItemNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), level: 1)
     item2.parent = list # Set parent for list type detection
     # Term goes to term_children
-    term2 = ReVIEW::AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'POWER')
+    term2 = ReVIEW::AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'POWER')
     item2.term_children << term2
     # Definition goes to children
-    def2 = ReVIEW::AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'RISC CPU made by IBM and Motorola.')
+    def2 = ReVIEW::AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'RISC CPU made by IBM and Motorola.')
     item2.add_child(def2)
 
     list.add_child(item1)
@@ -337,12 +337,12 @@ class TestHtmlRenderer < Test::Unit::TestCase
 
   def test_visit_list_definition_single_child
     # Test definition list with term only (no definition)
-    list = ReVIEW::AST::ListNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), list_type: :dl)
+    list = ReVIEW::AST::ListNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), list_type: :dl)
 
-    item = ReVIEW::AST::ListItemNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), level: 1)
+    item = ReVIEW::AST::ListItemNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), level: 1)
     item.parent = list # Set parent for list type detection
     # Term goes to term_children
-    term = ReVIEW::AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Term Only')
+    term = ReVIEW::AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Term Only')
     item.term_children << term
     # No definition (children is empty)
 

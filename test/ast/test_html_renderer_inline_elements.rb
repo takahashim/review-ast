@@ -137,7 +137,8 @@ class TestHtmlRendererInlineElements < Test::Unit::TestCase
     content = "= Chapter\n\n@<ruby>{漢字, かんじ}\n"
     output = render_inline(content)
     # InlineElementRenderer outputs simple ruby without rp tags
-    assert_match(%r{<ruby>漢字<rt>かんじ</rt></ruby>}, output)
+    # HTML5 ruby includes the <rp> fallback parens, matching HTMLBuilder.
+    assert_match(%r{<ruby>漢字<rp>（</rp><rt>かんじ</rt><rp>）</rp></ruby>}, output)
   end
 
   def test_inline_ruby_without_annotation

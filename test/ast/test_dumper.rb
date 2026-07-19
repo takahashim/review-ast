@@ -45,12 +45,12 @@ class TestDumper < Test::Unit::TestCase
     assert_equal 1, json['children'][0]['level']
     expected_caption_node = {
       'type' => 'CaptionNode',
-      'location' => { 'filename' => 'test.re', 'lineno' => 1 },
+      'location' => { 'filename' => 'test.re', 'lineno' => 1, 'column' => 1 },
       'children' => [
         {
           'type' => 'TextNode',
           'content' => 'Test Chapter',
-          'location' => { 'filename' => 'test.re', 'lineno' => 1 }
+          'location' => { 'filename' => 'test.re', 'lineno' => 1, 'column' => 1 }
         }
       ]
     }
@@ -64,12 +64,12 @@ class TestDumper < Test::Unit::TestCase
     assert_equal 'sample', json['children'][2]['id']
     expected_caption = {
       'type' => 'CaptionNode',
-      'location' => { 'filename' => 'test.re', 'lineno' => 5 },
+      'location' => { 'filename' => 'test.re', 'lineno' => 5, 'column' => 1 },
       'children' => [
         {
           'type' => 'TextNode',
           'content' => 'Sample Code',
-          'location' => { 'filename' => 'test.re', 'lineno' => 5 }
+          'location' => { 'filename' => 'test.re', 'lineno' => 5, 'column' => 1 }
         }
       ]
     }

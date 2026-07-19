@@ -8,6 +8,7 @@
 
 require 'json'
 require_relative 'json_serializer'
+require_relative 'source_location'
 
 module ReVIEW
   module AST
@@ -23,6 +24,18 @@ module ReVIEW
       attr_reader :location, :type, :id, :original_text, :children
       attr_accessor :parent
 
+      # Set by the Indexer for numbered definition blocks (//list, //table,
+      # //image, //texequation, //bibpaper, footnote, endnote). A DefinitionNumber
+      # or nil. Lets a renderer read the number off the node instead of querying
+      # the legacy @chapter index. See doc/design-improvements #1.
+      attr_accessor :definition_number
+
+      # //noindent modifier, set by NoindentProcessor on the following block. It
+      # is cross-cutting -- it applies to a paragraph or to certain blocks
+      # (quote/lead/flushright/flushleft) -- so it is a typed field on the base
+      # node rather than an entry in an untyped attribute bag. Read via #noindent?.
+      attr_writer :noindent
+
       def initialize(location:, type: nil, id: nil, original_text: nil, **_kwargs)
         # Prevent direct instantiation of abstract base class (except in tests)
         if self.instance_of?(ReVIEW::AST::Node)
@@ -35,7 +48,11 @@ module ReVIEW
         @type = type
         @id = id
         @original_text = original_text
-        @attributes = {}
+        @noindent = false
+      end
+
+      def noindent?
+        @noindent ? true : false
       end
 
       def leaf_node?
@@ -43,6 +60,12 @@ module ReVIEW
       end
 
       def reference_node?
+        false
+      end
+
+      # True only for DirectiveNode (a parser-instruction marker). Lets a pass or
+      # the stage-boundary check test for markers without a type/name convention.
+      def directive?
         false
       end
 
@@ -77,15 +100,6 @@ module ReVIEW
       # Check if node has a non-empty id
       def id?
         @id && !@id.empty?
-      end
-
-      # Attribute management methods
-      def add_attribute(key, value)
-        @attributes[key] = value
-      end
-
-      def attribute?(key)
-        @attributes.key?(key)
       end
 
       # Return the visit method name for this node as a symbol.
@@ -159,6 +173,19 @@ module ReVIEW
           hash[:children] = children.map { |child| child.serialize_to_hash(options) }
         end
 
+        serialize_common_node_fields(hash)
+      end
+
+      # Attach the cross-cutting base-node fields (the Indexer-stamped
+      # definition_number for numbered blocks, and the //noindent flag) to a
+      # serialized hash. These are part of the core tree and must survive a round
+      # trip so a re-loaded tree renders identically without re-running the
+      # indexing / post-process passes. Nodes that override #serialize_to_hash
+      # (TableNode, ImageNode, TexEquationNode) must call this too. Symmetric with
+      # JSONSerializer#restore_common_node_fields.
+      def serialize_common_node_fields(hash)
+        hash[:definition_number] = @definition_number.to_h if @definition_number
+        hash[:noindent] = true if @noindent
         hash
       end
 

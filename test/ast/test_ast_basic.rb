@@ -19,7 +19,7 @@ class TestASTBasic < Test::Unit::TestCase
   end
 
   def test_ast_node_creation
-    node = ReVIEW::AST::ParagraphNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
+    node = ReVIEW::AST::ParagraphNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
     assert_equal [], node.children
     assert_nil(node.parent)
     assert_equal nil, node.location.filename
@@ -27,7 +27,7 @@ class TestASTBasic < Test::Unit::TestCase
   end
 
   def test_headline_node
-    location = ReVIEW::SnapshotLocation.new(nil, 0)
+    location = ReVIEW::AST::SourceLocation.new(nil, 0)
     node = ReVIEW::AST::HeadlineNode.new(
       location: location,
       level: 1,
@@ -45,8 +45,8 @@ class TestASTBasic < Test::Unit::TestCase
   end
 
   def test_paragraph_node
-    node = ReVIEW::AST::ParagraphNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    text_node = ReVIEW::AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'This is a test paragraph.')
+    node = ReVIEW::AST::ParagraphNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    text_node = ReVIEW::AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'This is a test paragraph.')
     node.add_child(text_node)
 
     hash = node.to_h
@@ -87,7 +87,7 @@ class TestASTBasic < Test::Unit::TestCase
   end
 
   def test_json_output_format
-    location = ReVIEW::SnapshotLocation.new(nil, 0)
+    location = ReVIEW::AST::SourceLocation.new(nil, 0)
     node = ReVIEW::AST::DocumentNode.new(location: location)
     child_node = ReVIEW::AST::HeadlineNode.new(
       location: location,

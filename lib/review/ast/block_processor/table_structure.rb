@@ -20,9 +20,16 @@ module ReVIEW
             separator_index = find_separator_index(lines)
 
             if separator_index
+              # LATEXBuilder#parse_table_rows skips EVERY separator line (any row
+              # matching the rule is `next`-ed), not just the first; only the
+              # first sets the header/body split. Mirror that by dropping any
+              # further separator lines from the body. (Lines before the first
+              # separator are non-separators by definition, so the header needs
+              # no filtering.)
+              body = (lines[(separator_index + 1)..-1] || []).reject { |line| separator_line?(line) }
               new(
                 header_lines: lines[0...separator_index],
-                body_lines: lines[(separator_index + 1)..-1] || [],
+                body_lines: body,
                 first_cell_header: false
               )
             else
@@ -53,7 +60,13 @@ module ReVIEW
             # @param lines [Array<String>] Content lines
             # @return [Integer, nil] Separator index or nil if not found
             def find_separator_index(lines)
-              lines.find_index { |line| line.match?(/\A[=-]{12}/) || line.match?(/\A[={}-]{12}/) }
+              lines.find_index { |line| separator_line?(line) }
+            end
+
+            # @param line [String] A single table content line
+            # @return [Boolean] whether the line is a header/body separator
+            def separator_line?(line)
+              line.match?(/\A[=-]{12}/) || line.match?(/\A[={}-]{12}/)
             end
           end
         end

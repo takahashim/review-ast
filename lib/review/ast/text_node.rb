@@ -55,10 +55,9 @@ module ReVIEW
       def location_to_h
         return nil unless location
 
-        {
-          filename: location.filename,
-          lineno: location.lineno
-        }
+        # Delegate to the location so the column is included when present
+        # (SourceLocation#to_h omits column only when it is nil).
+        location.to_h
       end
     end
   end

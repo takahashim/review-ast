@@ -160,7 +160,7 @@ module ReVIEW
         lines_content = render_children(node)
 
         result += "\n" if caption_top?('list') && !caption.empty?
-        result += generate_list_header(node.id, caption) + "\n" if caption_top?('list') && !caption.empty?
+        result += generate_list_header(node.id, caption, node.definition_number) + "\n" if caption_top?('list') && !caption.empty?
         result += "\n" if caption_top?('list') && !caption.empty?
 
         lines_content.each_line do |line|
@@ -168,7 +168,7 @@ module ReVIEW
         end
 
         result += "\n" unless caption_top?('list')
-        result += generate_list_header(node.id, caption) + "\n" unless caption_top?('list') || caption.empty?
+        result += generate_list_header(node.id, caption, node.definition_number) + "\n" unless caption_top?('list') || caption.empty?
         result += "\n"
 
         result
@@ -213,7 +213,7 @@ module ReVIEW
         unless caption.empty?
           result += "\n"
           result += if node.id
-                      generate_table_header(node.id, caption) + "\n"
+                      generate_table_header(node.id, caption, node.definition_number) + "\n"
                     else
                       "#{caption}\n"
                     end
@@ -246,8 +246,9 @@ module ReVIEW
         caption = render_caption_inline(node.caption_node)
 
         result += "\n"
-        if node.id && @chapter
-          result += "#{text_formatter.format_caption_plain('image', get_chap, @chapter.image(node.id).number, caption)}\n"
+        if node.id && node.definition_number
+          dn = node.definition_number
+          result += "#{text_formatter.format_caption_plain('image', dn.chapter_number, dn.number, caption)}\n"
         else
           result += "図　#{caption}\n" unless caption.empty?
         end
@@ -364,9 +365,8 @@ module ReVIEW
         caption_text = node.args[1]
 
         result = +''
-        if id && @chapter
-          bibpaper_number = @chapter.bibpaper(id).number
-          result += "#{bibpaper_number} "
+        if id && node.definition_number
+          result += "#{node.definition_number.number} "
         end
         result += "#{caption_text}\n" if caption_text
 
@@ -394,16 +394,18 @@ module ReVIEW
 
         result += "\n"
 
-        if node.id? && @chapter
+        if node.id? && node.definition_number
           caption = render_caption_inline(node.caption_node)
-          result += "#{text_formatter.format_caption_plain('equation', get_chap, @chapter.equation(node.id).number, caption)}\n" if caption_top?('equation')
+          dn = node.definition_number
+          result += "#{text_formatter.format_caption_plain('equation', dn.chapter_number, dn.number, caption)}\n" if caption_top?('equation')
         end
 
         result += "#{content}\n"
 
-        if node.id? && @chapter
+        if node.id? && node.definition_number
           caption = render_caption_inline(node.caption_node)
-          result += "#{text_formatter.format_caption_plain('equation', get_chap, @chapter.equation(node.id).number, caption)}\n" unless caption_top?('equation')
+          dn = node.definition_number
+          result += "#{text_formatter.format_caption_plain('equation', dn.chapter_number, dn.number, caption)}\n" unless caption_top?('equation')
         end
 
         result += "\n"
@@ -644,22 +646,16 @@ module ReVIEW
         end
       end
 
-      def generate_list_header(id, caption)
-        return caption unless id && @chapter
+      def generate_list_header(id, caption, definition_number)
+        return caption unless id && definition_number
 
-        list_item = @chapter.list(id)
-        text_formatter.format_caption_plain('list', get_chap, list_item.number, caption)
-      rescue ReVIEW::KeyError
-        caption
+        text_formatter.format_caption_plain('list', definition_number.chapter_number, definition_number.number, caption)
       end
 
-      def generate_table_header(id, caption)
-        return caption unless id && @chapter
+      def generate_table_header(id, caption, definition_number)
+        return caption unless id && definition_number
 
-        table_item = @chapter.table(id)
-        text_formatter.format_caption_plain('table', get_chap, table_item.number, caption)
-      rescue ReVIEW::KeyError
-        caption
+        text_formatter.format_caption_plain('table', definition_number.chapter_number, definition_number.number, caption)
       end
 
       def render_imgtable(node)
@@ -668,7 +664,7 @@ module ReVIEW
 
         result += "\n"
         if node.id && !caption.empty?
-          result += generate_table_header(node.id, caption) + "\n"
+          result += generate_table_header(node.id, caption, node.definition_number) + "\n"
           result += "\n"
         end
         result += "\n"

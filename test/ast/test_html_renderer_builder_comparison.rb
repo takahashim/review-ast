@@ -423,4 +423,38 @@ class TestHtmlRendererBuilderComparison < Test::Unit::TestCase
 
     assert result.same_hash?, 'multicontent_test.re should produce equivalent HTML'
   end
+
+  # Regressions found by the HTML differential sweep (see the spec-compliant
+  # ReVIEW::AST::Diff::Html). Each was a real builder-vs-renderer divergence.
+  def test_html_sweep_regressions
+    {
+      'ruby rp fallback' => '@<ruby>{漢字,かんじ}',
+      'parasep' => "a\n\n//parasep\n\nb",
+      'pagebreak' => "a\n\n//pagebreak\n\nb",
+      'column heading level' => "= 章\n\n===[column] コラム\n\nbody\n\n===[/column]",
+      'imgtable unbound = image dummy' => "//imgtable[g][キャプション]{\n//}",
+      'image empty caption still numbered' => '//image[g][]',
+      'box' => "//box[題]{\na < b\n@<b>{x}\n//}",
+      'code block keeps trailing blank' => "//cmd{\ncode\n\n//}",
+      'numbered code drops trailing blank' => "//emlistnum[c]{\ncode\n\n\n//}"
+    }.each do |name, source|
+      builder_html = @converter.convert_with_builder(source)
+      renderer_html = @converter.convert_with_renderer(source)
+      result = @comparator.compare(builder_html, renderer_html)
+      puts result.pretty_diff unless result.same_hash?
+      assert result.same_hash?, "#{name} must match builder"
+    end
+  end
+
+  # @<hd> to a heading whose number is beyond secnolevel (so the number is not
+  # shown) is still hyperlinked under chapterlink -- the anchor uses the heading
+  # number even when it is not displayed.
+  def test_html_heading_reference_links_even_without_shown_number
+    source = "= 章\n\n== 節\n\n=== 小節\n\n==== 項\n\n@<hd>{項}を参照。"
+    builder_html = @converter.convert_with_builder(source)
+    renderer_html = @converter.convert_with_renderer(source)
+    result = @comparator.compare(builder_html, renderer_html)
+    puts result.pretty_diff unless result.same_hash?
+    assert result.same_hash?, '@<hd> beyond secnolevel must still link, matching builder'
+  end
 end

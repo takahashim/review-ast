@@ -62,7 +62,6 @@ module ReVIEW
 
         # Initialize table state
         @tablewidth = nil
-        @table_id = nil
         @col = 0
         @table_node_cellwidth = nil # Temporarily stores cellwidth from TableNode during table processing
 
@@ -117,11 +116,6 @@ module ReVIEW
         # IDGXML format removes newlines between tags by default
         nolf = config.key?('nolf') ? config['nolf'] : true
 
-        # Output XML declaration and root element
-        output = []
-        output << %Q(<?xml version="1.0" encoding="UTF-8"?>)
-        output << %Q(<#{@rootelement} xmlns:aid="http://ns.adobe.com/AdobeInDesign/4.0/">)
-
         # Render document content
         content = render_children(node)
 
@@ -135,18 +129,23 @@ module ReVIEW
           closing_tags += '</chapter>'
         end
 
-        # Combine all parts
-        output << content
-        output << closing_tags
-        output << "</#{@rootelement}>\n"
+        # nolf is applied to the body only. The XML declaration keeps its trailing
+        # newline (IDGXMLBuilder emits `<?xml …?>\n`), which nolf would otherwise
+        # strip as a "\n<" between the declaration and <doc>, so build the header
+        # separately and prepend it after processing.
+        header = %Q(<?xml version="1.0" encoding="UTF-8"?>\n<#{@rootelement} xmlns:aid="http://ns.adobe.com/AdobeInDesign/4.0/">)
 
-        result = output.join
+        result = content + closing_tags + "</#{@rootelement}>\n"
 
         # Remove newlines between tags if nolf mode is enabled (default)
         # But preserve newlines inside <pre> tags and listinfo tags
         if nolf
-          # Protect newlines inside <pre> tags
-          result = result.gsub(%r{<pre>(.*?)</pre>}m) do |match|
+          # Protect newlines inside verbatim-content blocks (<pre>, and the
+          # syntaxblocks <box>/<insn>). IDGXMLBuilder keeps these content
+          # newlines because it emits them with an explicit `print "\n"` (its
+          # nolf only suppresses `puts`), so they survive; our post-process nolf
+          # must not strip them either.
+          result = result.gsub(%r{<(pre|box|insn)>(.*?)</\1>}m) do |match|
             match.gsub("\n", "\x01IDGXML_PRE_NEWLINE\x01")
           end
 
@@ -161,7 +160,8 @@ module ReVIEW
         # Restore protected newlines from listinfo, inline elements, and endnotes
         result = result.gsub("\x01IDGXML_LISTINFO_NEWLINE\x01", "\n")
         result = result.gsub("\x01IDGXML_INLINE_NEWLINE\x01", "\n")
-        result.gsub("\x01IDGXML_ENDNOTE_NEWLINE\x01", "\n")
+        result = result.gsub("\x01IDGXML_ENDNOTE_NEWLINE\x01", "\n")
+        header + result
       end
 
       def visit_headline(node)
@@ -171,6 +171,16 @@ module ReVIEW
         level = node.level
         label = node.label
         caption = render_children(node.caption_node) if node.caption_node
+
+        # [nonum]/[notoc] headings are numberless and do NOT advance the section
+        # counter or open sect tags (matching IDGXMLBuilder#nonum_begin /
+        # #notoc_begin, which emit only the bare title). notoc additionally has no
+        # <?dtp?> processing instruction (it is not in the TOC).
+        if node.notoc?
+          return %Q(<title aid:pstyle="h#{level}">#{caption}</title>\n)
+        elsif node.nonum?
+          return %Q(<title aid:pstyle="h#{level}">#{caption}</title><?dtp level="#{level}" section="#{escape(caption)}"?>\n)
+        end
 
         result = []
 
@@ -238,7 +248,7 @@ module ReVIEW
                   end
 
         # Handle noindent attribute
-        if node.attribute?(:noindent)
+        if node.noindent?
           return %Q(<p aid:pstyle="noindent" noindent='1'>#{content}</p>)
         end
 
@@ -676,13 +686,13 @@ module ReVIEW
         result << '<img>'
 
         if caption_top?('image') && caption_content
-          result << generate_image_header(id, caption_content)
+          result << generate_image_header(id, caption_content, node.definition_number)
         end
 
         result << %Q(<Image href="file://#{file_path.sub(%r{\A\./}, '')}" />)
 
         if !caption_top?('image') && caption_content
-          result << generate_image_header(id, caption_content)
+          result << generate_image_header(id, caption_content, node.definition_number)
         end
 
         result << '</img>'
@@ -701,7 +711,9 @@ module ReVIEW
 
         endnotes.each do |endnote_item|
           id = endnote_item.id
-          number = endnote_item.number
+          # Prefer the number stamped on the definition node (definition_number);
+          # fall back to the index item's own number when no node is attached.
+          number = endnote_item.footnote_node? ? endnote_item.footnote_node.definition_number.number : endnote_item.number
           # Use footnote_node.children if available to avoid re-parsing
           content = if endnote_item.footnote_node?
                       endnote_item.footnote_node.children.map { |child| visit(child) }.join
@@ -712,8 +724,10 @@ module ReVIEW
         end
 
         result << '</endnotes>'
-        # Protect newlines inside endnotes block from nolf processing
-        result.join("\x01IDGXML_ENDNOTE_NEWLINE\x01") + "\x01IDGXML_ENDNOTE_NEWLINE\x01"
+        # IDGXMLBuilder emits each element with `puts`, but its nolf
+        # post-processing strips those newlines, so the final output has none.
+        # Join with no separator to match (do NOT protect the newlines).
+        result.join
       end
 
       def visit_bibpaper(node)
@@ -728,7 +742,7 @@ module ReVIEW
         if node.caption_node
           # Use caption_node to render inline elements
           caption_inline = render_caption_inline(node.caption_node)
-          bib_number = resolve_bibpaper_number(bib_id)
+          bib_number = node.definition_number&.number || '??'
           result << %Q(<caption><span type='bibno'>[#{bib_number}] </span>#{caption_inline}</caption>)
         end
 
@@ -757,7 +771,8 @@ module ReVIEW
           rendered_caption = caption_node ? render_children(caption_node) : ''
 
           # Generate caption
-          caption_str = %Q(<caption>#{text_formatter.format_caption_plain('equation', get_chap, @chapter.equation(node.id).number, rendered_caption)}</caption>)
+          dn = node.definition_number
+          caption_str = %Q(<caption>#{text_formatter.format_caption_plain('equation', dn.chapter_number, dn.number, rendered_caption)}</caption>)
 
           result << caption_str if caption_top?('equation')
         end
@@ -1139,7 +1154,7 @@ module ReVIEW
         caption_content = nil
         if node.caption_node && node.id?
           caption_content = render_children(node.caption_node)
-          list_header_output = generate_list_header(node.id, caption_content)
+          list_header_output = generate_list_header(node.id, caption_content, node.definition_number)
           result << list_header_output if caption_top?('list')
         end
 
@@ -1150,7 +1165,7 @@ module ReVIEW
 
         # Add caption at bottom if configured
         if caption_content && !caption_top?('list')
-          list_header_output = generate_list_header(node.id, caption_content)
+          list_header_output = generate_list_header(node.id, caption_content, node.definition_number)
           result << list_header_output
         end
 
@@ -1168,7 +1183,7 @@ module ReVIEW
         caption_content = nil
         if node.caption_node && node.id?
           caption_content = render_children(node.caption_node)
-          list_header_output = generate_list_header(node.id, caption_content)
+          list_header_output = generate_list_header(node.id, caption_content, node.definition_number)
           result << list_header_output if caption_top?('list')
         end
 
@@ -1179,7 +1194,7 @@ module ReVIEW
 
         # Add caption at bottom if configured
         if caption_content && !caption_top?('list')
-          list_header_output = generate_list_header(node.id, caption_content)
+          list_header_output = generate_list_header(node.id, caption_content, node.definition_number)
           result << list_header_output
         end
 
@@ -1233,10 +1248,10 @@ module ReVIEW
       end
 
       # Generate list header like IDGXMLBuilder
-      def generate_list_header(id, caption)
+      def generate_list_header(_id, caption, definition_number)
         return '' unless caption && !caption.empty?
 
-        %Q(<caption>#{text_formatter.format_caption_plain('list', get_chap, @chapter.list(id).number, caption)}</caption>)
+        %Q(<caption>#{text_formatter.format_caption_plain('list', definition_number.chapter_number, definition_number.number, caption)}</caption>)
       end
 
       # Generate code lines body like IDGXMLBuilder
@@ -1267,7 +1282,12 @@ module ReVIEW
 
       # Generate listnum body with line numbers
       def generate_listnum_body(node)
-        lines = node.children.map { |line| visit(line) }
+        # Render each line WITHOUT detab here (render_children, not visit, which
+        # would detab relative to the line start). IDGXMLBuilder#listnum_body
+        # detabs ONCE on the whole `<span type='lineno'> N: </span>line`, so the
+        # tab stops are relative to that full prefix; pre-detabbing would put them
+        # at the wrong columns (e.g. "col1" + 4 spaces instead of 5).
+        lines = node.children.map { |line| render_children(line) }
 
         result = []
         no = 1
@@ -1366,7 +1386,7 @@ module ReVIEW
 
         # Caption at top if configured
         if caption_top?('table') && caption_content
-          result << generate_table_header(node.id, caption_content)
+          result << generate_table_header(node.id, caption_content, node.definition_number)
         end
 
         # Generate tbody
@@ -1376,11 +1396,10 @@ module ReVIEW
                     %Q(<tbody xmlns:aid5="http://ns.adobe.com/AdobeInDesign/5.0/" aid:table="table" aid:trows="#{rows_data[:rows].length}" aid:tcols="#{@col}">)
                   end
 
-        @table_id = node.id
-
-        # Get cellwidth from TableNode (set by TsizeProcessor) for use in generate_table_rows
-        # This is a raw array of width specifications (e.g., ["10", "20", "30"] for simple format)
-        @table_node_cellwidth = node.cellwidth
+        # Derive per-column widths from the table's source //tsize at render time
+        # (the shared node keeps only the raw spec). nil when there is no //tsize
+        # targeting IDGXML; generate_table_rows then distributes width equally.
+        @table_node_cellwidth = idgxml_cellwidth(node)
 
         result << generate_table_rows(rows_data, node.header_rows.length)
 
@@ -1388,7 +1407,7 @@ module ReVIEW
 
         # Caption at bottom if configured
         if !caption_top?('table') && caption_content
-          result << generate_table_header(node.id, caption_content)
+          result << generate_table_header(node.id, caption_content, node.definition_number)
         end
 
         result << '</table>'
@@ -1426,13 +1445,23 @@ module ReVIEW
       end
 
       # Generate table header
-      def generate_table_header(id, caption)
+      # Per-column width specs (e.g. ["p{10mm}", "l"]) derived from the table's
+      # source //tsize for IDGXML, or nil when there is none targeting IDGXML.
+      # generate_table_rows extracts the numeric widths from these specs.
+      def idgxml_cellwidth(table)
+        value = table.tsize_value_for('idgxml')
+        return nil unless value
+
+        ReVIEW::AST::TableColumnWidthParser.new(value, table.column_count).parse.cellwidth
+      end
+
+      def generate_table_header(id, caption, definition_number)
         return '' unless caption && !caption.empty?
 
         if id.nil?
           %Q(<caption>#{caption}</caption>)
         else
-          %Q(<caption>#{text_formatter.format_caption_plain('table', get_chap, @chapter.table(id).number, caption)}</caption>)
+          %Q(<caption>#{text_formatter.format_caption_plain('table', definition_number.chapter_number, definition_number.number, caption)}</caption>)
         end
       end
 
@@ -1520,13 +1549,13 @@ module ReVIEW
           result << '<table>'
 
           if caption_top?('table') && caption_content
-            result << generate_table_header(node.id, caption_content)
+            result << generate_table_header(node.id, caption_content, node.definition_number)
           end
 
           result << %Q(<imgtable><Image href="file://#{@chapter.image(node.id).path.sub(%r{\A./}, '')}"#{metrics} /></imgtable>)
 
           if !caption_top?('table') && caption_content
-            result << generate_table_header(node.id, caption_content)
+            result << generate_table_header(node.id, caption_content, node.definition_number)
           end
 
           result << '</table>'
@@ -1549,13 +1578,13 @@ module ReVIEW
           result << '<img>'
 
           if caption_top?('image') && caption_content
-            result << generate_image_header(node.id, caption_content)
+            result << generate_image_header(node.id, caption_content, node.definition_number)
           end
 
           result << %Q(<Image href="file://#{@chapter.image(node.id).path.sub(%r{\A./}, '')}"#{metrics} />)
 
           if !caption_top?('image') && caption_content
-            result << generate_image_header(node.id, caption_content)
+            result << generate_image_header(node.id, caption_content, node.definition_number)
           end
 
           result << '</img>'
@@ -1563,7 +1592,7 @@ module ReVIEW
           result.join("\n") + "\n"
         else
           # Fall back to dummy image
-          visit_image_dummy(node.id, caption_content, [])
+          visit_image_dummy(node.id, caption_content, [], node.definition_number)
         end
       end
 
@@ -1596,12 +1625,12 @@ module ReVIEW
       end
 
       # Visit image dummy
-      def visit_image_dummy(id, caption, lines)
+      def visit_image_dummy(id, caption, lines, definition_number = nil)
         result = []
         result << '<img>'
 
         if caption_top?('image') && caption
-          result << generate_image_header(id, caption)
+          result << generate_image_header(id, caption, definition_number)
         end
 
         result << %Q(<pre aid:pstyle="dummyimage">)
@@ -1612,7 +1641,7 @@ module ReVIEW
         result << '</pre>'
 
         if !caption_top?('image') && caption
-          result << generate_image_header(id, caption)
+          result << generate_image_header(id, caption, definition_number)
         end
 
         result << '</img>'
@@ -1621,10 +1650,19 @@ module ReVIEW
       end
 
       # Generate image header
-      def generate_image_header(id, caption)
+      def generate_image_header(id, caption, definition_number = nil)
         return '' unless caption && !caption.empty?
 
-        %Q(<caption>#{text_formatter.format_caption_plain('image', get_chap, @chapter.image(id).number, caption)}</caption>)
+        # Prefer the number stamped on the node (definition_number). Fall back to
+        # the chapter image index only for the unbound //imgtable dummy path,
+        # whose node carries a *table* number and must be renumbered as an image.
+        chap, number =
+          if definition_number
+            [definition_number.chapter_number, definition_number.number]
+          else
+            [get_chap, @chapter.image(id).number]
+          end
+        %Q(<caption>#{text_formatter.format_caption_plain('image', chap, number, caption)}</caption>)
       end
 
       # Visit rawblock
@@ -1768,26 +1806,6 @@ module ReVIEW
 
           lines
         end
-      end
-
-      def resolve_bibpaper_number(bib_id)
-        if @chapter
-          begin
-            return @chapter.bibpaper(bib_id).number
-          rescue StandardError
-            # Fallback to AST indexer if chapter lookup fails
-          end
-        end
-
-        if @ast_indexer&.bibpaper_index
-          begin
-            return @ast_indexer.bibpaper_index.number(bib_id)
-          rescue StandardError
-            # fall through
-          end
-        end
-
-        '??'
       end
 
       # Parse tsize target specification like |idgxml|2 or |idgxml,html|2

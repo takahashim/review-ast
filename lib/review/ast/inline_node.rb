@@ -41,7 +41,9 @@ module ReVIEW
         node = new(
           location: ReVIEW::AST::JSONSerializer.restore_location(hash),
           inline_type: hash['element'] || hash['inline_type'],
-          args: hash['args'] || []
+          args: hash['args'] || [],
+          target_chapter_id: hash['target_chapter_id'],
+          target_item_id: hash['target_item_id']
         )
         if hash['children']
           hash['children'].each do |child_hash|

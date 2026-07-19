@@ -12,8 +12,9 @@ module ReVIEW
   module AST
     # Token classes using Struct for immutable, structured tokens
 
-    # Text token for plain text content
-    TextToken = Struct.new(:content, keyword_init: true) do
+    # Text token for plain text content. +start_pos+ is the 0-based offset of the
+    # text within the tokenized string (used to derive a column).
+    TextToken = Struct.new(:content, :start_pos, keyword_init: true) do
       def type
         :text
       end
@@ -103,7 +104,7 @@ module ReVIEW
     class InlineTokenizer
       # Tokenize string into inline elements and text parts
       # @param str [String] The input string to tokenize
-      # @param location [SnapshotLocation] Current file location for error reporting
+      # @param location [SourceLocation] Current file location for error reporting
       # @return [Array<Token>] Array of Token objects (TextToken or InlineToken)
       def tokenize(str, location: nil)
         @location = location
@@ -118,7 +119,7 @@ module ReVIEW
             # Add text before the match as plain text token
             if match.begin(0) > pos
               text_content = str[pos...match.begin(0)]
-              tokens << TextToken.new(content: text_content) unless text_content.empty?
+              tokens << TextToken.new(content: text_content, start_pos: pos) unless text_content.empty?
             end
 
             # Validate command name - only ASCII lowercase letters allowed
@@ -136,13 +137,13 @@ module ReVIEW
               pos = inline_token.end_pos
             else
               # Failed to parse as inline element, treat as text
-              tokens << TextToken.new(content: match[0])
+              tokens << TextToken.new(content: match[0], start_pos: match.begin(0))
               pos = match.end(0)
             end
           else
             # No more inline elements, add remaining text
             remaining_text = str[pos..-1]
-            tokens << TextToken.new(content: remaining_text) unless remaining_text.empty?
+            tokens << TextToken.new(content: remaining_text, start_pos: pos) unless remaining_text.empty?
             break
           end
         end

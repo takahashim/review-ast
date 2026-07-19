@@ -3,11 +3,62 @@
 require_relative '../test_helper'
 require_relative '../support/review/test/idgxml_comparator'
 require 'review/ast/diff/idgxml'
+require 'review/ast/diff/byte_exact'
 
 class TestIdgxmlRendererBuilderComparison < Test::Unit::TestCase
   def setup
     @converter = ReVIEW::Test::IdgxmlComparator.new
     @comparator = ReVIEW::AST::Diff::Idgxml.new
+  end
+
+  # IDGXML is compared byte-for-byte (see ReVIEW::AST::Diff::ByteExact): the
+  # output is compact and InDesign imports text literally, so any byte counts.
+  # Each case below was a real builder-vs-renderer divergence found by the
+  # byte-exact sweep. (convert_* strips the <?xml?><doc> wrapper, so these are
+  # body-level; the wrapper newline is checked separately below.)
+  def test_idgxml_byte_regressions
+    byte = ReVIEW::AST::Diff::ByteExact.new
+    {
+      'endnote block has no extra newlines' => "本文@<endnote>{e}。\n\n//endnote[e][内容]\n\n//printendnotes",
+      'numbered code detab includes lineno span width' => "//emlistnum{\ncol1\tcol2\tcol3\n//}",
+      'box keeps content trailing newline' => "//box[題]{\nline\n//}",
+      'nonum heading has no number' => "= 章\n\n==[nonum] 番号なし節",
+      'notoc heading has no number and no dtp' => "= 章\n\n==[notoc] TOCなし節",
+      # IDGXML derives per-column widths (aid:ccolwidth) from //tsize when it
+      # targets idgxml. samples/*.re only carry |latex|-only //tsize, so the
+      # corpus never exercises this; pin it here. (tableopt defaults to '10' in
+      # the comparator, so @tablewidth is set and cell widths are computed.)
+      'tsize generic applies to idgxml' => "//tsize[10,18,50]\n\n//table[t][C]{\nA\tB\tC\n============\nD\tE\tF\n//}",
+      'tsize idgxml target applies' => "//tsize[|idgxml|10,18,50]\n\n//table[t][C]{\nA\tB\tC\n============\nD\tE\tF\n//}",
+      'tsize latex+idgxml target applies' => "//tsize[|latex,idgxml|10,18,50]\n\n//table[t][C]{\nA\tB\tC\n============\nD\tE\tF\n//}",
+      'tsize latex-only is ignored by idgxml' => "//tsize[|latex|10,18,50]\n\n//table[t][C]{\nA\tB\tC\n============\nD\tE\tF\n//}",
+      # The //quote family (flushright/lead/centering/...) passes its lines to
+      # split_paragraph untouched, so the author's leading indent survives
+      # (a document-level paragraph, by contrast, strips it). IDGXML is
+      # byte-exact so those spaces matter. Found via FirstStepReVIEW-v3.
+      'flushright keeps leading spaces' => "//flushright{\n  （発行代表）\n//}",
+      'quote keeps leading spaces' => "//quote{\n  引用文です\n//}",
+      'centering keeps leading spaces' => "//centering{\n  中央寄せ\n//}",
+      'document paragraph strips leading spaces' => "  通常段落\n"
+    }.each do |name, source|
+      b = @converter.convert_with_builder(source)
+      r = @converter.convert_with_renderer(source)
+      assert byte.equal?(b, r), "#{name}: byte mismatch\n#{byte.diff(b, r)}"
+    end
+  end
+
+  # The XML declaration keeps its trailing newline before <doc>, matching
+  # IDGXMLBuilder (`<?xml …?>\n<doc …>`).
+  def test_idgxml_xml_declaration_newline
+    require 'review/book'
+    require 'review/renderer/idgxml_renderer'
+    book = ReVIEW::Book::Base.new(config: ReVIEW::Configure.values.tap { |c| c['builder'] = 'idgxml' })
+    chapter = ReVIEW::Book::Chapter.new(book, 1, 'test', 'test.re', StringIO.new('本文'))
+    chapter.generate_indexes
+    ast = ReVIEW::AST::Compiler.for_chapter(chapter).compile_to_ast(chapter)
+    output = ReVIEW::Renderer::IdgxmlRenderer.new(chapter).render(ast)
+
+    assert_match(/\A<\?xml version="1.0" encoding="UTF-8"\?>\n<doc /, output)
   end
 
   def test_simple_paragraph_comparison

@@ -44,19 +44,21 @@ class TestCodeBlockDebug < Test::Unit::TestCase
 
     # === Code Block AST Structure ===
     result = JSON.pretty_generate(ast)
-    expected0 = <<~EXPECTED.chomp
+    expected0 = <<~'EXPECTED'.chomp
       {
         "type": "DocumentNode",
         "location": {
           "filename": "debug_chapter.re",
-          "lineno": 1
+          "lineno": 1,
+          "column": 1
         },
         "children": [
           {
             "type": "HeadlineNode",
             "location": {
               "filename": "debug_chapter.re",
-              "lineno": 1
+              "lineno": 1,
+              "column": 1
             },
             "level": 1,
             "label": null,
@@ -64,14 +66,16 @@ class TestCodeBlockDebug < Test::Unit::TestCase
               "type": "CaptionNode",
               "location": {
                 "filename": "debug_chapter.re",
-                "lineno": 1
+                "lineno": 1,
+                "column": 1
               },
               "children": [
                 {
                   "type": "TextNode",
                   "location": {
                     "filename": "debug_chapter.re",
-                    "lineno": 1
+                    "lineno": 1,
+                    "column": 1
                   },
                   "content": "Chapter Title"
                 }
@@ -82,7 +86,8 @@ class TestCodeBlockDebug < Test::Unit::TestCase
             "type": "CodeBlockNode",
             "location": {
               "filename": "debug_chapter.re",
-              "lineno": 3
+              "lineno": 3,
+              "column": 1
             },
             "id": "test-code",
             "lang": "ruby",
@@ -90,14 +95,16 @@ class TestCodeBlockDebug < Test::Unit::TestCase
               "type": "CaptionNode",
               "location": {
                 "filename": "debug_chapter.re",
-                "lineno": 3
+                "lineno": 3,
+                "column": 1
               },
               "children": [
                 {
                   "type": "TextNode",
                   "location": {
                     "filename": "debug_chapter.re",
-                    "lineno": 3
+                    "lineno": 3,
+                    "column": 1
                   },
                   "content": "Test Code"
                 }
@@ -105,20 +112,22 @@ class TestCodeBlockDebug < Test::Unit::TestCase
             },
             "line_numbers": false,
             "code_type": "list",
-            "original_text": "puts @<b>{bold code}\\n# Comment with @<fn>{code-fn}",
+            "original_text": "puts @<b>{bold code}\n# Comment with @<fn>{code-fn}",
             "children": [
               {
                 "type": "CodeLineNode",
                 "location": {
                   "filename": "debug_chapter.re",
-                  "lineno": 3
+                  "lineno": 3,
+                  "column": 1
                 },
                 "children": [
                   {
                     "type": "TextNode",
                     "location": {
                       "filename": "debug_chapter.re",
-                      "lineno": 3
+                      "lineno": 3,
+                      "column": 1
                     },
                     "content": "puts "
                   },
@@ -126,14 +135,16 @@ class TestCodeBlockDebug < Test::Unit::TestCase
                     "type": "InlineNode",
                     "location": {
                       "filename": "debug_chapter.re",
-                      "lineno": 3
+                      "lineno": 3,
+                      "column": 6
                     },
                     "children": [
                       {
                         "type": "TextNode",
                         "location": {
                           "filename": "debug_chapter.re",
-                          "lineno": 3
+                          "lineno": 3,
+                          "column": 6
                         },
                         "content": "bold code"
                       }
@@ -150,14 +161,16 @@ class TestCodeBlockDebug < Test::Unit::TestCase
                 "type": "CodeLineNode",
                 "location": {
                   "filename": "debug_chapter.re",
-                  "lineno": 3
+                  "lineno": 3,
+                  "column": 1
                 },
                 "children": [
                   {
                     "type": "TextNode",
                     "location": {
                       "filename": "debug_chapter.re",
-                      "lineno": 3
+                      "lineno": 3,
+                      "column": 1
                     },
                     "content": "# Comment with "
                   },
@@ -165,14 +178,16 @@ class TestCodeBlockDebug < Test::Unit::TestCase
                     "type": "InlineNode",
                     "location": {
                       "filename": "debug_chapter.re",
-                      "lineno": 3
+                      "lineno": 3,
+                      "column": 16
                     },
                     "children": [
                       {
                         "type": "ReferenceNode",
                         "location": {
                           "filename": "debug_chapter.re",
-                          "lineno": 3
+                          "lineno": 3,
+                          "column": 16
                         },
                         "content": "code-fn",
                         "ref_id": "code-fn"
@@ -206,14 +221,16 @@ class TestCodeBlockDebug < Test::Unit::TestCase
           "type": "CodeLineNode",
           "location": {
             "filename": "debug_chapter.re",
-            "lineno": 3
+            "lineno": 3,
+            "column": 1
           },
           "children": [
             {
               "type": "TextNode",
               "location": {
                 "filename": "debug_chapter.re",
-                "lineno": 3
+                "lineno": 3,
+                "column": 1
               },
               "content": "puts "
             },
@@ -221,14 +238,16 @@ class TestCodeBlockDebug < Test::Unit::TestCase
               "type": "InlineNode",
               "location": {
                 "filename": "debug_chapter.re",
-                "lineno": 3
+                "lineno": 3,
+                "column": 6
               },
               "children": [
                 {
                   "type": "TextNode",
                   "location": {
                     "filename": "debug_chapter.re",
-                    "lineno": 3
+                    "lineno": 3,
+                    "column": 6
                   },
                   "content": "bold code"
                 }
@@ -245,14 +264,16 @@ class TestCodeBlockDebug < Test::Unit::TestCase
           "type": "CodeLineNode",
           "location": {
             "filename": "debug_chapter.re",
-            "lineno": 3
+            "lineno": 3,
+            "column": 1
           },
           "children": [
             {
               "type": "TextNode",
               "location": {
                 "filename": "debug_chapter.re",
-                "lineno": 3
+                "lineno": 3,
+                "column": 1
               },
               "content": "# Comment with "
             },
@@ -260,14 +281,16 @@ class TestCodeBlockDebug < Test::Unit::TestCase
               "type": "InlineNode",
               "location": {
                 "filename": "debug_chapter.re",
-                "lineno": 3
+                "lineno": 3,
+                "column": 16
               },
               "children": [
                 {
                   "type": "ReferenceNode",
                   "location": {
                     "filename": "debug_chapter.re",
-                    "lineno": 3
+                    "lineno": 3,
+                    "column": 16
                   },
                   "content": "code-fn",
                   "ref_id": "code-fn"

@@ -19,6 +19,8 @@ module ReVIEW
       # Deserialize from hash
       def self.deserialize_from_hash(hash)
         node = new(location: ReVIEW::AST::JSONSerializer.restore_location(hash))
+        # The //noindent flag is a cross-cutting base-node field restored centrally
+        # by JSONSerializer#restore_common_node_fields.
         if hash['children']
           hash['children'].each do |child_hash|
             child = ReVIEW::AST::JSONSerializer.deserialize_from_hash(child_hash)

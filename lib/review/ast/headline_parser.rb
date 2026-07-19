@@ -51,7 +51,7 @@ module ReVIEW
       # Parse headline line and return components
       #
       # @param line [String] headline line (e.g., "== [nonum]{label}Caption")
-      # @param location [SnapshotLocation] location information for error messages
+      # @param location [SourceLocation] location information for error messages
       # @return [ParseResult, nil] parsed result or nil if not a headline
       def self.parse(line, location:)
         new(line, location: location).parse

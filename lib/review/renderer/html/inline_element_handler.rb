@@ -452,17 +452,21 @@ module ReVIEW
                            data.caption_text
                          end
 
-          # Build full section number including chapter number
-          full_number = if n.present? && chapter_num && !chapter_num.to_s.empty? && @ctx.over_secnolevel?(n)
-                          ([chapter_num] + n).join('.')
-                        end
+          # Full section number including the chapter number. This is used for
+          # the link anchor whenever it exists; it is only *shown* in the text
+          # when within secnolevel. LATEXBuilder/HTMLBuilder link the reference
+          # (chapterlink) even when the number is not shown, so the anchor number
+          # must be computed independently of over_secnolevel?.
+          anchor_number = if n.present? && chapter_num && !chapter_num.to_s.empty?
+                            ([chapter_num] + n).join('.')
+                          end
+          display_number = anchor_number if anchor_number && @ctx.over_secnolevel?(n)
 
-          str = @ctx.text_formatter.format_headline_quote(full_number, caption_html)
+          str = @ctx.text_formatter.format_headline_quote(display_number, caption_html)
 
-          if @ctx.config['chapterlink'] && full_number
-            # Get target chapter ID for link
+          if @ctx.config['chapterlink'] && anchor_number
             chapter_id = data.chapter_id || @ctx.chapter.id
-            anchor = 'h' + full_number.tr('.', '-')
+            anchor = 'h' + anchor_number.tr('.', '-')
             %Q(<a href="#{chapter_id}#{@ctx.extname}##{anchor}">#{str}</a>)
           else
             str
@@ -550,7 +554,16 @@ module ReVIEW
         end
 
         def build_ruby(base, ruby_text)
-          %Q(<ruby>#{escape_content(base)}<rt>#{escape_content(ruby_text)}</rt></ruby>)
+          # Match HTMLBuilder#compile_ruby: include the <rp> fallback parentheses
+          # (I18n ruby_prefix/postfix) so readers without ruby support still show
+          # "base(reading)". HTML5 wraps the base bare; older HTML wraps it in <rb>.
+          prefix = ReVIEW::I18n.t('ruby_prefix')
+          postfix = ReVIEW::I18n.t('ruby_postfix')
+          if @ctx.book.htmlversion == 5
+            %Q(<ruby>#{escape_content(base)}<rp>#{prefix}</rp><rt>#{escape_content(ruby_text)}</rt><rp>#{postfix}</rp></ruby>)
+          else
+            %Q(<ruby><rb>#{escape_content(base)}</rb><rp>#{prefix}</rp><rt>#{ruby_text}</rt><rp>#{postfix}</rp></ruby>)
+          end
         end
 
         def build_anchor_link(anchor_id, content, css_class: 'link')

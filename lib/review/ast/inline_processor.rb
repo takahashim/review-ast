@@ -69,19 +69,35 @@ module ReVIEW
         tokens = @tokenizer.tokenize(str, location: @ast_compiler.location)
 
         tokens.each do |token|
-          if token.type == :inline
-            create_inline_ast_node_from_token(token, parent_node)
-          else
-            # Plain text
-            unless token.content.empty?
-              text_node = AST::TextNode.new(
-                location: @ast_compiler.location,
-                content: token.content
-              )
-              parent_node.add_child(text_node)
+          # Point the compiler's current location at this token's column so that
+          # every node built while processing it (here and inside the per-command
+          # handlers, which all read @ast_compiler.location) carries the column.
+          @ast_compiler.with_temporary_location!(token_location(token.start_pos)) do
+            if token.type == :inline
+              create_inline_ast_node_from_token(token, parent_node)
+            else
+              # Plain text
+              unless token.content.empty?
+                text_node = AST::TextNode.new(
+                  location: @ast_compiler.location,
+                  content: token.content
+                )
+                parent_node.add_child(text_node)
+              end
             end
           end
         end
+      end
+
+      # Build a location at the current line but at the column of a token, from
+      # its 0-based offset within the tokenized string. Falls back to the line
+      # location when the offset or base location is unavailable.
+      def token_location(start_pos)
+        base = @ast_compiler.location
+        return base unless base && start_pos
+
+        base_column = (base.respond_to?(:column) && base.column) || 1
+        AST::SourceLocation.new(base.filename, base.lineno, base_column + start_pos)
       end
 
       # Register a new inline command handler

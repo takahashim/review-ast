@@ -69,7 +69,7 @@ class TestBlockProcessorTableDriven < Test::Unit::TestCase
   end
 
   def test_unknown_command_error
-    location = SnapshotLocation.new('test.re', 1)
+    location = ReVIEW::AST::SourceLocation.new('test.re', 1)
     block_data = AST::BlockData.new(
       name: :unknown_command,
       args: [],

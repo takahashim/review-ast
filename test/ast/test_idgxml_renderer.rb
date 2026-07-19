@@ -32,7 +32,7 @@ class IdgxmlRendererTest < Test::Unit::TestCase
     result = renderer.render(ast)
     # Strip XML declaration and root doc tags to match expected output format
     # Remove leading/trailing newlines but preserve spaces (for //raw blocks)
-    result = result.sub(/\A<\?xml[^>]+\?><doc[^>]*>/, '').sub(%r{</doc>\s*\z}, '')
+    result = result.sub(/\A<\?xml[^>]+\?>\s*<doc[^>]*>/, '').sub(%r{</doc>\s*\z}, '')
     result.gsub(/\A\n+/, '').gsub(/\n+\z/, '')
   end
 
@@ -209,7 +209,8 @@ EOS
 
     actual = compile_block(src)
     assert_includes(actual, "<span type='endnoteref' idref='endnoteb-note1'>(1)</span>")
-    assert_includes(actual, "<endnotes>\n<endnote id='endnoteb-note1'><span type='endnotenumber'>(1)</span>\t後注その1です。</endnote>\n</endnotes>")
+    # IDGXMLBuilder's nolf strips the newlines, so the elements are adjacent.
+    assert_includes(actual, "<endnotes><endnote id='endnoteb-note1'><span type='endnotenumber'>(1)</span>\t後注その1です。</endnote></endnotes>")
   end
 
   def test_inline_maru
@@ -899,40 +900,17 @@ EOS
   end
 
   def test_inline_imgref
-    # Mock image_index with caption_node
-    def @chapter.image_index
-      @image_index_mock ||= begin # rubocop:disable Naming/MemoizedInstanceVariableName
-        index = Book::ImageIndex.new(self)
-        # Create a simple caption_node
-        text_node = AST::TextNode.new(location: nil, content: 'sample photo')
-        caption_node = AST::CaptionNode.new(location: nil)
-        caption_node.add_child(text_node)
-        item = Book::Index::Item.new('sampleimg', 1, 'sample photo', caption_node: caption_node)
-        item.instance_eval { @path = './images/chap1-sampleimg.png' }
-        index.add_item(item)
-        index
-      end
-    end
-
-    actual = compile_block("@<imgref>{sampleimg}\n")
-    expected = %Q(<p><span type='image'>図1.1「sample photo」</span></p>)
+    # The image definition lives in the source: @<imgref> resolves against the
+    # AST-built index (doc/design-improvements #7), not an injected legacy index.
+    actual = compile_block("//image[sampleimg][sample photo]{\n//}\n\n@<imgref>{sampleimg}\n")
+    expected = %Q(<img><pre aid:pstyle="dummyimage"></pre><caption>図1.1　sample photo</caption></img><p><span type='image'>図1.1「sample photo」</span></p>)
     assert_equal expected, actual
   end
 
   def test_inline_imgref2
-    # Mock image_index with item without caption
-    def @chapter.image_index
-      @image_index_mock ||= begin # rubocop:disable Naming/MemoizedInstanceVariableName
-        index = Book::ImageIndex.new(self)
-        item = Book::Index::Item.new('sampleimg', 1)
-        item.instance_eval { @path = './images/chap1-sampleimg.png' }
-        index.add_item(item)
-        index
-      end
-    end
-
-    actual = compile_block("@<imgref>{sampleimg}\n")
-    expected = %Q(<p><span type='image'>図1.1</span></p>)
+    # Same as above but the image has no caption.
+    actual = compile_block("//image[sampleimg]{\n//}\n\n@<imgref>{sampleimg}\n")
+    expected = %Q(<img><pre aid:pstyle="dummyimage"></pre></img><p><span type='image'>図1.1</span></p>)
     assert_equal expected, actual
   end
 
@@ -1224,7 +1202,8 @@ EOS
 <box><caption aid:pstyle="box-title">this is <b>test</b>&lt;&amp;&gt;_</caption>test1
 test1.5
 
-test<i>2</i></box>
+test<i>2</i>
+</box>
 EOS
     assert_equal expected, actual
 
@@ -1234,7 +1213,8 @@ EOS
 <box>test1
 test1.5
 
-test<i>2</i><caption aid:pstyle="box-title">this is <b>test</b>&lt;&amp;&gt;_</caption></box>
+test<i>2</i>
+<caption aid:pstyle="box-title">this is <b>test</b>&lt;&amp;&gt;_</caption></box>
 EOS
     assert_equal expected, actual
   end

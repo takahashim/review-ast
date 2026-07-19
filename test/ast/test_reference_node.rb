@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative '../test_helper'
-require 'review/snapshot_location'
+require 'review/ast/source_location'
 require 'review/ast/reference_node'
 require 'review/ast/caption_node'
 
@@ -11,7 +11,7 @@ class TestReferenceNode < Test::Unit::TestCase
   end
 
   def test_reference_node_basic_creation
-    node = ReVIEW::AST::ReferenceNode.new('figure1', location: ReVIEW::SnapshotLocation.new(nil, 0))
+    node = ReVIEW::AST::ReferenceNode.new('figure1', location: ReVIEW::AST::SourceLocation.new(nil, 0))
 
     assert_equal 'figure1', node.ref_id
     assert_nil(node.context_id)
@@ -20,7 +20,7 @@ class TestReferenceNode < Test::Unit::TestCase
   end
 
   def test_reference_node_with_context
-    node = ReVIEW::AST::ReferenceNode.new('Introduction', 'chapter1', location: ReVIEW::SnapshotLocation.new(nil, 0))
+    node = ReVIEW::AST::ReferenceNode.new('Introduction', 'chapter1', location: ReVIEW::AST::SourceLocation.new(nil, 0))
 
     assert_equal 'Introduction', node.ref_id
     assert_equal 'chapter1', node.context_id
@@ -29,7 +29,7 @@ class TestReferenceNode < Test::Unit::TestCase
   end
 
   def test_reference_node_resolution
-    node = ReVIEW::AST::ReferenceNode.new('figure1', location: ReVIEW::SnapshotLocation.new(nil, 0))
+    node = ReVIEW::AST::ReferenceNode.new('figure1', location: ReVIEW::AST::SourceLocation.new(nil, 0))
 
     # Before resolution
     assert_false(node.resolved?)
@@ -62,7 +62,7 @@ class TestReferenceNode < Test::Unit::TestCase
   end
 
   def test_reference_node_to_s
-    node = ReVIEW::AST::ReferenceNode.new('figure1', location: ReVIEW::SnapshotLocation.new(nil, 0))
+    node = ReVIEW::AST::ReferenceNode.new('figure1', location: ReVIEW::AST::SourceLocation.new(nil, 0))
     assert_include(node.to_s, 'ReferenceNode')
     assert_include(node.to_s, '{figure1}')
     assert_include(node.to_s, 'unresolved')
@@ -80,13 +80,13 @@ class TestReferenceNode < Test::Unit::TestCase
   end
 
   def test_reference_node_with_context_to_s
-    node = ReVIEW::AST::ReferenceNode.new('Introduction', 'chapter1', location: ReVIEW::SnapshotLocation.new(nil, 0))
+    node = ReVIEW::AST::ReferenceNode.new('Introduction', 'chapter1', location: ReVIEW::AST::SourceLocation.new(nil, 0))
     assert_include(node.to_s, '{chapter1|Introduction}')
   end
 
   def test_reference_node_immutability
     # Test that ReferenceNode is immutable
-    node = ReVIEW::AST::ReferenceNode.new('figure1', location: ReVIEW::SnapshotLocation.new(nil, 0))
+    node = ReVIEW::AST::ReferenceNode.new('figure1', location: ReVIEW::AST::SourceLocation.new(nil, 0))
     resolved_node = node.with_resolved_data(
       ReVIEW::AST::ResolvedData.image(
         chapter_number: 1,

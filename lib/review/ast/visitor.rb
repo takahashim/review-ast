@@ -42,6 +42,16 @@ module ReVIEW
         end
       end
 
+      # Default handling for a DirectiveNode (a parser-instruction marker such as
+      # //noindent or //olnum). Markers carry no semantic content of their own and
+      # are removed by a post-process pass before the core tree is rendered or
+      # serialized, so a visitor just descends into the marker (normally empty) by
+      # default. A visitor that must act on a specific directive overrides this.
+      def visit_directive(node)
+        visit_all(node.children)
+        nil
+      end
+
       # Visit multiple nodes and return an array of results.
       #
       # @param nodes [Array] Array of AST nodes to visit

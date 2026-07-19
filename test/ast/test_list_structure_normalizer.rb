@@ -163,7 +163,7 @@ class ListStructureNormalizerTest < Test::Unit::TestCase
     ast = compile_ast(src)
     ols = ast.children.select { |c| c.is_a?(ReVIEW::AST::ListNode) && c.list_type == :ol }
     assert_equal 2, ols.size, 'continuation list and a later independent list must not all merge'
-    assert_equal [3, 2], ols.map { |o| o.children.size }
+    assert_equal([3, 2], ols.map { |o| o.children.size })
   end
 
   def test_consecutive_ordered_lists_not_merged

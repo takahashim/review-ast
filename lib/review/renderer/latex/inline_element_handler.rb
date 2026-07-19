@@ -109,11 +109,14 @@ module ReVIEW
 
           # Check if we need to use footnotetext mode
           if @ctx.config['footnotetext']
-            "\\footnotemark[#{footnote_number}]"
+            # LATEXBuilder emits macro('footnotemark[n]', '') -> the trailing {}.
+            "\\footnotemark[#{footnote_number}]{}"
           elsif @ctx.rendering_context.requires_footnotetext?
-            if data.caption_node
-              @ctx.rendering_context.collect_footnote(data.caption_node, footnote_number)
-            end
+            # Inside a moving argument: emit \protect\footnotemark{} here and
+            # defer the \footnotetext to the //footnote definition (matching
+            # LATEXBuilder's @foottext), so it lands on the builder's page even
+            # when a page break separates the heading from the definition.
+            @ctx.defer_footnotetext(node.args.first)
             '\\protect\\footnotemark{}'
           else
             footnote_content = if data.caption_node
@@ -123,6 +126,17 @@ module ReVIEW
                                end
             "\\footnote{#{footnote_content}}"
           end
+        end
+
+        # The short chapter-number prefix for a cross-reference (e.g. "2" in
+        # "2.1"), or nil when the chapter is unnumbered. Mirrors LATEXBuilder's
+        # get_chap: at secnolevel 0 no chapter is numbered, so refs drop the
+        # chapter part ("1.1" -> "1").
+        def ref_chapter_number(data)
+          return nil unless @ctx.config['secnolevel'].to_i > 0
+
+          short = @ctx.text_formatter.format_chapter_number_short(data.chapter_number, data.chapter_type)
+          short && !short.empty? ? short : nil
         end
 
         # Render list reference
@@ -135,8 +149,8 @@ module ReVIEW
           data = ref_node.resolved_data
           list_number = data.item_number
 
-          chapter_num = @ctx.text_formatter.format_chapter_number_short(data.chapter_number, data.chapter_type)
-          if chapter_num && !chapter_num.empty?
+          chapter_num = ref_chapter_number(data)
+          if chapter_num
             "\\reviewlistref{#{chapter_num}.#{list_number}}"
           else
             "\\reviewlistref{#{list_number}}"
@@ -161,8 +175,8 @@ module ReVIEW
           chapter_id = data.chapter_id || @chapter&.id
           table_label = "table:#{chapter_id}:#{data.item_id}"
 
-          short_num = @ctx.text_formatter.format_chapter_number_short(data.chapter_number, data.chapter_type)
-          if short_num && !short_num.empty?
+          short_num = ref_chapter_number(data)
+          if short_num
             "\\reviewtableref{#{short_num}.#{table_number}}{#{table_label}}"
           else
             "\\reviewtableref{#{table_number}}{#{table_label}}"
@@ -187,17 +201,34 @@ module ReVIEW
           chapter_id = data.chapter_id || @chapter&.id
           image_label = "image:#{chapter_id}:#{data.item_id}"
 
-          short_num = @ctx.text_formatter.format_chapter_number_short(data.chapter_number, data.chapter_type)
-          if short_num && !short_num.empty?
+          short_num = ref_chapter_number(data)
+          if short_num
             "\\reviewimageref{#{short_num}.#{image_number}}{#{image_label}}"
           else
             "\\reviewimageref{#{image_number}}{#{image_label}}"
           end
         end
 
-        # Render imgref reference (same as img)
+        # Render imgref reference. Like @<img> but, when the referenced image has
+        # a caption, LATEXBuilder#inline_imgref appends it as I18n 'image_quote'
+        # (「caption」 in ja). The caption is inserted raw, matching the builder.
         def render_inline_imgref(type, content, node)
-          render_inline_img(type, content, node)
+          img = render_inline_img(type, content, node)
+          item_id = node.children.first.resolved_data.item_id
+          caption = image_caption_for(item_id)
+          if caption
+            "#{img}#{ReVIEW::I18n.t('image_quote', caption)}"
+          else
+            img
+          end
+        end
+
+        # Caption of the image bound to id in the current chapter, or nil if the
+        # image is unbound. Mirrors LATEXBuilder's @chapter.image(id).caption.
+        def image_caption_for(id)
+          @chapter.image(id).caption
+        rescue StandardError
+          nil
         end
 
         # Render equation reference
@@ -210,8 +241,8 @@ module ReVIEW
           data = ref_node.resolved_data
           equation_number = data.item_number
 
-          short_num = @ctx.text_formatter.format_chapter_number_short(data.chapter_number, data.chapter_type)
-          if short_num && !short_num.empty?
+          short_num = ref_chapter_number(data)
+          if short_num
             "\\reviewequationref{#{short_num}.#{equation_number}}"
           else
             "\\reviewequationref{#{equation_number}}"
@@ -446,8 +477,13 @@ module ReVIEW
           full_number_parts = [short_chapter] + headline_number
           full_section_number = full_number_parts.join('.')
 
-          # Check if we should show the number based on secnolevel
-          section_number = if short_chapter != '0' && @ctx.over_secnolevel?(full_section_number)
+          # A heading is *numbered* only when it has a chapter number and its
+          # depth is within secnolevel -- exactly LATEXBuilder#inline_hd_chap's
+          # `n.present? && chap.number && over_secnolevel?(n)`. When it is not
+          # numbered (e.g. a subsection under the default secnolevel=2), @<hd>/
+          # @<secref> must show the title alone, with no number.
+          numbered = short_chapter != '0' && @ctx.over_secnolevel?(full_section_number)
+          section_number = if numbered
                              # Show full number with chapter: "2.1", "2.1.2", etc.
                              full_section_number
                            else
@@ -459,7 +495,7 @@ module ReVIEW
           relative_parts = headline_number.join('-')
           section_label = "sec:#{chapter_prefix}-#{relative_parts}"
 
-          [section_number, section_label, section_title]
+          [section_number, section_label, section_title, numbered]
         end
 
         # Render heading reference
@@ -470,8 +506,13 @@ module ReVIEW
           end
 
           data = ref_node.resolved_data
-          section_number, section_label, section_title = build_heading_reference_parts(data)
-          "\\reviewsecref{「#{section_number} #{escape(section_title)}」}{#{section_label}}"
+          section_number, section_label, section_title, numbered = build_heading_reference_parts(data)
+          quoted = if numbered
+                     "「#{section_number} #{escape(section_title)}」"
+                   else
+                     "「#{escape(section_title)}」"
+                   end
+          "\\reviewsecref{#{quoted}}{#{section_label}}"
         end
 
         # Render section reference
@@ -494,8 +535,13 @@ module ReVIEW
           end
 
           data = ref_node.resolved_data
-          section_number, section_label, section_title = build_heading_reference_parts(data)
-          "\\reviewsecref{「#{section_number} #{escape(section_title)}」}{#{section_label}}"
+          section_number, section_label, section_title, numbered = build_heading_reference_parts(data)
+          quoted = if numbered
+                     "「#{section_number} #{escape(section_title)}」"
+                   else
+                     "「#{escape(section_title)}」"
+                   end
+          "\\reviewsecref{#{quoted}}{#{section_label}}"
         end
 
         # Render section title only
@@ -530,6 +576,18 @@ module ReVIEW
           index_entry = process_index(index_str)
           # Hidden index entry like LATEXBuilder - just output index, content is already rendered
           "\\index{#{index_entry}}"
+        end
+
+        # Render DTP directive: LATEXBuilder#inline_dtp ignores it (returns '').
+        def render_inline_dtp(_type, _content, _node)
+          ''
+        end
+
+        # Render page reference. LATEXBuilder#inline_pageref emits \pageref{id}
+        # with the raw id (no escaping).
+        def render_inline_pageref(_type, content, node)
+          id = node.args.first || content
+          "\\pageref{#{id}}"
         end
 
         # Process index string for hierarchical index entries (mendex/upmendex)
@@ -702,19 +760,17 @@ module ReVIEW
           render_inline_ins(type, content, node)
         end
 
-        # Render unicode character
+        # Render unicode character.
+        #
+        # LATEXBuilder#inline_uchar branches on @texcompiler, but that ivar is
+        # NEVER assigned on the builder (only PDFMaker sets @texcompiler on
+        # itself, a different object), so it is always nil and the platex \UTF
+        # branch is dead: the builder always passes the codepoint through as a
+        # literal Unicode character. Match that (config['texcommand'] does not
+        # reach the builder's @texcompiler, so keying on it here diverged).
         def render_inline_uchar(_type, content, node)
-          # Unicode character handling like LATEXBuilder
           if node.args.first
-            char_code = node.args.first
-            texcompiler = @ctx.config['texcommand']
-            if texcompiler&.start_with?('platex')
-              # with otf package - use \UTF macro
-              "\\UTF{#{escape(char_code)}}"
-            else
-              # upLaTeX or other - convert to actual Unicode character
-              [char_code.to_i(16)].pack('U')
-            end
+            [node.args.first.to_i(16)].pack('U')
           else
             content
           end
@@ -805,7 +861,15 @@ module ReVIEW
           end
 
           data = ref_node.resolved_data
-          endnote_content = escape(data.caption_text || '')
+          # LATEXBuilder#inline_endnote emits \endnote{compile_inline(content)}:
+          # the content is inline-compiled (so @<b>{…}, @<fn>{…} etc. are
+          # processed) and stripped. Render the parsed caption_node rather than
+          # escaping the plain caption_text (which dropped inline markup).
+          endnote_content = if data.caption_node
+                              @ctx.render_children(data.caption_node).strip
+                            else
+                              escape((data.caption_text || '').strip)
+                            end
           "\\endnote{#{endnote_content}}"
         end
 

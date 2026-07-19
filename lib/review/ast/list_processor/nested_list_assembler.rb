@@ -157,8 +157,12 @@ module ReVIEW
           # Add main content
           add_content_to_item(item_node, item_data.content)
 
-          # Add continuation lines
+          # Add continuation lines. Each is a separate source line; record the
+          # boundary so the LaTeX renderer can reinsert the newline (LATEXBuilder
+          # joins item lines with "\n"; HTMLBuilder joins with "", so the split
+          # must stay a renderer-level decision, not be baked into the AST).
           item_data.continuation_lines.each do |line|
+            item_node.mark_source_line_break!
             add_content_to_item(item_node, line)
           end
         end
@@ -235,7 +239,7 @@ module ReVIEW
         end
 
         # Get current location for node creation
-        # @return [SnapshotLocation] Current location
+        # @return [SourceLocation] Current location
         def current_location
           @location_provider.location
         end

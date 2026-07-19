@@ -17,7 +17,7 @@ module ReVIEW
         @level = level
         @label = label
         @caption_node = caption_node
-        @column_type = column_type
+        @column_type = (column_type || :column).to_sym
         @auto_id = auto_id
         @column_number = column_number
       end
@@ -40,7 +40,9 @@ module ReVIEW
           level: hash['level'],
           label: hash['label'],
           caption_node: deserialize_caption_from_hash(hash),
-          column_type: hash['column_type']&.to_sym
+          column_type: hash['column_type'],
+          auto_id: hash['auto_id'],
+          column_number: hash['column_number']
         )
         if hash['children']
           hash['children'].each do |child_hash|

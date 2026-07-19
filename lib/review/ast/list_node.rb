@@ -17,7 +17,7 @@ module ReVIEW
 
       def initialize(location:, list_type: nil, start_number: nil, olnum_start: nil, **kwargs)
         super(location: location, **kwargs)
-        @list_type = list_type # :ul, :ol, :dl
+        @list_type = list_type&.to_sym # :ul, :ol, :dl (canonicalized at construction)
         @start_number = start_number
         @olnum_start = olnum_start # InDesign's olnum starting value (for IDGXML)
       end
@@ -44,7 +44,10 @@ module ReVIEW
       end
 
       def self.deserialize_from_hash(hash)
-        node = new(location: ReVIEW::AST::JSONSerializer.restore_location(hash), list_type: hash['list_type'].to_sym)
+        node = new(location: ReVIEW::AST::JSONSerializer.restore_location(hash),
+                   list_type: hash['list_type'],
+                   start_number: hash['start_number'],
+                   olnum_start: hash['olnum_start'])
 
         # Process children (should be ListItemNode objects)
         if hash['children']
@@ -61,6 +64,7 @@ module ReVIEW
       def serialize_properties(hash, options)
         hash[:list_type] = list_type
         hash[:start_number] = start_number if start_number && start_number != 1
+        hash[:olnum_start] = olnum_start if olnum_start
         if children.any?
           hash[:children] = children.map { |child| child.serialize_to_hash(options) }
         end

@@ -3,12 +3,12 @@
 require_relative '../test_helper'
 require 'review/ast/list_node'
 require 'review/ast/text_node'
-require 'review/snapshot_location'
+require 'review/ast/source_location'
 require 'stringio'
 
 class TestUnifiedListNode < Test::Unit::TestCase
   def setup
-    @location = ReVIEW::SnapshotLocation.new('test', 1)
+    @location = ReVIEW::AST::SourceLocation.new('test', 1)
   end
 
   def test_list_node_initialization

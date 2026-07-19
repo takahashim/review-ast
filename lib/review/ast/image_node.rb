@@ -46,7 +46,7 @@ module ReVIEW
         serialize_properties(hash, options)
 
         # LeafNode automatically excludes children
-        hash
+        serialize_common_node_fields(hash)
       end
 
       def self.deserialize_from_hash(hash)

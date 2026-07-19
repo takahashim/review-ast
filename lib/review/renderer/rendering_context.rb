@@ -25,8 +25,11 @@ module ReVIEW
     class RenderingContext
       attr_reader :context_type, :parent_context, :footnote_collector
 
-      # Context types that require footnotetext instead of direct footnote
-      FOOTNOTETEXT_REQUIRED_CONTEXTS = %i[table caption minicolumn column dt].freeze
+      # Context types that require footnotetext instead of direct footnote.
+      # A heading is a LaTeX "moving argument": a bare \footnote breaks there, so
+      # LATEXBuilder emits \protect\footnotemark{} plus a deferred \footnotetext
+      # (it sets @doc_status[:caption] around the heading caption).
+      FOOTNOTETEXT_REQUIRED_CONTEXTS = %i[table caption minicolumn column dt heading].freeze
 
       def initialize(context_type, parent_context = nil)
         @context_type = context_type

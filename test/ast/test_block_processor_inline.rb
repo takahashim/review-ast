@@ -2,7 +2,7 @@
 
 require_relative '../test_helper'
 require_relative 'caption_parser_helper'
-require 'review/snapshot_location'
+require 'review/ast/source_location'
 require 'review/ast/code_block_node'
 require 'review/ast/paragraph_node'
 require 'review/ast/text_node'
@@ -15,7 +15,7 @@ require 'review/ast/compiler'
 
 class TestBlockProcessorInline < Test::Unit::TestCase
   def setup
-    @location = ReVIEW::SnapshotLocation.new('test.re', 10)
+    @location = ReVIEW::AST::SourceLocation.new('test.re', 10)
     compiler = ReVIEW::AST::Compiler.new
     @inline_processor = compiler.inline_processor
   end
@@ -179,7 +179,7 @@ class TestBlockProcessorInline < Test::Unit::TestCase
 
     # Already a CaptionNode
     existing_caption_node = ReVIEW::AST::CaptionNode.new(location: @location)
-    existing_caption_node.add_child(ReVIEW::AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Existing'))
+    existing_caption_node.add_child(ReVIEW::AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Existing'))
     caption_node4 = CaptionParserHelper.parse(existing_caption_node, location: @location)
     assert_equal existing_caption_node, caption_node4
   end

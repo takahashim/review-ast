@@ -36,6 +36,11 @@ module ReVIEW
           @render_proxy.rendering_context
         end
 
+        # Defer a footnote's \footnotetext to its //footnote definition.
+        def defer_footnotetext(id)
+          @render_proxy.defer_footnotetext(id)
+        end
+
         def chapter_link_enabled?
           config['chapterlink']
         end

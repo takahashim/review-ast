@@ -46,6 +46,13 @@ module ReVIEW
         @renderer.rendering_context if @renderer.respond_to?(:rendering_context)
       end
 
+      # Defer a footnote's \footnotetext to its //footnote definition
+      # (LaTeX-specific: footnote used inside a moving argument).
+      # @param id [String] Footnote id
+      def defer_footnotetext(id)
+        @renderer.defer_footnotetext(id) if @renderer.respond_to?(:defer_footnotetext)
+      end
+
       # Render caption with inline markup (LaTeX/IDGXML-specific feature)
       # @param caption_node [Object] Caption node to render
       # @return [String, nil] Rendered caption if available

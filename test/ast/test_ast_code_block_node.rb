@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative '../test_helper'
-require 'review/snapshot_location'
+require 'review/ast/source_location'
 require 'review/ast/code_block_node'
 require 'review/ast/paragraph_node'
 require 'review/ast/text_node'
@@ -24,7 +24,7 @@ class TestASTCodeBlockNode < Test::Unit::TestCase
   end
 
   def create_test_location
-    ReVIEW::SnapshotLocation.new('test.re', 5)
+    ReVIEW::AST::SourceLocation.new('test.re', 5)
   end
 
   def test_code_block_node_original_text_preservation

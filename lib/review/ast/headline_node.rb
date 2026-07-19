@@ -55,7 +55,9 @@ module ReVIEW
           location: ReVIEW::AST::JSONSerializer.restore_location(hash),
           level: hash['level'],
           label: hash['label'],
-          caption_node: deserialize_caption_from_hash(hash)
+          caption_node: deserialize_caption_from_hash(hash),
+          tag: hash['tag'],
+          auto_id: hash['auto_id']
         )
       end
 

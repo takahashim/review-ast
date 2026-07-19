@@ -2,13 +2,13 @@
 
 require_relative '../test_helper'
 require 'review/ast/block_data'
-require 'review/snapshot_location'
+require 'review/ast/source_location'
 
 class TestBlockData < Test::Unit::TestCase
   include ReVIEW::AST
 
   def setup
-    @location = ReVIEW::SnapshotLocation.new('test.re', 42)
+    @location = ReVIEW::AST::SourceLocation.new('test.re', 42)
   end
 
   def test_basic_initialization

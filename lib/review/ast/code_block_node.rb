@@ -97,6 +97,7 @@ module ReVIEW
           lang: hash['lang'],
           line_numbers: hash['numbered'] || hash['line_numbers'] || false,
           code_type: hash['code_type'],
+          first_line_num: hash['first_line_num'],
           original_text: hash['original_text']
         )
         if hash['children']

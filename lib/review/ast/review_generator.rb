@@ -257,7 +257,10 @@ module ReVIEW
 
       def visit_table(node)
         table_type = node.table_type || :table
-        text = build_table_header(node, table_type)
+        # Re-emit the source //tsize the TsizeProcessor folded onto this table
+        # (a source fact kept target-neutral on the node).
+        text = node.tsize ? "//tsize[#{node.tsize}]\n\n" : +''
+        text += build_table_header(node, table_type)
         text += build_table_body(node.header_rows, node.body_rows)
         text + "//}\n\n"
       end

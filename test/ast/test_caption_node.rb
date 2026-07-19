@@ -1,14 +1,14 @@
 # frozen_string_literal: true
 
 require_relative '../test_helper'
-require 'review/snapshot_location'
+require 'review/ast/source_location'
 require 'review/ast/caption_node'
 require 'review/ast/text_node'
 require 'review/ast/inline_node'
 
 class TestCaptionNode < Test::Unit::TestCase
   def setup
-    @location = ReVIEW::SnapshotLocation.new('test.re', 1)
+    @location = ReVIEW::AST::SourceLocation.new('test.re', 1)
   end
 
   def test_caption_node_initialization
