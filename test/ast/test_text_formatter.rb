@@ -226,15 +226,6 @@ class TestTextFormatter < Test::Unit::TestCase
     end
   end
 
-  # Test format_part_short
-  def test_format_part_short
-    formatter = ReVIEW::Renderer::TextFormatter.new(config: @config)
-    chapter = ReVIEW::Book::Chapter.new(@book, 'II', 'part2', 'part2.re', StringIO.new)
-    result = formatter.format_part_short(chapter)
-    # I18n translation for part_short, or key itself
-    assert result.include?('II') || result.include?('part_short')
-  end
-
   # Test format_reference_text (plain text output without format-specific decorations)
   def test_format_reference_text_image
     formatter = ReVIEW::Renderer::TextFormatter.new(config: @config)

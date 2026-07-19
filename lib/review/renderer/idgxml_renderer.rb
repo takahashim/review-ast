@@ -91,8 +91,6 @@ module ReVIEW
         # Initialize IDGXML-specific inline context and inline element handler
         @inline_context = Idgxml::InlineContext.new(
           config: config,
-          book: book,
-          chapter: chapter,
           renderer: self,
           img_math: @img_math
         )
@@ -191,29 +189,29 @@ module ReVIEW
         # Handle section tag opening for structuredxml mode
         case level
         when 1
-          result << %Q(<chapter id="chap:#{@chapter.number}">) if @secttags
+          result << %Q(<chapter id="chap:#{render_context.chapter_number}">) if @secttags
           @section = 0
           @subsection = 0
           @subsubsection = 0
           @subsubsubsection = 0
         when 2
           @section += 1
-          result << %Q(<sect id="sect:#{@chapter.number}.#{@section}">) if @secttags
+          result << %Q(<sect id="sect:#{render_context.chapter_number}.#{@section}">) if @secttags
           @subsection = 0
           @subsubsection = 0
           @subsubsubsection = 0
         when 3
           @subsection += 1
-          result << %Q(<sect2 id="sect:#{@chapter.number}.#{@section}.#{@subsection}">) if @secttags
+          result << %Q(<sect2 id="sect:#{render_context.chapter_number}.#{@section}.#{@subsection}">) if @secttags
           @subsubsection = 0
           @subsubsubsection = 0
         when 4
           @subsubsection += 1
-          result << %Q(<sect3 id="sect:#{@chapter.number}.#{@section}.#{@subsection}.#{@subsubsection}">) if @secttags
+          result << %Q(<sect3 id="sect:#{render_context.chapter_number}.#{@section}.#{@subsection}.#{@subsubsection}">) if @secttags
           @subsubsubsection = 0
         when 5
           @subsubsubsection += 1
-          result << %Q(<sect4 id="sect:#{@chapter.number}.#{@section}.#{@subsection}.#{@subsubsection}.#{@subsubsubsection}">) if @secttags
+          result << %Q(<sect4 id="sect:#{render_context.chapter_number}.#{@section}.#{@subsection}.#{@subsubsection}.#{@subsubsubsection}">) if @secttags
         when 6
           # ignore level 6
         else
@@ -607,13 +605,13 @@ module ReVIEW
             # Playwright not available, skip graph generation
             # But we still need a file path for rendering
             c = 'idgxml'
-            dir = File.join(@book.imagedir, c)
+            dir = File.join(render_context.imagedir, c)
             file_path = File.join(dir, "#{id}.pdf")
           end
         else
           # For other graph types, generate directly
           c = 'idgxml' # target_name
-          dir = File.join(@book.imagedir, c)
+          dir = File.join(render_context.imagedir, c)
           FileUtils.mkdir_p(dir) unless File.directory?(dir)
 
           # Determine image extension based on format

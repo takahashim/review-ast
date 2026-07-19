@@ -17,12 +17,10 @@ module ReVIEW
       class InlineContext
         include ReVIEW::HTMLUtils
 
-        attr_reader :config, :book, :chapter, :img_math
+        attr_reader :config, :img_math
 
-        def initialize(config:, book:, chapter:, renderer:, img_math: nil)
+        def initialize(config:, renderer:, img_math: nil)
           @config = config
-          @book = book
-          @chapter = chapter
           # Automatically create proxy from renderer to limit access
           @render_proxy = InlineRenderProxy.new(renderer)
           @img_math = img_math
@@ -52,22 +50,6 @@ module ReVIEW
         def over_secnolevel?(n)
           secnolevel = config['secnolevel'] || 2
           secnolevel >= n.to_s.split('.').size
-        end
-
-        def get_chap # rubocop:disable Naming/AccessorMethodName
-          if config['secnolevel'] && config['secnolevel'] > 0 &&
-             !chapter.number.nil? && !chapter.number.to_s.empty?
-            if chapter.is_a?(ReVIEW::Book::Part)
-              return text_formatter.format_part_short(chapter)
-            else
-              return chapter.format_number(nil)
-            end
-          end
-          nil
-        end
-
-        def bibpaper_number(bib_id)
-          chapter.bibpaper(bib_id).number
         end
 
         def increment_texinlineequation

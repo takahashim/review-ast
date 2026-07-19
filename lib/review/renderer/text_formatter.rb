@@ -248,13 +248,6 @@ module ReVIEW
         I18n.t('html_footnote_backmark')
       end
 
-      # Format part short label (e.g., "第I部")
-      # @param chapter [Chapter] Chapter object
-      # @return [String] Formatted part short label
-      def format_part_short(chapter)
-        I18n.t('part_short', chapter.number)
-      end
-
       # Format numberless image label
       # @return [String] Numberless image label
       def format_numberless_image
