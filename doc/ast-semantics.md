@@ -1,208 +1,330 @@
 # Re:VIEW AST semantics
 
-This document is the builder-independent specification of the review-ast tree:
-what each node means, which source syntax produces it, how the compile pipeline
-transforms the tree, where the AST intentionally diverges from the legacy
-Re:VIEW builders, and what a re-implementation must satisfy to be conformant.
+This document is the specification of the tree (AST) that review-ast builds.
+It defines what each node means, which source syntax produces it, how the
+compile pipeline transforms the tree, where the AST intentionally diverges from
+the legacy implementation, and what a re-implementation must satisfy to be
+conformant.
 
-It is written for a consumer of the serialized AST (see the JSON format in
+It is written for a consumer of the serialized AST (JSON; the implementation is
 `lib/review/ast/json_serializer.rb`) who wants to render or analyze Re:VIEW
-documents without reading the Ruby source. The parity-first project rule holds
-for the implemented syntax: the AST reproduces the builders' output
-(DVI-identical for LaTeX, byte-identical for IDGXML, rendered-equivalent for
-HTML) except where the [divergence registry](#4-divergence-registry) says
-otherwise, and except for a few commands not yet implemented in a renderer
-(`//graph` and `@<w>`/`@<wb>` in the LaTeX renderer — see the divergence
-registry).
+documents without reading the Ruby source. General AST and compiler concepts
+are assumed; knowledge of Re:VIEW is not. If Re:VIEW is new to you, the next
+section ("Prerequisites") is enough to read the syntax columns that follow.
 
-Status: living document, with a Japanese companion `doc/ast-semantics.ja.md`
-kept in sync. Both are kept fresh by `test/ast/test_semantics_coverage.rb`, which
-fails if the compiler learns a block or special-inline command, or a node type,
-that either file does not mention.
+This is a living document. `test/ast/test_semantics_coverage.rb` keeps it
+fresh: the test fails whenever the compiler learns a block command, a special
+inline command, or a node type that this document does not mention. It pairs
+with the Japanese version `doc/ast-semantics.ja.md`; the two cover the same
+commands, nodes, and divergence entries.
+
+## 0. Prerequisites: the Re:VIEW input language, and the parity-first rule
+
+**Re:VIEW** is a lightweight markup language for writing technical books.
+A book is written as one `.re` file per chapter and converted to PDF (via
+LaTeX), EPUB, web pages (HTML), XML for DTP software (IDGXML), and plain text.
+
+Three kinds of syntax cover everything that appears in a source file:
+
+- **Heading lines**: the number of leading `=` characters gives the level
+  (`= chapter`, `== section`, …). A heading can carry a label as `=={label}`
+  and bracketed tags as `==[column]`.
+- **Block commands**: a block spans from `//name[arg1][arg2]{` to `//}` (there
+  is also a bodyless form `//name[arg]`). Code blocks, figures, tables, and
+  footnotes are written this way.
+- **Inline commands**: `@<name>{content}` inside body text. Bold (`@<b>`),
+  code (`@<code>`), and cross-references (`@<img>` etc.) are written this way.
+
+In the legacy Re:VIEW implementation, a per-format "builder" (LATEXBuilder,
+HTMLBuilder, …) combines parsing with output generation. review-ast separates
+the parsing out into an AST, and per-format renderers draw output from that
+one tree.
+
+The **parity-first** rule defines correctness of the AST pipeline, for now, as
+"produces the same output as the legacy builders." The strictness of "same"
+differs per format. LaTeX is DVI-identical (the comparison is between typeset
+results (DVI files), not between the bytes of the TeX source), IDGXML is
+byte-identical, and HTML is rendered-equivalent (equal as a browser rendering).
+There are only two exceptions to the rule: the places listed in the
+[divergence registry](#4-divergence-registry), and a few commands not yet
+implemented in a renderer (`//graph` and `@<w>`/`@<wb>` in the LaTeX renderer;
+see the end of the divergence registry).
 
 ## 1. Node inventory
 
-Every node carries a `type` and a source `location` (`filename`, `lineno`,
-`column`). Branch nodes carry `children`; leaf nodes (the `LeafNode` subclasses
-`TextNode`, `ReferenceNode`, `ImageNode`, `TexEquationNode`, `EmbedNode`) emit no
-`children` key. Numbered definition nodes also carry a `definition_number` (see
-[numbering](#23-definition-numbering)); a `//noindent` target carries `noindent`;
-an image-bearing node carries a resolved `image_path`.
+Every node carries a `type` and a source position `location` (`filename`,
+`lineno`, `column`).
+Nodes that can have children carry `children`.
+**Leaf nodes** (the subclasses of the abstract base `LeafNode`: `TextNode`,
+`ReferenceNode`, `ImageNode`, `TexEquationNode`, `EmbedNode`) are childless by
+construction and emit no `children` key in JSON.
+
+Three more common fields appear where applicable: `definition_number` on
+numbered definition nodes ([section 2.3](#23-definition-numbering)), `noindent`
+on the target of a `//noindent`, and a resolved `image_path` on image-bearing
+nodes.
+
+### Document structure
 
 | Node | Meaning | Key fields | Produced by |
 |---|---|---|---|
-| `DocumentNode` | Whole chapter; tree root | — | a compiled `.re` chapter |
+| `DocumentNode` | Whole chapter; the tree root | — | a compiled `.re` chapter |
 | `HeadlineNode` | Heading | `level`, `label`, `tag` (`nonum`/`notoc`/`nodisp`), `raw_caption`, `caption_node` | `=`, `==`, … lines |
+| `ColumnNode` | Column (a longer boxed article delimited with heading syntax) | `label`, `level`, `caption_node` | `===[column]` … `===[/column]` |
+| `CaptionNode` | Caption of a block or heading | — | the caption argument of a block |
+
+### Body text and inlines
+
+| Node | Meaning | Key fields | Produced by |
+|---|---|---|---|
 | `ParagraphNode` | Paragraph | `noindent` | blank-line-separated text |
-| `TextNode` | Literal text run | `content` | text; a `LeafNode` |
-| `CodeLineNode` | One line inside a code block | `line_number`, `original_text`, `children` (inline markup) | lines inside `//list` etc. (a branch node, not a leaf) |
+| `TextNode` | Literal text run | `content` | text |
 | `InlineNode` | Inline command | `inline_type`, `args` | `@<b>{…}`, `@<code>{…}`, `@<img>{…}`, … |
-| `ReferenceNode` | Cross-reference (resolved to a number/label at compile time) | `ref_id`, `context_id`, `resolved_data` | the child of the reference's `InlineNode` (e.g. `@<hd>`, `@<img>`, `@<fn>`) |
-| `CaptionNode` | Caption of a block/heading | — | the caption argument of a block |
-| `ListNode` | List container | `list_type` (`ul`/`ol`/`dl`) | `*`, `1.`, `:` lines and `//ul`/`//ol`/`//dl` |
-| `ListItemNode` | List item | `level`, `term_children` (for `dl`) | list items, `//li`/`//dt`/`//dd` |
-| `CodeBlockNode` | Verbatim/code block | `id`, `lang`, `code_type`, `line_numbers` | `//list`, `//listnum`, `//emlist`, `//emlistnum`, `//cmd`, `//source` |
+| `ReferenceNode` | Cross-reference; resolved to a number or label at compile time | `ref_id`, `context_id`, `resolved_data` | the child of a reference `InlineNode` (e.g. `@<hd>`, `@<img>`, `@<fn>`) |
+
+### Block elements
+
+| Node | Meaning | Key fields | Produced by |
+|---|---|---|---|
+| `CodeBlockNode` | Verbatim and code blocks | `id`, `lang`, `code_type`, `line_numbers` | `//list`, `//listnum`, `//emlist`, `//emlistnum`, `//cmd`, `//source` |
+| `CodeLineNode` | One line inside a code block; a branch rather than a leaf because it can contain inline markup | `line_number`, `original_text`, `children` | lines inside `//list` etc. |
+| `ListNode` | List container | `list_type` (`ul`/`ol`/`dl`) | `*`, `1.`, `:` lines, `//ul`/`//ol`/`//dl` |
+| `ListItemNode` | List item | `level`, `term_children` (the term side of a `dl`) | list items, `//li`/`//dt`/`//dd` |
 | `ImageNode` | Image | `id`, `image_type`, `image_path`, `metric` | `//image`, `//indepimage`, `//numberlessimage` |
 | `TableNode` | Table | `id`, `table_type` (`table`/`emtable`/`imgtable`), `tsize`, header rows | `//table`, `//emtable`, `//imgtable` |
-| `TableRowNode` | Table row | — | a table body/header line |
+| `TableRowNode` | Table row | — | table body and header lines |
 | `TableCellNode` | Table cell | header flag | tab-separated cells |
-| `MinicolumnNode` | Admonition/mini column | `minicolumn_type` | `//note`, `//memo`, `//tip`, `//info`, `//warning`, `//important`, `//caution`, `//notice` |
-| `ColumnNode` | Column (sidebar section) | `label`, `level`, `caption_node` | `===[column]` … `===[/column]` |
-| `FootnoteNode` | Footnote/endnote definition | `id`, `footnote_type` (`footnote`/`endnote`) | `//footnote`, `//endnote` |
+| `MinicolumnNode` | Small admonition box | `minicolumn_type` | `//note`, `//memo`, `//tip`, `//info`, `//warning`, `//important`, `//caution`, `//notice` |
+| `FootnoteNode` | Footnote and endnote definitions | `id`, `footnote_type` (`footnote`/`endnote`) | `//footnote`, `//endnote` |
 | `TexEquationNode` | Display equation | `id`, `caption_node` | `//texequation` |
-| `EmbedNode` | Raw pass-through for chosen builders (also the intended home for raw HTML once Markdown is supported) | `embed_type`, target builders, `content` | `//embed`, `@<embed>`, `//raw`, `@<raw>` |
-| `BlockNode` | Generic block not lowered to a specific node | `block_type`, `args` | `//bibpaper`, `//graph`, `//box`, `//insn`, `//point`, `//term`, `//doorquote`, control commands, … |
-| `DirectiveNode` | A `//directive` that modifies the next node; removed by lowering | `directive_type`, `args` | `//tsize`, `//firstlinenum`, `//noindent`, `//olnum`, `//beginchild`, `//endchild` |
+| `EmbedNode` | Raw pass-through for chosen builders (once Markdown input is supported, raw HTML also goes here) | `embed_type`, target builders, `content` | `//embed`, `@<embed>`, `//raw`, `@<raw>` |
+
+### Generic blocks and transient nodes
+
+| Node | Meaning | Key fields | Produced by |
+|---|---|---|---|
+| `BlockNode` | Generic block not specialized into a dedicated node | `block_type`, `args` | `//bibpaper`, `//graph`, `//box`, `//insn`, `//point`, `//term`, `//doorquote`, control commands, … |
+| `DirectiveNode` | Parser instruction that modifies the next node; always removed by lowering | `directive_type`, `args` | `//tsize`, `//firstlinenum`, `//noindent`, `//olnum`, `//beginchild`, `//endchild` |
 | `LeafNode` | Abstract base for childless content nodes | — | never serialized directly |
 
 ## 2. Pipeline semantics
 
-`Compiler#compile_to_ast(input)` takes a `CompileInput` (source text plus a
-service handle for image/cross-chapter lookups) and produces the tree in three
-observable stages.
+`Compiler#compile_to_ast(input)` takes a `CompileInput` (the source text plus a
+service handle used for image and cross-chapter lookups) and produces the
+observable tree through the following stages.
 
 ### 2.1 Surface tree → lowering passes → core tree
 
-Parsing yields a *surface tree* that still contains `DirectiveNode`s for
-`//directive` markers that modify a following node. Two ordered stages then run
-(`Compiler#post_processors`, decomposed nanopass-style — see
-doc/design-improvements #3):
+The direct output of parsing is called the **surface tree**.
+It is faithful to the source: parser instructions that say "modify the next
+node" (`//noindent` and friends) are still present as `DirectiveNode`s.
 
-- Stage B — commutative directive micro-passes. Each lowers one directive onto
-  the next eligible target among its following siblings — it searches forward, so
-  it can skip an intervening node (e.g. `//noindent` applies to the paragraph even
-  when a `//embed` sits between them): `//tsize`→table, `//firstlinenum`→code,
-  `//noindent`→paragraph/quote, `//olnum`→ordered list. Their targets are
-  disjoint, so they commute (every shuffle yields the same core tree).
-- Stage A — order-dependent structural passes: child nesting via
-  `//beginchild`/`//endchild`, ordered-list item numbering, and auto-id
-  generation for `nonum`/`notoc`/`nodisp` headlines and columns.
+Two ordered stages then run as lowering passes (`Compiler#post_processors`;
+each pass does exactly one thing, nanopass-style — the design history is in
+doc/design-improvements #3).
 
-The result is the *core tree*: no `DirectiveNode`s remain; their effect lives as
-fields on the target nodes. Reference resolution and image-path resolution run
-in a separate phase and only for a full (rendered) build.
+- **Stage B**: mutually commutative directive micro-passes.
+  Each pass takes one kind of directive, applies it to the "next eligible
+  target" found among the following siblings, and deletes the directive.
+  The pairings are `//tsize` → table, `//firstlinenum` → code block,
+  `//noindent` → paragraph or quote, `//olnum` → ordered list.
+  The search runs forward to the first eligible node, so it skips over nodes of
+  other kinds (for example, `//noindent` still applies to the paragraph when a
+  `//embed` sits between them).
+  The directive kinds and target attributes each pass touches are disjoint, so
+  the passes commute: any order yields the same tree (this commutativity is
+  checked by a test).
+- **Stage A**: order-dependent structural passes.
+  These perform child-block nesting via `//beginchild`/`//endchild`, item
+  numbering for ordered lists, and auto-id generation for
+  `nonum`/`notoc`/`nodisp` headlines and columns.
+
+The tree after lowering is called the **core tree**.
+No `DirectiveNode` remains in the core tree (a leftover is a compile error);
+each directive's effect lives on as fields of its target node.
+Renderers and the serializer consume this core tree.
+Reference resolution and image-path resolution are separate phases that run
+only for a full (rendered) build.
 
 ### 2.2 Block separation
 
-Adjacent blocks are modeled as distinct sibling nodes; the compiler does not
-merge or flatten across block boundaries (which is the class of bug this avoids —
-see doc/design-improvements #2). A re-implementation must keep block boundaries
-observable in the tree. The exceptions match LATEXBuilder: consecutive
-blank-line-separated definition lists (`:` / `//dl`) merge into one list, and
-`//ul`/`//ol` continuations across `//beginchild`/`//endchild` merge into the
-parent list (`ListStructureNormalizer`).
+Adjacent blocks are modeled as distinct sibling nodes, and the compiler does
+not merge or flatten across block boundaries.
+Erasing block adjacency from the tree would force renderers to reconstruct it
+by rewriting output strings (that class of bug is recorded in
+doc/design-improvements #2).
+A re-implementation must likewise keep block boundaries observable in the tree.
+
+The only exceptions are two merges that match the legacy LATEXBuilder.
+Consecutive definition lists separated by blank lines (`:` lines, `//dl`) merge
+into one list.
+And `//ul`/`//ol` continuations across `//beginchild`/`//endchild` merge into
+the parent list (`ListStructureNormalizer`).
 
 ### 2.3 Definition numbering
 
-Numbered definitions (`//list`, `//image`, `//table`, `//texequation`, `//graph`,
-`//bibpaper`, footnotes) are numbered at compile time by the Indexer and stamped
-as `definition_number` = `{number, chapter_number}` on the node, so a renderer
-needs no chapter index to print "図2.1". `//indepimage` and `//numberlessimage`
-are unnumbered and carry no `definition_number`. An `//imgtable` is numbered as a
-table (`definition_number`) but also carries a separate `imgtable_image_number`
-for the fallback rendering of an unbound image. Counters and their sharing
-(image/graph share one; indepimage/numberlessimage/imgtable-image share another)
-mirror the legacy IndexBuilder. See doc/design-improvements #1 and #7.
+Numbered definitions (`//list`, `//image`, `//table`, `//texequation`,
+`//graph`, `//bibpaper`, footnotes) are numbered at compile time by the
+Indexer, which stamps `definition_number` = `{number, chapter_number}` onto the
+node.
+For example, the first figure of chapter 2 carries
+`{number: 1, chapter_number: "2"}`, so a renderer can print "図2.1" (Figure
+2.1) without consulting any chapter index.
+
+Unnumbered images (`//indepimage`, `//numberlessimage`) carry no
+`definition_number`.
+An `//imgtable` (a command that treats an image as a table) is numbered as a
+table, but also carries an image-series number `imgtable_image_number` used for
+the fallback rendering when the referenced image is missing.
+The counter sharing (image and graph share one counter; the images of
+indepimage, numberlessimage, and imgtable share another) matches the legacy
+IndexBuilder (doc/design-improvements #1 and #7).
 
 The chapter title is the first headline's `raw_caption` (the source-faithful
-caption of the first heading, markers/label stripped, inline markup kept raw),
-owned by the AST rather than the gem's `BookUnit#title`.
+caption with markers and label stripped and inline markup kept raw), owned by
+the AST.
+It does not depend on the legacy book model (`BookUnit#title`).
 
 ## 3. Command reference
 
-The compiler recognizes a fixed set of block commands (`BLOCK_COMMAND_TABLE`)
-and special inline commands (`DEFAULT_INLINE_HANDLERS`). Both are enumerated here
-so the coverage test can map every command to documented semantics.
+The complete command set the compiler recognizes is the fixed block-command
+set (`BLOCK_COMMAND_TABLE`) and the special-inline-command set
+(`DEFAULT_INLINE_HANDLERS`).
+Both are enumerated here so the coverage test can map every command to this
+document.
 
 ### 3.1 Block commands
 
-- Code blocks (`CodeBlockNode`): `//list`, `//listnum`, `//emlist`, `//emlistnum`,
-  `//cmd`, `//source`.
-- Images (`ImageNode`): `//image`, `//indepimage`, `//numberlessimage`.
-- Tables (`TableNode`): `//table`, `//emtable`, `//imgtable`.
-- Lists (`ListNode`/`ListItemNode`): `//ul`, `//ol`, `//dl`, `//li`, `//dt`,
-  `//dd`.
-- Mini columns (`MinicolumnNode`): `//note`, `//memo`, `//tip`, `//info`,
-  `//warning`, `//important`, `//caution`, `//notice`.
+- Code blocks (become `CodeBlockNode`):
+  `//list` (numbered), `//listnum` (numbered, with line numbers), `//emlist`
+  (unnumbered), `//emlistnum` (line numbers only), `//cmd` (command line),
+  `//source` (code with an origin caption).
+- Images (`ImageNode`):
+  `//image` (numbered), `//indepimage` (unnumbered), `//numberlessimage`
+  (ditto).
+- Tables (`TableNode`):
+  `//table` (numbered), `//emtable` (unnumbered), `//imgtable` (an image
+  numbered as a table).
+- Lists (`ListNode`/`ListItemNode`):
+  `//ul`, `//ol`, `//dl`, `//li`, `//dt`, `//dd`.
+  Lists are normally written with line syntax such as `*`; these block forms
+  are auxiliary.
+- Mini columns (`MinicolumnNode`):
+  `//note`, `//memo`, `//tip`, `//info`, `//warning`, `//important`,
+  `//caution`, `//notice`.
+  The kinds differ but the structure is identical; only `minicolumn_type`
+  varies.
 - Column (`ColumnNode`): `//column`.
-- Footnotes (`FootnoteNode`): `//footnote`, `//endnote`.
+- Footnotes (`FootnoteNode`): `//footnote` (footnote), `//endnote`
+  (chapter-end endnote).
 - Equations (`TexEquationNode`): `//texequation`.
 - Pass-through (`EmbedNode`): `//embed`, `//raw`.
-- Quote-like blocks (`BlockNode`): `//read`, `//quote`, `//blockquote`, `//lead`,
-  `//centering`, `//flushright`, `//address`, `//talk`.
-- Other blocks (`BlockNode`): `//doorquote`, `//bibpaper`, `//graph`, `//box`,
-  `//insn`, `//point`, `//term`.
-- Control commands (`BlockNode`): `//comment`, `//blankline`, `//pagebreak`,
-  `//label`, `//printendnotes`, `//hr`, `//bpo`, `//parasep`.
-- Directives (`DirectiveNode`, lowered away): `//olnum`, `//noindent`,
-  `//firstlinenum`, `//tsize`, `//beginchild`, `//endchild`.
+- Quote-like blocks (`BlockNode`):
+  `//read`, `//quote`, `//blockquote`, `//lead`, `//centering`,
+  `//flushright`, `//address`, `//talk`.
+- Other blocks (`BlockNode`):
+  `//doorquote` (door-page quote), `//bibpaper` (bibliography entry),
+  `//graph` (figure generated by an external tool), `//box`, `//insn`,
+  `//point`, `//term`.
+- Control commands (`BlockNode`):
+  `//comment`, `//blankline`, `//pagebreak`, `//label`, `//printendnotes`,
+  `//hr`, `//bpo`, `//parasep`.
+- Directives (`DirectiveNode`; removed by lowering):
+  `//olnum`, `//noindent`, `//firstlinenum`, `//tsize`, `//beginchild`,
+  `//endchild`.
 
 ### 3.2 Special inline commands
 
-These have a dedicated handler; the tree shape differs by group.
+These commands have dedicated handlers.
+The tree shape differs by group.
 
-- Pass-through, a direct `EmbedNode`: `@<embed>`, `@<raw>`.
-- A plain `InlineNode` (`inline_type` = the command; the args carry the payload):
-  `@<ruby>`, `@<href>`, `@<kw>`.
-- References — an `InlineNode` (`inline_type: :img`, `:fn`, …) that wraps a
-  `ReferenceNode` child holding `ref_id`/`context_id`/`resolved_data`: `@<img>`,
-  `@<imgref>`, `@<list>`, `@<table>`, `@<eq>`, `@<fn>`, `@<endnote>`, `@<column>`,
-  `@<w>`, `@<wb>`, `@<bib>`, `@<bibref>`.
-- Cross references — the same `InlineNode` + `ReferenceNode` shape: `@<hd>`,
-  `@<chap>`, `@<chapref>`, `@<title>`, `@<sec>`, `@<secref>`, `@<sectitle>`,
-  `@<labelref>`, `@<ref>`.
+- Pass-through; becomes an `EmbedNode` directly: `@<embed>`, `@<raw>`.
+- A plain `InlineNode` (`inline_type` is the command name, the args carry the
+  payload): `@<ruby>` (ruby annotation), `@<href>` (link), `@<kw>` (keyword).
+- References.
+  An `InlineNode` (`inline_type: :img`, `:fn`, …) wraps a `ReferenceNode`
+  child holding `ref_id`/`context_id`/`resolved_data`:
+  `@<img>`, `@<imgref>`, `@<list>`, `@<table>`, `@<eq>`, `@<fn>`,
+  `@<endnote>`, `@<column>`, `@<w>`, `@<wb>`, `@<bib>`, `@<bibref>`.
+- Cross references; the same tree shape as references:
+  `@<hd>` (heading), `@<chap>` (chapter number), `@<chapref>` (chapter),
+  `@<title>` (chapter title), `@<sec>` (section number), `@<secref>`
+  (section), `@<sectitle>` (section title), `@<labelref>`, `@<ref>`.
 
-Any other `@<name>{…}` (`@<b>`, `@<i>`, `@<code>`, `@<tt>`, `@<bou>`, `@<ami>`,
-`@<u>`, `@<em>`, `@<strong>`, …) becomes a decoration `InlineNode` whose
-`inline_type` is `name`; the renderer's `render_inline_<name>` decides its
-output.
+Every other `@<name>{…}` (`@<b>`, `@<i>`, `@<code>`, `@<tt>`, `@<bou>`
+(sesame dots), `@<ami>` (shaded background), `@<u>`, `@<em>`, `@<strong>`, …)
+becomes a decoration `InlineNode` whose `inline_type` is the command name.
+The renderer's `render_inline_<name>` decides its output; the tree shape is
+identical for all of them.
 
 ## 4. Divergence registry
 
-Differences from the legacy builders. Rows 1 and 4 are cases the AST reproduces
-byte-for-byte (a triaged spec question, `doc/spec-questions.md`, awaiting an
-upstream ruling). Rows 2, 3 and 5 are cases the AST deliberately does *not*
-reproduce, because the builder behaviour is a bug or a builder-specific quirk.
-Compat classes (from doc/design-improvements #6): *fix-now* (no document can
-depend on it), *gate* (`review_version`-guarded), *canonicalize* (adopt as spec).
+Even under the parity-first rule, a small number of places produce output that
+differs from the legacy builders.
+This section is the ledger that records every one of them.
+
+Each entry carries a **compat class** (the classification from
+doc/design-improvements #6).
+**Fix-now** means no working document can depend on the behaviour (for
+example, it only ever produced un-typesettable output).
+**Gate** means the behaviour is wrong but documents may depend on it, so the
+old behaviour should stay available behind a `review_version` declaration.
+**Canonicalize** means the behaviour is established and harmless, and is
+adopted as the specification.
+
+Rows 1 and 4 below are cases where the AST reproduces the builder behaviour
+byte-for-byte (triaged as spec questions in `doc/spec-questions.md`, awaiting
+an upstream (kmuto/review) ruling).
+Rows 2, 3, and 5 are cases the AST deliberately does not reproduce, because
+the builder behaviour is a bug or a builder-specific quirk.
 
 | # | Syntax | Builder behaviour | AST behaviour | Suspected class | Upstream |
 |---|---|---|---|---|---|
 | 1 | Part heading TOC name | `part` for a starred Part, `chapter` for a `[nonum]` Part | reproduces the builder | canonicalize? | open |
-| 2 | Table cell rendering empty via `@<comment>` | the empty-rendering cell collapses, shifting the row (LATEXBuilder bug) | does NOT reproduce: keeps the correctly split row | fix-now | open |
-| 3 | Table header/body separator threshold | LATEXBuilder detects on the *escaped* line, so 4–11 dashes already split | does NOT reproduce: uses the 12-dash threshold (like HTML), so 4–11 dashes stay data | gate | open |
+| 2 | Table cell rendering empty via `@<comment>` | the empty-rendering cell collapses, shifting the row (a LATEXBuilder bug) | does not reproduce: keeps the correctly split row | fix-now | open |
+| 3 | Table header/body separator threshold | LATEXBuilder detects on the escaped line, so 4–11 dashes already split | does not reproduce: uses the 12-dash threshold (same as HTML), so 4–11 dashes stay data | gate | open |
 | 4 | `footnotetext: true` + footnote in a heading | emits an unprotected `\footnotemark` (un-typesettable) | reproduces the builder byte-for-byte | fix-now | open |
-| 5 | Table-cell leading-dot escaping | HTMLBuilder unescapes `..15`→`.15`; IDGXMLBuilder keeps `..15` | unescapes to `.15` (matches HTML; intentionally diverges from IDGXML byte-exact) | fix-now | open |
+| 5 | Table-cell leading-dot escaping | HTMLBuilder unescapes `..15`→`.15`; IDGXMLBuilder keeps `..15` | normalizes to `.15` (matches HTML; intentionally incompatible with IDGXML byte-exactness) | fix-now | open |
 
-Known unimplemented (not yet a renderer difference to reproduce, just missing —
-see `doc/differential-testing.md`): `//graph` (external-tool image) and
-`@<w>`/`@<wb>` (dictionary word substitution) are not implemented in the AST
-LaTeX renderer.
+Besides these, two things are simply unimplemented rather than divergent (see
+`doc/differential-testing.md`).
+`//graph` (external-tool image) and `@<w>`/`@<wb>` (dictionary word
+substitution) are not implemented in the AST LaTeX renderer.
 
-Non-divergent but worth stating: `//tsize` for IDGXML reads the source numeric
-CSV directly, and a LaTeX column spec (`|l|c|r|`) is ignored for IDGXML (equal
-distribution) — identical to the builder (doc/design-improvements #5).
+One non-divergent point worth stating: the interpretation of `//tsize` (table
+column widths) differs per format.
+IDGXML reads the numeric CSV from the source directly, and a LaTeX column spec
+(`|l|c|r|`) is ignored by IDGXML (equal distribution).
+This is identical to the builder behaviour (doc/design-improvements #5).
 
 ## 5. Conformance criteria
 
 A re-implementation is conformant for a given source (and, once version gating
-exists, a `review_version`) when, stage by stage:
+exists, a `review_version`) when, stage by stage, it satisfies:
 
-1. Surface tree — parsing the source yields the same surface tree (schema-valid
-   against the serialized format), same node types and fields.
-2. Core tree — after lowering, the same core tree (no `DirectiveNode`s; directive
-   effects on target-node fields; the numbering of 2.3).
-3. Rendering — per format, the same output at that format's strictness: LaTeX
-   DVI-identical, IDGXML byte-identical, HTML rendered-equivalent, plaintext/TOP
-   byte-identical.
+1. **Surface tree**:
+   parsing the source yields the same surface tree, with the same node types
+   and fields (and schema-valid against the serialized format).
+2. **Core tree**:
+   after lowering, it yields the same core tree.
+   That is, no `DirectiveNode` remains, directive effects live on the target
+   nodes' fields, and the numbering of
+   [section 2.3](#23-definition-numbering) is done.
+3. **Rendering**:
+   per format, it yields the same output at that format's strictness.
+   LaTeX is DVI-identical, IDGXML is byte-identical, HTML is
+   rendered-equivalent, and plaintext and TOP are byte-identical.
 
-Version handling (design intent): semantics are version-independent except at
-triaged divergence points, which would carry a `review_version` range. The node
-schema never forks on version; only compiler/renderer behaviour does. Today the
-dump envelope records only `ast_format` and a `generator` string (which names the
-generating review version, e.g. `review 5.11.0`); a dedicated `review_version`
-field and the version gating are not yet implemented.
+Version handling follows this design intent.
+Semantics are version-independent by default; only triaged divergence points
+will carry a `review_version` range (planned).
+The node schema never forks on version; forks live only in compiler and
+renderer behaviour.
+Today the dump envelope records only `ast_format` and a `generator` string
+naming the producer (e.g. `review 5.11.0`); a dedicated `review_version` field
+and the version gating are not yet implemented.
 
-The executable conformance kit is the serialized-AST schema, the sample/PBT
-corpus, and the differential comparators (`tools/compare_book.rb` for DVI, the
-IDGXML/HTML sweeps) — runnable without reading the Ruby source.
+The executable conformance kit is the serialized-AST schema, the samples and
+PBT corpora, and the differential comparators (`tools/compare_book.rb` for
+DVI, the IDGXML and HTML sweeps) — all runnable without reading the Ruby
+source.
