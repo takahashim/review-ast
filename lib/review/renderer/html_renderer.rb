@@ -323,6 +323,13 @@ module ReVIEW
       # visit_block is now handled by Base renderer with dynamic method dispatch
       # Individual visit_block_* methods delegate to existing render_*_block methods
 
+      # //hr, and the Markdown thematic break the adapter maps onto it. Without
+      # this, a document containing either raised "Unknown block type: hr" here
+      # while HTMLBuilder printed the rule.
+      def visit_block_hr(_node)
+        "<hr />\n"
+      end
+
       def visit_block_note(node)
         render_note_block(node)
       end

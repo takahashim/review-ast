@@ -1,0 +1,34 @@
+■H1■前書き
+PREDEF内に列挙したものは前付として章採番なしです。後付のPOSTDEFも同様。
+PREDEF内/POSTDEFのリストの採番表記は「リスト1」のようになります: リスト1
+（正確にはi18n.yml/locale.ymlのformat_number_header_without_chapterが使われます）
+
+◆→開始:リスト←◆
+リスト1　main()
+
+int
+main(int argc, char **argv)
+{
+    puts("OK");
+    return 0;
+}
+
+◆→終了:リスト←◆
+
+図（図1）、表（表1）も同様に章番号なしです。
+
+◆→開始:図←◆
+図1　フラクタル
+
+◆→fractal、latex::width=80mm←◆
+◆→終了:図←◆
+
+
+◆→開始:表←◆
+表1　前付表
+
+A	B
+------------
+C	D
+◆→終了:表←◆
+

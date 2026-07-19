@@ -569,30 +569,14 @@ module ReVIEW
           location = current_location(cm_node)
 
           begin
-            # Tokenize text for Re:VIEW inline notation
-            tokens = @inline_tokenizer.tokenize(text, location: location)
-
-            # Process each token
-            tokens.each do |token|
-              case token.type
-              when :text
-                # Text token: create TextNode
-                parent_node.add_child(TextNode.new(location: location, content: token.content))
-
-              when :inline
-                # InlineToken: Re:VIEW inline notation @<xxx>{id}
-                ref_type = token.command.to_sym
-                ref_id = token.content
-
-                # Create ReferenceNode
-                reference_node = ReferenceNode.new(ref_id, nil, location: location)
-
-                # Create InlineNode with reference type
-                inline_node = InlineNode.new(location: location, inline_type: ref_type, args: [ref_id])
-                inline_node.add_child(reference_node)
-
-                parent_node.add_child(inline_node)
-              end
+            # Hand Re:VIEW notation to the same InlineProcessor the .re path
+            # uses, so both inputs build the same nodes for the same notation.
+            # Tokenizing here instead produced a ReferenceNode child for every
+            # command -- including ones that are not references, like @<bou> --
+            # and never split multi-argument commands, so @<ruby>{愕然,がくぜん}
+            # came out with a single argument.
+            @compiler.with_temporary_location!(location) do
+              @compiler.inline_processor.parse_inline_elements(text, parent_node)
             end
           rescue InlineTokenizeError => e
             # If tokenization fails, add error message as comment and add original text

@@ -1,0 +1,15 @@
+PREDEF:
+ - pre01.md
+
+CHAPS:
+ - 部扉見出し:
+   - ch01.md
+ - part2.md:
+   - ch02.md
+   - ch03.md
+
+APPENDIX:
+ - appA.md
+
+POSTDEF:
+ - bib.md

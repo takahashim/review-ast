@@ -25,7 +25,13 @@ module ReVIEW
     class MarkdownCompiler < Compiler
       # GFM features red_quilt does not enable by default. Tables,
       # strikethrough and HTML blocks are on already.
-      PARSE_OPTIONS = { footnotes: true, extended_autolinks: true }.freeze
+      #
+      # extended_autolinks stays off: it turns a bare URL into a link, which
+      # breaks Re:VIEW notation carrying one -- "@<href>{http://example.com,例}"
+      # gets split mid-command and no longer tokenizes. Links in Re:VIEW
+      # notation are what this dialect uses, and CommonMark's own <...>
+      # autolinks still work.
+      PARSE_OPTIONS = { footnotes: true }.freeze
 
       def initialize
         super
