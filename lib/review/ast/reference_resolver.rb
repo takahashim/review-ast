@@ -8,6 +8,7 @@
 
 require_relative 'reference_node'
 require_relative 'resolved_data'
+require_relative 'render_context'
 require_relative 'inline_node'
 require_relative 'indexer'
 require_relative 'visitor'
@@ -483,17 +484,7 @@ module ReVIEW
       # @param chapter [Chapter] The chapter to check
       # @return [Symbol] One of :chapter, :appendix, :part, :predef
       def chapter_type(chapter)
-        return nil unless chapter
-
-        if chapter.is_a?(ReVIEW::Book::Part)
-          :part
-        elsif chapter.on_predef?
-          :predef
-        elsif chapter.on_appendix?
-          :appendix
-        else
-          :chapter
-        end
+        ReVIEW::AST::RenderContext.chapter_type(chapter)
       end
     end
   end

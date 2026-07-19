@@ -55,8 +55,7 @@ module ReVIEW
         # Initialize LaTeX-specific inline context and inline element handler
         @inline_context = Latex::InlineContext.new(
           config: config,
-          book: book,
-          chapter: chapter,
+          render_context: render_context,
           renderer: self
         )
         @inline_element_handler = Latex::InlineElementHandler.new(@inline_context)
@@ -149,14 +148,14 @@ module ReVIEW
 
         # Add \addcontentsline for unnumbered sections within toclevel
         # Match LATEXBuilder logic: only add to TOC if level is within toclevel
-        if (level > config['secnolevel'] || (@chapter.number.to_s.empty? && level > 1)) &&
+        if (level > config['secnolevel'] || (!render_context.chapter_number_present? && level > 1)) &&
            level <= config['toclevel'].to_i
           result << "\\addcontentsline{toc}{#{get_base_section_name(level)}}{#{headline_toc_caption(node, caption)}}"
         end
 
         # Generate labels like LATEXBuilder - add both automatic and custom labels
-        if level == 1 && @chapter
-          result << "\\label{chap:#{@chapter.id}}"
+        if level == 1 && render_context.chapter_present?
+          result << "\\label{chap:#{render_context.chapter_id}}"
         elsif @sec_counter && level >= 2
           # Generate section labels like LATEXBuilder (sec:x-y format)
           anchor = @sec_counter.anchor(level)
@@ -501,7 +500,7 @@ module ReVIEW
           label = nil
           if node.id?
             # Don't escape underscores in labels - they're allowed in LaTeX label names
-            label = @chapter ? "\\label{table:#{@chapter.id}:#{node.id}}" : "\\label{table:test:#{node.id}}"
+            label = render_context.chapter_present? ? "\\label{table:#{render_context.chapter_id}:#{node.id}}" : "\\label{table:test:#{node.id}}"
           end
 
           header = []
@@ -580,7 +579,7 @@ module ReVIEW
 
           # Add table label (line 919) - this needs table index
           begin
-            result << "\\label{table:#{@chapter.id}:#{node.id}}"
+            result << "\\label{table:#{render_context.chapter_id}:#{node.id}}"
           rescue ReVIEW::KeyError
             # If table lookup fails, still continue
           end
@@ -1306,8 +1305,8 @@ module ReVIEW
         result << "\\reviewimagecaption{#{caption}}" if caption && !caption.empty?
 
         if with_label && node.id?
-          result << if @chapter
-                      "\\label{image:#{@chapter.id}:#{node.id}}"
+          result << if render_context.chapter_present?
+                      "\\label{image:#{render_context.chapter_id}:#{node.id}}"
                     else
                       "\\label{image:test:#{node.id}}"
                     end
@@ -1360,8 +1359,8 @@ module ReVIEW
         end
 
         if with_label && node.id?
-          result << if @chapter
-                      "\\label{image:#{@chapter.id}:#{node.id}}"
+          result << if render_context.chapter_present?
+                      "\\label{image:#{render_context.chapter_id}:#{node.id}}"
                     else
                       "\\label{image:test:#{node.id}}"
                     end
@@ -1506,13 +1505,13 @@ module ReVIEW
       }.freeze
 
       def headline_name(level)
-        name = if @chapter.is_a?(ReVIEW::Book::Part) && level == 1
+        name = if render_context.part? && level == 1
                  'part'
                else
                  HEADLINE[level] || raise(CompileError, "Unsupported headline level: #{level}. LaTeX only supports levels 1-6")
                end
 
-        if level > config['secnolevel'] || (@chapter.number.to_s.empty? && level > 1)
+        if level > config['secnolevel'] || (!render_context.chapter_number_present? && level > 1)
           "#{name}*"
         else
           name
@@ -1764,7 +1763,7 @@ module ReVIEW
 
       # Check if Part document should be wrapped with reviewpart environment
       def should_wrap_part_with_reviewpart?
-        @chapter.is_a?(ReVIEW::Book::Part)
+        render_context.part?
       end
 
       # Generate TOC entry only (for nodisp headlines)
@@ -1791,7 +1790,7 @@ module ReVIEW
 
       # Get base section name without star
       def get_base_section_name(level)
-        if @chapter.is_a?(ReVIEW::Book::Part) && level == 1
+        if render_context.part? && level == 1
           'part'
         else
           HEADLINE[level] || raise(CompileError, "Unsupported headline level: #{level}")
@@ -1803,7 +1802,7 @@ module ReVIEW
         # Use column_number directly instead of parsing auto_id
         num = node.column_number || 'unknown'
 
-        "column:#{@chapter&.id || 'unknown'}:#{num}"
+        "column:#{render_context.chapter_id || 'unknown'}:#{num}"
       end
 
       # Process //raw command with LATEXBuilder-compatible behavior

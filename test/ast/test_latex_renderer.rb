@@ -120,12 +120,16 @@ class TestLatexRenderer < Test::Unit::TestCase
     # Numberless chapter: level > 1 should get star commands
     @chapter.instance_variable_set(:@number, '') # Make chapter numberless
     @config['secnolevel'] = 3
+    # Build the renderer after the chapter is finalized: RenderContext captures
+    # the chapter number at construction (as it is in the real pipeline, where
+    # generate_indexes assigns numbers before rendering).
+    renderer = Renderer::LatexRenderer.new(@chapter)
 
     caption_node = AST::CaptionNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
     caption_node.add_child(AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Section Title'))
 
     headline = AST::HeadlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), level: 2, caption_node: caption_node)
-    result = @renderer.visit(headline)
+    result = renderer.visit(headline)
 
     expected = "\\section*{Section Title}\n\\addcontentsline{toc}{section}{Section Title}\n\\label{sec:-1}\n\n"
     assert_equal expected, result

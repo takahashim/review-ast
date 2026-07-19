@@ -8,6 +8,7 @@
 
 require 'review/ast/visitor'
 require 'review/ast/footnote_node'
+require 'review/ast/render_context'
 require 'review/exception'
 require 'review/renderer/text_formatter'
 
@@ -47,6 +48,7 @@ module ReVIEW
         @chapter = chapter
         @book = chapter&.book
         @config = @book&.config || {}
+        @render_context = ReVIEW::AST::RenderContext.from_chapter(chapter)
         super()
         @text_formatter = ReVIEW::Renderer::TextFormatter.new(
           config: @config,
@@ -54,7 +56,7 @@ module ReVIEW
         )
       end
 
-      attr_reader :text_formatter
+      attr_reader :text_formatter, :render_context
 
       # Render an AST node to the target format.
       #

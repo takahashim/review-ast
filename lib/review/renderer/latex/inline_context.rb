@@ -17,12 +17,11 @@ module ReVIEW
       class InlineContext
         include ReVIEW::LaTeXUtils
 
-        attr_reader :config, :book, :chapter, :index_db, :index_mecab
+        attr_reader :config, :render_context, :index_db, :index_mecab
 
-        def initialize(config:, book:, chapter:, renderer:)
+        def initialize(config:, render_context:, renderer:)
           @config = config
-          @book = book
-          @chapter = chapter
+          @render_context = render_context
           # Automatically create proxy from renderer to limit access
           @render_proxy = InlineRenderProxy.new(renderer)
           # Initialize index support

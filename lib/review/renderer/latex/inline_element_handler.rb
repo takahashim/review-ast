@@ -18,8 +18,7 @@ module ReVIEW
 
         def initialize(inline_context)
           @ctx = inline_context
-          @chapter = @ctx.chapter
-          @book = @ctx.book
+          @render_context = @ctx.render_context
           @config = @ctx.config
           # Initialize LaTeX character escaping
           initialize_metachars(@config['texcommand'])
@@ -172,7 +171,7 @@ module ReVIEW
           data = ref_node.resolved_data
           table_number = data.item_number
           # Use current chapter ID if chapter_id is not set in resolved_data
-          chapter_id = data.chapter_id || @chapter&.id
+          chapter_id = data.chapter_id || @render_context.chapter_id
           table_label = "table:#{chapter_id}:#{data.item_id}"
 
           short_num = ref_chapter_number(data)
@@ -198,7 +197,7 @@ module ReVIEW
           data = ref_node.resolved_data
           image_number = data.item_number
           # Use current chapter ID if chapter_id is not set in resolved_data
-          chapter_id = data.chapter_id || @chapter&.id
+          chapter_id = data.chapter_id || @render_context.chapter_id
           image_label = "image:#{chapter_id}:#{data.item_id}"
 
           short_num = ref_chapter_number(data)
@@ -306,9 +305,12 @@ module ReVIEW
             # Cross-chapter reference
             short_chapter = @ctx.text_formatter.format_chapter_number_short(data.chapter_number, data.chapter_type)
             chapter_prefix = short_chapter
-          elsif @chapter && @ctx.chapter.number
-            # Same chapter reference
-            short_chapter = @ctx.chapter.format_number(false)
+          elsif @render_context.chapter_number
+            # Same chapter reference. format_chapter_number_short replicates
+            # Chapter#format_number(false), keyed by the current chapter's type.
+            short_chapter = @ctx.text_formatter.format_chapter_number_short(
+              @render_context.chapter_number, @render_context.chapter_type
+            )
             chapter_prefix = short_chapter
           else
             # Reference without chapter number
@@ -684,7 +686,7 @@ module ReVIEW
 
           data = ref_node.resolved_data
           column_number = data.item_number
-          chapter_id = data.chapter_id || @ctx.chapter&.id
+          chapter_id = data.chapter_id || @render_context.chapter_id
           column_label = "column:#{chapter_id}:#{column_number}"
 
           # Render caption with inline markup
