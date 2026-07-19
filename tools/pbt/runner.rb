@@ -25,15 +25,34 @@
 # real finding into a permanent regression test rather than relying on the seed.
 
 require 'optparse'
+require 'yaml'
 
-opts = { seeds: 50, start: 1, mode: 'dvi', blocks: nil,
+opts = { seeds: 50, start: 1, mode: 'dvi', blocks: nil, config: {},
+         book_config: 'config.yml',
          book: File.expand_path('../../samples/sample-book/src', __dir__) }
 OptionParser.new do |o|
   o.on('--seeds N', Integer) { |v| opts[:seeds] = v }
   o.on('--start S', Integer) { |v| opts[:start] = v }
-  o.on('--mode M', %w[dvi canonical]) { |v| opts[:mode] = v }
+  o.on('--mode M', %w[dvi canonical html idgxml]) { |v| opts[:mode] = v }
   o.on('--blocks N', Integer) { |v| opts[:blocks] = v }
   o.on('--book DIR') { |v| opts[:book] = File.expand_path(v) }
+  # Config filename (relative to --book) that review-pdfmaker uses to harvest the
+  # DVI preamble/sty. Use a highlight-enabled config to typeset listings blocks.
+  o.on('--book-config FILE') { |v| opts[:book_config] = v }
+  # Override a book-config key for the whole sweep, e.g.
+  #   --config secnolevel=0 --config caption_position/list=bottom
+  # Values are parsed as YAML scalars so true/false/0 keep their types. A
+  # slash in the key denotes a nested config hash (config['a']['b']).
+  o.on('--config K=V') do |kv|
+    key, val = kv.split('=', 2)
+    parsed = YAML.safe_load(val.to_s)
+    if key.include?('/')
+      outer, inner = key.split('/', 2)
+      (opts[:config][outer] ||= {})[inner] = parsed
+    else
+      opts[:config][key] = parsed
+    end
+  end
 end.parse!(ARGV)
 
 require 'review'
@@ -41,13 +60,34 @@ root = File.expand_path('../..', __dir__)
 $LOAD_PATH.unshift(File.join(root, 'test', 'support'))
 $LOAD_PATH.unshift(File.join(root, 'tools', 'compare'))
 $LOAD_PATH.unshift(File.join(root, 'tools', 'pbt'))
-require 'review/test/latex_comparator'
-require 'review/ast/diff/latex'
 require 'dvi_comparator'
 require 'generator'
 
-comparator = ReVIEW::Test::LatexComparator.new
-canonical = ReVIEW::AST::Diff::Latex.new
+# Select the format's comparator (renders a *.re through builder + AST renderer)
+# and its structural diff. LaTeX uses DVI or a canonical text diff; HTML and
+# IDGXML use spec-aware DOM/XML diffs (Diff::Html follows the CSS Text 3
+# white-space model so significant whitespace is not lost).
+case opts[:mode]
+when 'html'
+  require 'review/test/html_comparator'
+  require 'review/ast/diff/html'
+  comparator = ReVIEW::Test::HtmlComparator.new(config: opts[:config])
+  canonical = ReVIEW::AST::Diff::Html.new
+when 'idgxml'
+  require 'review/test/idgxml_comparator'
+  require 'review/ast/diff/byte_exact'
+  comparator = ReVIEW::Test::IdgxmlComparator.new(config: opts[:config])
+  # IDGXML is compared byte-for-byte: it is compact (no formatting whitespace)
+  # and InDesign imports text literally, so there is no whitespace-collapsing
+  # model to normalize -- any byte difference is a real one.
+  canonical = ReVIEW::AST::Diff::ByteExact.new
+else
+  require 'review/test/latex_comparator'
+  require 'review/ast/diff/latex'
+  comparator = ReVIEW::Test::LatexComparator.new(config: opts[:config])
+  canonical = ReVIEW::AST::Diff::Latex.new
+end
+puts "config override: #{opts[:config].inspect}" unless opts[:config].empty?
 
 dvi = nil
 if opts[:mode] == 'dvi'
@@ -55,7 +95,8 @@ if opts[:mode] == 'dvi'
   dvi = ReVIEW::Compare::DviComparator.from_book(
     opts[:book],
     template_dir: File.join(Gem.loaded_specs['review'].gem_dir, 'templates', 'latex'),
-    bundle_gemfile: ENV['BUNDLE_GEMFILE']
+    bundle_gemfile: ENV['BUNDLE_GEMFILE'],
+    config: opts[:book_config]
   )
 end
 
@@ -119,7 +160,7 @@ def shrink(doc, comparator:, canonical:, dvi:)
 end
 
 failures = []
-both_failed = 0
+skipped = []
 range = (opts[:start]...(opts[:start] + opts[:seeds]))
 range.each do |seed|
   doc = ReVIEW::PBT::Generator.new(seed).document(n_blocks: opts[:blocks])
@@ -129,14 +170,20 @@ range.each do |seed|
     failures << [seed, status, detail, doc]
   elsif both_failed?(status)
     print '!' # neither path could typeset/compile this input (not a divergence)
-    both_failed += 1
+    skipped << [seed, detail]
   else
     print '.'
   end
   $stdout.flush
 end
 puts "\n"
-puts "#{both_failed} input(s) neither path could typeset/compile (skipped)." if both_failed > 0
+unless skipped.empty?
+  puts "#{skipped.size} input(s) neither path could typeset/compile (skipped):"
+  skipped.each do |seed, detail|
+    first_line = detail.to_s.lines.first&.strip
+    puts "  seed=#{seed}: #{first_line}"
+  end
+end
 
 if failures.empty?
   puts "No divergence in seeds #{range.first}..#{range.last} (mode=#{opts[:mode]})."

@@ -235,8 +235,7 @@ class ASTHTMLDiffTest < Test::Unit::TestCase
           </p>
           <p>
             Second paragraph with
-            <a href="link.html">a link</a>
-            .
+            <a href="link.html">a link</a>.
           </p>
         </section>
       </article>
@@ -369,5 +368,28 @@ class ASTHTMLDiffTest < Test::Unit::TestCase
     html2 = '<input checked disabled readonly type="checkbox">'
     result = @comparator.compare(html1, html2)
     assert_true(result.same_hash?)
+  end
+
+  # CSS Text 3 white-space model: a space BETWEEN inline elements is significant
+  # ("a b" vs "ab"), unlike whitespace between block elements.
+  def test_significant_whitespace_between_inline_elements
+    assert_false(@comparator.compare('<p><b>a</b> <b>b</b></p>', '<p><b>a</b><b>b</b></p>').same_hash?)
+    assert_false(@comparator.compare('<p>a b</p>', '<p>ab</p>').same_hash?)
+    # But which side of the inline boundary the space sits on does not matter.
+    assert_true(@comparator.compare('<p><b>a</b> <b>b</b></p>', '<p><b>a </b><b>b</b></p>').same_hash?)
+    # Whitespace between block elements is not rendered.
+    assert_true(@comparator.compare('<div><p>a</p> <p>b</p></div>', '<div><p>a</p><p>b</p></div>').same_hash?)
+    # Runs collapse; leading/trailing of a block trims.
+    assert_true(@comparator.compare('<p>  a    b  </p>', '<p>a b</p>').same_hash?)
+  end
+
+  # CSS Text 3 §4.1.2 segment break transformation: a newline between two CJK
+  # characters is removed (no space); otherwise it becomes a space.
+  def test_cjk_segment_break_removed
+    assert_true(@comparator.compare("<p>日本\n語</p>", '<p>日本語</p>').same_hash?)
+    assert_false(@comparator.compare("<p>日本\n語</p>", '<p>日本 語</p>').same_hash?)
+    assert_true(@comparator.compare("<p>foo\nbar</p>", '<p>foo bar</p>').same_hash?)
+    # ASCII↔Japanese boundary keeps the space (one side is not CJK).
+    assert_true(@comparator.compare("<p>x\nあ</p>", '<p>x あ</p>').same_hash?)
   end
 end

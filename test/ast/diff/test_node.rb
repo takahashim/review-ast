@@ -7,7 +7,7 @@ require 'review/ast/diff/node'
 class TestASTDiffNode < Test::Unit::TestCase
   def setup
     @comparator = ReVIEW::AST::Diff::Node.new
-    @location = ReVIEW::SnapshotLocation.new('test.re', 1)
+    @location = ReVIEW::AST::SourceLocation.new('test.re', 1)
   end
 
   def test_compare_identical_text_nodes

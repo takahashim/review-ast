@@ -23,6 +23,10 @@ module ReVIEW
     # HtmlComparator compares HTML output from HTMLBuilder and HTMLRenderer
     # for testing purposes.
     class HtmlComparator
+      def initialize(config: {})
+        @config = config
+      end
+
       # Convert a Re:VIEW source string to HTML using HTMLBuilder
       #
       # @param source [String] Re:VIEW source content
@@ -117,6 +121,7 @@ module ReVIEW
         book_config['stylesheet'] = []
         book_config['language'] = 'ja'
         book_config['epubversion'] = 3 # Enable EPUB3 features for consistent output
+        book_config.merge!(@config) if @config
 
         # Initialize I18n
         I18n.setup(book_config['language'])

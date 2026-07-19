@@ -23,6 +23,10 @@ module ReVIEW
     # IdgxmlComparator compares IDGXML output from IDGXMLBuilder and IdgxmlRenderer
     # for testing purposes.
     class IdgxmlComparator
+      def initialize(config: {})
+        @config = config
+      end
+
       # Convert a Re:VIEW source string to IDGXML using IDGXMLBuilder
       #
       # @param source [String] Re:VIEW source content
@@ -113,6 +117,7 @@ module ReVIEW
         book_config['builder'] = 'idgxml'
         book_config['language'] = 'ja'
         book_config['tableopt'] = '10' # Default table column width
+        book_config.merge!(@config) if @config
 
         # Initialize I18n
         I18n.setup(book_config['language'])
@@ -170,8 +175,10 @@ module ReVIEW
       # Normalize renderer output for comparison
       # Renderer wraps output in XML declaration and doc tags
       def normalize_renderer_output(output)
-        # Remove XML declaration and doc wrapper tags
-        output = output.sub(/\A<\?xml[^>]+\?><doc[^>]*>/, '').sub(%r{</doc>\s*\z}, '')
+        # Remove XML declaration and doc wrapper tags. The declaration is
+        # followed by a newline (matching IDGXMLBuilder), so allow whitespace
+        # between it and <doc>, like normalize_builder_output.
+        output = output.sub(/\A<\?xml[^>]+\?>\s*<doc[^>]*>/, '').sub(%r{</doc>\s*\z}, '')
 
         # Remove leading/trailing whitespace
         output.strip

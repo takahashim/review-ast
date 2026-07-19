@@ -75,7 +75,7 @@ module ReVIEW
                          bou ami].freeze
 
       MINICOLUMNS = %w[note memo tip info warning important caution notice].freeze
-      CODE_CMDS = %w[list emlist listnum cmd source].freeze
+      CODE_CMDS = %w[list emlist listnum emlistnum cmd source].freeze
       # Valid LaTeX math fragments (always typeset) for //texequation.
       MATH = ['x^2 + y^2', 'E = mc^2', '\\alpha + \\beta', '\\sum_{i=1}^{n} i',
               'a \\times b', '\\frac{1}{2}'].freeze
@@ -91,6 +91,8 @@ module ReVIEW
         texequation_block column_block noindent_block blankline_block
         beginchild_block comment_block cross_ref_block image_block indepimage_block
         numbered_equation_block embed_block endnote_block tsize_table_block imgtable_block
+        firstlinenum_block inline_cell_table_block pagebreak_block caption_footnote_block
+        olnum_block parasep_block
       ].freeze
 
       def initialize(seed)
@@ -120,14 +122,35 @@ module ReVIEW
       # not a divergence -- just lost coverage. Special-char words still appear
       # as plain text elsewhere.
       def inline_fragment
-        case @r.rand(14)
+        # NOTE: @<comment> is intentionally excluded. It renders to "" (non-draft),
+        # and an empty-rendering *table cell* triggers a LATEXBuilder cell-shift
+        # quirk (see doc/spec-questions.md), which is a builder bug, not a renderer
+        # one -- feeding it here just produces builder-only failures, not useful
+        # divergences.
+        case @r.rand(16)
         when 0 then "@<m>{#{pick(MATH_INLINE)}}" # inline math (brace-free)
         when 1 then "@<ruby>{#{pick(JA_WORDS)},#{safe_word}}" # ruby
         when 2 then "@<idx>{#{safe_word}}"                    # index (invisible)
         when 3 then "@<kw>{#{safe_word},#{safe_word}}"        # keyword with reading
         when 4 then "@<hidx>{#{safe_word}}"                   # hidden index
+        when 8 then "@<hidx>{#{safe_word}<<>>#{safe_word}}"   # hidden index, hierarchical (parent<<>>child)
+        when 9 then "@<balloon>{#{safe_word}}"                # balloon annotation
         when 5 then "@<href>{https://example.com/#{safe_word}, #{safe_word}}" # link with text
         when 6 then '@<href>{https://example.com/}' # bare link
+        # Raw LaTeX passthrough. Content must be a brace-free control *symbol*:
+        #   - a '{' or '}' breaks the @<raw>{...} inline parser (a literal `{}`
+        #     comes out as `{\}`, malformed for both paths), and
+        #   - a bare control *word* (\TeX, \LaTeX) absorbs the following letter
+        #     or kana into its name (upTeX scans `\TeXと`/`\LaTeXB` as one
+        #     undefined control sequence), which neither path can typeset.
+        # The thin-space control symbol \, is text-mode-valid, brace-free, and
+        # never scans the next character, so it is safe before any text. It must
+        # also have no *trailing* space: a control space `\ ` is rstripped to a
+        # lone `\` by LATEXBuilder in table cells / at line ends, which then
+        # escapes the following `}` and breaks the cell (the renderer keeps the
+        # space, so only the builder fails). (@<tcy> is excluded -- it needs
+        # vertical layout, which the horizontal jsbook harness can't typeset.)
+        when 7 then '@<raw>{|latex|\\,}'
         else "@<#{pick(DECOR_INLINES)}>{#{safe_word}}"
         end
       end
@@ -165,7 +188,9 @@ module ReVIEW
 
       def headline_block
         level = 2 + @r.rand(4) # == .. =====
-        [('=' * level) + ' ' + phrase(inlines: false)]
+        # Headings may carry inline commands (@<b>, @<code>, ...); the builder
+        # escapes/compiles heading text, so this stays typesettable.
+        [('=' * level) + ' ' + phrase(inlines: chance(0.5))]
       end
 
       # Headline with a nonum/notoc/nodisp option.
@@ -177,22 +202,44 @@ module ReVIEW
 
       def list_like_block
         case @r.rand(3)
-        when 0 # unordered
-          Array.new(2 + @r.rand(3)) { ' * ' + phrase }
-        when 1 # ordered
-          Array.new(2 + @r.rand(3)).each_with_index.map { |_, i| " #{i + 1}. " + phrase }
+        when 0 # unordered, items may have continuation lines
+          Array.new(2 + @r.rand(3)).flat_map { [' * ' + phrase, *item_continuation] }
+        when 1 # ordered, items may have continuation lines
+          Array.new(2 + @r.rand(3)).each_with_index.flat_map { |_, i| [" #{i + 1}. " + phrase, *item_continuation] }
         else # definition list
           Array.new(1 + @r.rand(2)).flat_map { [' : ' + phrase, "\t" + phrase] }
         end
       end
 
+      # Zero or more continuation lines for a list item (indented lines that are
+      # not new list markers). LATEXBuilder keeps their source newlines; a line
+      # starting with an ASCII token exercises the ASCII-boundary space.
+      def item_continuation
+        return [] unless chance(0.4)
+
+        Array.new(1 + @r.rand(2)) { '   ' + (chance(0.5) ? "#{pick(%w[a. b. i. ii.])} #{phrase}" : phrase) }
+      end
+
       # Unordered/ordered list with nested sublists (**/*** depth).
       def nested_list_block
         if chance(0.5)
-          [' * ' + phrase, ' ** ' + phrase, ' *** ' + phrase, ' ** ' + phrase, ' * ' + phrase]
+          # Unordered nesting up to 4 levels deep (*, **, ***, ****).
+          [' * ' + phrase, ' ** ' + phrase, ' *** ' + phrase, ' **** ' + phrase,
+           ' *** ' + phrase, ' ** ' + phrase, ' * ' + phrase]
         else
           [' 1. ' + phrase, ' 1. ' + phrase, ' 2. ' + phrase] # nested ordered via depth
         end
+      end
+
+      # //olnum sets the counter for the following ordered list, so its items
+      # start at a custom number (exercises the \setcounter{enumi} path).
+      def olnum_block
+        start = 2 + @r.rand(20)
+        [
+          "//olnum[#{start}]", '',
+          " #{start}. " + phrase,
+          " #{start + 1}. " + phrase
+        ]
       end
 
       def code_block
@@ -249,16 +296,42 @@ module ReVIEW
         end
       end
 
-      # quote / centering / flushright / box / lead block wrappers.
+      # quote / centering / flushright / box / lead block wrappers. Content is a
+      # mix of single- and multi-line paragraphs: a multi-line paragraph (two
+      # adjacent lines, no blank between) exercises the :block line join, which
+      # differs from an ordinary paragraph (LATEXBuilder joins these with "").
       def wrapper_block
         kind = pick(%w[quote centering flushright lead box])
-        ["//#{kind}{", phrase, '', phrase, '//}']
+        body = [phrase]
+        body += [phrase] if chance(0.5) # second line of the same paragraph
+        body << ''
+        body << phrase
+        ["//#{kind}{", *body, '//}']
       end
 
       # A footnote reference together with its definition (self-contained).
       def footnote_block
         id = uid
         [phrase + "@<fn>{#{id}}。", "//footnote[#{id}][#{phrase(inlines: false)}]"]
+      end
+
+      # A block whose caption carries a footnote (@<fn> in a //list/table/image
+      # caption), with the definition appended. Exercises \footnotetext
+      # placement for footnotes collected from captions.
+      def caption_footnote_block
+        fid = uid
+        cap = "#{phrase(inlines: false)}@<fn>{#{fid}}"
+        fn = "//footnote[#{fid}][#{phrase(inlines: false)}]"
+        case @r.rand(3)
+        when 0
+          ["//list[#{uid}][#{cap}]{", 'code ' + pick(EN_WORDS), '//}', fn]
+        when 1
+          rows = [pick(JA_WORDS) + "\t" + pick(JA_WORDS), '------------',
+                  pick(JA_WORDS) + "\t" + pick(JA_WORDS)]
+          ["//table[#{uid}][#{cap}]{", *rows, '//}', fn]
+        else
+          ["//image[#{uid}][#{cap}]{", '//}', fn]
+        end
       end
 
       # An //image (with optional metric) sometimes referenced via @<img>.
@@ -277,8 +350,23 @@ module ReVIEW
         lines
       end
 
+      # //indepimage or //numberlessimage -- both unnumbered (they go to
+      # indepimage_index, not the numbered image_index), so neither is referenced
+      # via @<img>. Renders as a reviewdummyimage placeholder when the file is
+      # missing.
       def indepimage_block
-        ["//indepimage[#{uid}][#{phrase(inlines: false)}]{", '//}']
+        kind = chance(0.5) ? 'indepimage' : 'numberlessimage'
+        ["//#{kind}[#{uid}][#{phrase(inlines: false)}]{", '//}']
+      end
+
+      # A forced page break (control command, no arguments).
+      def pagebreak_block
+        ['//pagebreak']
+      end
+
+      # A paragraph separator (control command, no arguments), between paragraphs.
+      def parasep_block
+        [phrase, '', '//parasep', '', phrase]
       end
 
       # An endnote reference plus its definition. A single //printendnotes is
@@ -303,23 +391,53 @@ module ReVIEW
         ["//imgtable[#{uid}][#{phrase(inlines: false)}]{", '//}']
       end
 
-      # Define a target (heading/list/table) and reference it, exercising
+      # A //listnum whose numbering starts at a custom first line via //firstlinenum.
+      def firstlinenum_block
+        ["//firstlinenum[#{1 + @r.rand(200)}]",
+         "//listnum[#{uid}][#{phrase(inlines: false)}]{", 'code a', 'code b', '//}']
+      end
+
+      # A //table whose cells contain inline commands.
+      def inline_cell_table_block
+        rows = ["#{phrase}\t#{phrase}", '------------', "#{phrase}\t#{phrase}"]
+        ["//table[#{uid}][#{phrase(inlines: false)}]{", *rows, '//}']
+      end
+
+      # Define a target (heading/list/table/column) and reference it, exercising
       # cross-reference resolution and number formatting.
       def cross_ref_block
-        case @r.rand(3)
-        when 0 # heading label + @<hd>
+        case @r.rand(6)
+        when 0 # numbered section (level 2, within secnolevel) + @<hd>
           label = uid
           ["=={#{label}} " + phrase(inlines: false), '', "#{phrase}@<hd>{#{label}}を参照。"]
         when 1 # list + @<list>
           id = uid
           ["//list[#{id}][#{phrase(inlines: false)}]{", 'code ' + pick(EN_WORDS), '//}', '',
            "#{phrase}@<list>{#{id}}を参照。"]
-        else # table + @<table>
+        when 2 # table + @<table>
           id = uid
           rows = [pick(JA_WORDS) + "\t" + pick(JA_WORDS), '------------',
                   pick(JA_WORDS) + "\t" + pick(JA_WORDS)]
           ["//table[#{id}][#{phrase(inlines: false)}]{", *rows, '//}', '',
            "#{phrase}@<table>{#{id}}を参照。"]
+        when 3 # unnumbered subsection (level 3, beyond default secnolevel) + @<hd>/@<secref>
+          # @<hd>/@<secref> to an unnumbered heading must show the title alone,
+          # not a spurious number -- matching LATEXBuilder#inline_hd_chap.
+          child = uid
+          op = pick(%w[hd secref sectitle])
+          ['== ' + phrase(inlines: false), '',
+           "==={#{child}} " + phrase(inlines: false), '',
+           "#{phrase}@<#{op}>{#{child}}を参照。"]
+        when 4 # numbered section referenced by @<sec>/@<secref>/@<sectitle>
+          # @<sec> requires a numbered target (a level-2 section is numbered at
+          # the default secnolevel=2), otherwise both paths error.
+          label = uid
+          op = pick(%w[sec secref sectitle])
+          ["=={#{label}} " + phrase(inlines: false), '', "#{phrase}@<#{op}>{#{label}}を参照。"]
+        else # labeled column + @<column>
+          label = uid
+          ["==[column]{#{label}} " + phrase(inlines: false), '', phrase, '',
+           '==[/column]', '', "#{phrase}@<column>{#{label}}を参照。"]
         end
       end
 

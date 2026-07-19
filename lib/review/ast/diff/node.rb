@@ -192,11 +192,7 @@ module ReVIEW
             compare_attr(node, :id, 'table id') if node.id || @node2.id
             compare_attr(node, :table_type, 'table type')
             compare_attr(node, :metric, 'table metric') if node.metric || @node2.metric
-            compare_attr(node, :col_spec, 'table col_spec') if node.col_spec || @node2.col_spec
-            # cellwidth is an array
-            if node.cellwidth != @node2.cellwidth
-              @result.add_difference(@path, "table cellwidth mismatch (#{node.cellwidth.inspect} vs #{@node2.cellwidth.inspect})")
-            end
+            compare_attr(node, :tsize, 'table tsize') if node.tsize || @node2.tsize
             compare_child_node(node.caption_node, @node2.caption_node, 'caption') if node.caption_node || @node2.caption_node
           end
         end
