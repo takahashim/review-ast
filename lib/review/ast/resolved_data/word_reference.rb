@@ -10,6 +10,8 @@ module ReVIEW
   module AST
     class ResolvedData
       class WordReference < ResolvedData
+        fields :item_id, :word_content, caption_node: :node
+
         def initialize(item_id:, word_content:, caption_node: nil)
           super()
           @item_id = item_id
@@ -19,17 +21,6 @@ module ReVIEW
 
         def reference_type
           :word
-        end
-
-        def self.deserialize_from_hash(hash)
-          caption_node = if hash['caption_node']
-                           ReVIEW::AST::JSONSerializer.deserialize_from_hash(hash['caption_node'])
-                         end
-          new(
-            item_id: hash['item_id'],
-            word_content: hash['word_content'],
-            caption_node: caption_node
-          )
         end
       end
     end

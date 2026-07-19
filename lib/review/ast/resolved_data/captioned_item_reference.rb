@@ -16,6 +16,9 @@ module ReVIEW
       # Note: This class does not perform any formatting. All formatting is handled by
       # TextFormatter and Renderer classes to maintain proper separation of concerns.
       class CaptionedItemReference < ResolvedData
+        fields :chapter_number, :item_number, :chapter_id, :item_id,
+               chapter_type: :symbol, caption_node: :node
+
         def initialize(chapter_number:, item_number:, item_id:, chapter_id: nil, chapter_type: nil, caption_node: nil)
           super()
           @chapter_number = chapter_number
@@ -24,12 +27,6 @@ module ReVIEW
           @item_id = item_id
           @chapter_type = chapter_type
           @caption_node = caption_node
-        end
-
-        # Template method - subclasses must implement this
-        # @return [String] The I18n key for the label (e.g., 'image', 'table', 'list')
-        def label_key
-          raise NotImplementedError, "#{self.class} must implement #label_key"
         end
       end
     end

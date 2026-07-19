@@ -14,9 +14,36 @@ module ReVIEW
     # separating the logical resolution (what is being referenced)
     # from the presentation (how it should be displayed).
     class ResolvedData
-      attr_reader :chapter_number, :item_number, :chapter_id, :item_id
-      attr_reader :chapter_title, :headline_number, :word_content
-      attr_reader :caption_node, :chapter_type
+      # Ordered field declaration for a reference type.
+      #
+      # A subclass declares only the fields it actually has, and that single
+      # declaration drives the readers, ==, serialization and deserialization.
+      # Before this, the base class enumerated the union of every subclass's
+      # fields in three separate places, so adding a reference type meant
+      # editing the base as well as writing the subclass.
+      #
+      # Declaration order is the serialization order, so it is also the key
+      # order of the dump; keep it stable when editing.
+      #
+      # Kinds: :plain (round-trips as-is), :symbol (restored with to_sym),
+      # :node (an AST node, serialized/restored through JSONSerializer).
+      #
+      #   fields :chapter_number, :item_id, chapter_type: :symbol, caption_node: :node
+      def self.fields(*plain, **typed)
+        declarations = {}
+        plain.each { |name| declarations[name] = :plain }
+        typed.each { |name, kind| declarations[name] = kind }
+        @field_declarations = declarations
+        attr_reader(*declarations.keys)
+      end
+
+      # The declarations for this class, inherited when a subclass adds none.
+      def self.field_declarations
+        return @field_declarations if @field_declarations
+        return {} unless superclass.respond_to?(:field_declarations)
+
+        superclass.field_declarations
+      end
 
       # Get caption text from caption_node
       # @return [String] Caption text, empty string if no caption_node
@@ -24,8 +51,11 @@ module ReVIEW
         caption_node&.to_inline_text || ''
       end
 
+      # Whether the reference names a chapter explicitly. The resolver only sets
+      # chapter_id for a reference written with a chapter qualifier, so this is
+      # "was a chapter named", not "does it point outside the current chapter".
+      # ReferenceNode#cross_chapter? answers the same question from context_id.
       def cross_chapter?
-        # If chapter_id is set and different from current context, it's cross-chapter
         !@chapter_id.nil?
       end
 
@@ -46,16 +76,11 @@ module ReVIEW
       end
 
       def ==(other)
-        other.instance_of?(self.class) &&
-          @chapter_number == other.chapter_number &&
-          @item_number == other.item_number &&
-          @chapter_id == other.chapter_id &&
-          @item_id == other.item_id &&
-          @caption_node == other.caption_node &&
-          @chapter_title == other.chapter_title &&
-          @headline_number == other.headline_number &&
-          @word_content == other.word_content &&
-          @chapter_type == other.chapter_type
+        return false unless other.instance_of?(self.class)
+
+        self.class.field_declarations.each_key.all? do |name|
+          public_send(name) == other.public_send(name)
+        end
       end
 
       alias_method :eql?, :==
@@ -80,37 +105,83 @@ module ReVIEW
         hash
       end
 
-      # Serialize properties - to be overridden by subclasses
+      # Serialize the declared fields, in declaration order. Nil fields are
+      # omitted, so a type only emits the keys it actually carries.
       # @param hash [Hash] Hash to populate with properties
       # @param options [JSONSerializer::Options] Serialization options
       # @return [Hash] Populated hash
       def serialize_properties(hash, options)
-        hash[:chapter_number] = @chapter_number if @chapter_number
-        hash[:item_number] = @item_number if @item_number
-        hash[:chapter_id] = @chapter_id if @chapter_id
-        hash[:item_id] = @item_id if @item_id
-        hash[:chapter_title] = @chapter_title if @chapter_title
-        hash[:headline_number] = @headline_number if @headline_number
-        hash[:word_content] = @word_content if @word_content
-        hash[:chapter_type] = @chapter_type if @chapter_type
-        hash[:caption_node] = @caption_node.serialize_to_hash(options) if @caption_node
+        self.class.field_declarations.each do |name, kind|
+          value = public_send(name)
+          next if value.nil?
+
+          hash[name] = kind == :node ? value.serialize_to_hash(options) : value
+        end
         hash
       end
 
+      # On ResolvedData itself this dispatches to the concrete type named in the
+      # hash; on a subclass it builds that subclass from its declared fields.
+      # A subclass with a shape the declarations cannot express overrides this.
       # @param hash [Hash] Hash to deserialize from
       # @return [ResolvedData] Deserialized ResolvedData instance
       def self.deserialize_from_hash(hash)
         return nil unless hash
+        return build_from_declarations(hash) unless self == ResolvedData
 
         type = hash['type']
         return nil unless type
 
-        # Get nested class by name using const_get
-        klass = const_get(type)
+        begin
+          klass = const_get(type)
+        rescue NameError
+          raise StandardError, "Unknown ResolvedData type: #{type}"
+        end
+
         klass.deserialize_from_hash(hash)
-      rescue NameError
-        raise StandardError, "Unknown ResolvedData type: #{type}"
       end
+
+      # Build an instance from the declared fields. Only keywords the
+      # constructor accepts are passed; a required keyword absent from the hash
+      # is passed as nil so that a field which was nil (and therefore omitted by
+      # serialize_properties) still round-trips.
+      # @param hash [Hash] Hash to build from
+      # @return [ResolvedData] The built instance
+      def self.build_from_declarations(hash)
+        declarations = field_declarations
+        args = {}
+
+        constructor_keywords.each do |name, required|
+          next unless hash.key?(name.to_s) || required
+
+          args[name] = restore_field(hash[name.to_s], declarations[name])
+        end
+
+        new(**args)
+      end
+
+      # The constructor's keyword parameters as {name => required?}.
+      # @return [Hash{Symbol => Boolean}]
+      def self.constructor_keywords
+        instance_method(:initialize).parameters.each_with_object({}) do |(kind, name), keywords|
+          keywords[name] = (kind == :keyreq) if %i[key keyreq].include?(kind)
+        end
+      end
+
+      # @param value [Object] Raw value from the hash
+      # @param kind [Symbol, nil] Declared kind of the field
+      # @return [Object] Value restored to its in-memory form
+      def self.restore_field(value, kind)
+        return nil if value.nil?
+
+        case kind
+        when :symbol then value.to_sym
+        when :node then ReVIEW::AST::JSONSerializer.deserialize_from_hash(value)
+        else value
+        end
+      end
+
+      private_class_method :build_from_declarations, :constructor_keywords, :restore_field
 
       # Get the reference type for this resolved data
       # @return [Symbol] Reference type (e.g., :image, :table, :list)

@@ -79,33 +79,6 @@ module ReVIEW
         "#<ReferenceNode {#{full_ref_id}} #{status}>"
       end
 
-      # Override serialize_to_hash to include ReferenceNode-specific attributes
-      def serialize_to_hash(options = nil)
-        options ||= ReVIEW::AST::JSONSerializer::Options.new
-
-        # Start with type
-        hash = {
-          type: self.class.name.split('::').last
-        }
-
-        # Include location information
-        if options.include_location
-          hash[:location] = location_to_h
-        end
-
-        # Add TextNode's content (inherited from TextNode)
-        hash[:content] = content if content
-
-        # Add ReferenceNode-specific attributes
-        hash[:ref_id] = @ref_id
-        hash[:context_id] = @context_id if @context_id
-        if @resolved_data
-          hash[:resolved_data] = @resolved_data.serialize_to_hash
-        end
-
-        hash
-      end
-
       def self.deserialize_from_hash(hash)
         resolved_data = if hash['resolved_data']
                           ReVIEW::AST::ResolvedData.deserialize_from_hash(hash['resolved_data'])
@@ -120,11 +93,15 @@ module ReVIEW
 
       private
 
-      def location_to_h
-        return nil unless location
-
-        # Delegate to the location so the column is included when present.
-        location.to_h
+      # Add the reference-specific fields on top of TextNode's content. Options
+      # are handed to the resolved data too, so a dump that asks to omit
+      # locations also omits them inside the resolved data's caption.
+      def serialize_properties(hash, options)
+        super
+        hash[:ref_id] = @ref_id
+        hash[:context_id] = @context_id if @context_id
+        hash[:resolved_data] = @resolved_data.serialize_to_hash(options) if @resolved_data
+        hash
       end
     end
   end

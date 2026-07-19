@@ -44,7 +44,7 @@ class ReferenceResolverTest < Test::Unit::TestCase
     result = @resolver.resolve_references(doc)
 
     # Check that reference was resolved
-    assert_equal({ resolved: 1, failed: 0 }, result)
+    assert_equal 1, result
 
     # Check resolved data
     resolved_node = inline.children.first
@@ -73,7 +73,7 @@ class ReferenceResolverTest < Test::Unit::TestCase
 
     result = @resolver.resolve_references(doc)
 
-    assert_equal({ resolved: 1, failed: 0 }, result)
+    assert_equal 1, result
 
     resolved_node = inline.children.first
     assert_true(resolved_node.resolved?)
@@ -100,7 +100,7 @@ class ReferenceResolverTest < Test::Unit::TestCase
 
     result = @resolver.resolve_references(doc)
 
-    assert_equal({ resolved: 1, failed: 0 }, result)
+    assert_equal 1, result
 
     resolved_node = inline.children.first
     assert_true(resolved_node.resolved?)
@@ -128,7 +128,7 @@ class ReferenceResolverTest < Test::Unit::TestCase
 
     result = @resolver.resolve_references(doc)
 
-    assert_equal({ resolved: 1, failed: 0 }, result)
+    assert_equal 1, result
 
     resolved_node = inline.children.first
     assert_true(resolved_node.resolved?)
@@ -154,7 +154,7 @@ class ReferenceResolverTest < Test::Unit::TestCase
 
     result = @resolver.resolve_references(doc)
 
-    assert_equal({ resolved: 1, failed: 0 }, result)
+    assert_equal 1, result
 
     resolved_node = inline.children.first
     assert_true(resolved_node.resolved?)
@@ -182,7 +182,7 @@ class ReferenceResolverTest < Test::Unit::TestCase
 
     result = @resolver.resolve_references(doc)
 
-    assert_equal({ resolved: 1, failed: 0 }, result)
+    assert_equal 1, result
 
     resolved_node = inline.children.first
     assert_true(resolved_node.resolved?)
@@ -222,7 +222,7 @@ class ReferenceResolverTest < Test::Unit::TestCase
 
     result = @resolver.resolve_references(doc)
 
-    assert_equal({ resolved: 1, failed: 0 }, result)
+    assert_equal 1, result
 
     resolved_node = inline.children.first
     assert_true(resolved_node.resolved?)
@@ -248,7 +248,7 @@ class ReferenceResolverTest < Test::Unit::TestCase
 
     result = @resolver.resolve_references(doc)
 
-    assert_equal({ resolved: 1, failed: 0 }, result)
+    assert_equal 1, result
 
     resolved_node = inline.children.first
     assert_true(resolved_node.resolved?)
@@ -290,7 +290,7 @@ class ReferenceResolverTest < Test::Unit::TestCase
 
     result = @resolver.resolve_references(doc)
 
-    assert_equal({ resolved: 3, failed: 0 }, result)
+    assert_equal 3, result
 
     # Check all references are resolved
     assert_true(inline1.children.first.resolved?)
@@ -314,7 +314,7 @@ class ReferenceResolverTest < Test::Unit::TestCase
 
     result = @resolver.resolve_references(doc)
 
-    assert_equal({ resolved: 1, failed: 0 }, result)
+    assert_equal 1, result
 
     resolved_node = inline.children.first
     assert_true(resolved_node.resolved?)
@@ -339,7 +339,7 @@ class ReferenceResolverTest < Test::Unit::TestCase
 
     result = @resolver.resolve_references(doc)
 
-    assert_equal({ resolved: 1, failed: 0 }, result)
+    assert_equal 1, result
 
     resolved_node = inline.children.first
     assert_true(resolved_node.resolved?)
@@ -364,7 +364,7 @@ class ReferenceResolverTest < Test::Unit::TestCase
 
     result = @resolver.resolve_references(doc)
 
-    assert_equal({ resolved: 1, failed: 0 }, result)
+    assert_equal 1, result
 
     resolved_node = inline.children.first
     assert_true(resolved_node.resolved?)
@@ -389,7 +389,7 @@ class ReferenceResolverTest < Test::Unit::TestCase
 
     result = @resolver.resolve_references(doc)
 
-    assert_equal({ resolved: 1, failed: 0 }, result)
+    assert_equal 1, result
 
     resolved_node = inline.children.first
     assert_true(resolved_node.resolved?)
@@ -415,7 +415,7 @@ class ReferenceResolverTest < Test::Unit::TestCase
 
     result = @resolver.resolve_references(doc)
 
-    assert_equal({ resolved: 1, failed: 0 }, result)
+    assert_equal 1, result
 
     resolved_node = inline.children.first
     assert_true(resolved_node.resolved?)
@@ -452,7 +452,7 @@ class ReferenceResolverTest < Test::Unit::TestCase
 
     result = @resolver.resolve_references(doc)
 
-    assert_equal({ resolved: 1, failed: 0 }, result)
+    assert_equal 1, result
 
     resolved_node = inline.children.first
     assert_true(resolved_node.resolved?)
@@ -481,7 +481,7 @@ class ReferenceResolverTest < Test::Unit::TestCase
 
     result = @resolver.resolve_references(doc)
 
-    assert_equal({ resolved: 1, failed: 0 }, result)
+    assert_equal 1, result
 
     resolved_node = para.children.first.children.first
     assert_true(resolved_node.resolved?)
@@ -508,7 +508,7 @@ class ReferenceResolverTest < Test::Unit::TestCase
 
     result = @resolver.resolve_references(doc)
 
-    assert_equal({ resolved: 1, failed: 0 }, result)
+    assert_equal 1, result
 
     # Navigate to the resolved reference
     resolved_node = para.children.first.children.first.children.first
@@ -536,7 +536,7 @@ class ReferenceResolverTest < Test::Unit::TestCase
 
     result = @resolver.resolve_references(doc)
 
-    assert_equal({ resolved: 1, failed: 0 }, result)
+    assert_equal 1, result
 
     resolved_node = caption.children.first.children.first
     assert_true(resolved_node.resolved?)
@@ -570,7 +570,7 @@ class ReferenceResolverTest < Test::Unit::TestCase
 
     result = @resolver.resolve_references(doc)
 
-    assert_equal({ resolved: 2, failed: 0 }, result)
+    assert_equal 2, result
 
     # Both references should be resolved
     assert_true(para.children[0].children.first.resolved?)
@@ -592,7 +592,7 @@ class ReferenceResolverTest < Test::Unit::TestCase
 
     result = @resolver.resolve_references(doc)
 
-    assert_equal({ resolved: 1, failed: 0 }, result)
+    assert_equal 1, result
 
     resolved_node = inline.children.first
     assert_true(resolved_node.resolved?)

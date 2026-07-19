@@ -10,6 +10,8 @@ module ReVIEW
   module AST
     class ResolvedData
       class EndnoteReference < ResolvedData
+        fields :item_number, :item_id, caption_node: :node
+
         def initialize(item_number:, item_id:, caption_node: nil)
           super()
           @item_number = item_number
@@ -19,17 +21,6 @@ module ReVIEW
 
         def reference_type
           :endnote
-        end
-
-        def self.deserialize_from_hash(hash)
-          caption_node = if hash['caption_node']
-                           ReVIEW::AST::JSONSerializer.deserialize_from_hash(hash['caption_node'])
-                         end
-          new(
-            item_number: hash['item_number'],
-            item_id: hash['item_id'],
-            caption_node: caption_node
-          )
         end
       end
     end

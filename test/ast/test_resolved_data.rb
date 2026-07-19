@@ -130,7 +130,9 @@ class ResolvedDataTest < Test::Unit::TestCase
 
     assert_equal 3, data.item_number
     assert_equal 'fn01', data.item_id
-    assert_nil(data.chapter_number)
+    # A footnote carries no chapter number. Each type now declares just its own
+    # fields, so the reader does not exist at all rather than returning nil.
+    assert_not_respond_to(data, :chapter_number)
   end
 
   def test_factory_method_endnote

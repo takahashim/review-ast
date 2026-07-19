@@ -10,6 +10,9 @@ module ReVIEW
   module AST
     class ResolvedData
       class HeadlineReference < ResolvedData
+        fields :chapter_number, :chapter_id, :item_id, :headline_number,
+               chapter_type: :symbol, caption_node: :node
+
         def initialize(item_id:, headline_number:, chapter_id: nil, chapter_number: nil, chapter_type: nil, caption_node: nil)
           super()
           @item_id = item_id
@@ -22,20 +25,6 @@ module ReVIEW
 
         def reference_type
           :headline
-        end
-
-        def self.deserialize_from_hash(hash)
-          caption_node = if hash['caption_node']
-                           ReVIEW::AST::JSONSerializer.deserialize_from_hash(hash['caption_node'])
-                         end
-          new(
-            item_id: hash['item_id'],
-            headline_number: hash['headline_number'],
-            chapter_id: hash['chapter_id'],
-            chapter_number: hash['chapter_number'],
-            chapter_type: hash['chapter_type']&.to_sym,
-            caption_node: caption_node
-          )
         end
       end
     end

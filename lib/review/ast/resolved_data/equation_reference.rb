@@ -12,7 +12,9 @@ module ReVIEW
   module AST
     class ResolvedData
       class EquationReference < CaptionedItemReference
-        # Equation doesn't have chapter_id parameter, so override initialize
+        # Equation has no chapter_id, so it narrows the inherited constructor.
+        # The inherited field declaration still applies; chapter_id stays nil and
+        # is therefore omitted from the dump.
         def initialize(chapter_number:, item_number:, item_id:, chapter_type: nil, caption_node: nil)
           super(chapter_number: chapter_number,
                 item_number: item_number,
@@ -22,25 +24,8 @@ module ReVIEW
                 caption_node: caption_node)
         end
 
-        def label_key
-          'equation'
-        end
-
         def reference_type
           :equation
-        end
-
-        def self.deserialize_from_hash(hash)
-          caption_node = if hash['caption_node']
-                           ReVIEW::AST::JSONSerializer.deserialize_from_hash(hash['caption_node'])
-                         end
-          new(
-            chapter_number: hash['chapter_number'],
-            item_number: hash['item_number'],
-            item_id: hash['item_id'],
-            chapter_type: hash['chapter_type']&.to_sym,
-            caption_node: caption_node
-          )
         end
       end
     end

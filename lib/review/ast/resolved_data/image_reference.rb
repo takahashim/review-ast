@@ -12,26 +12,8 @@ module ReVIEW
   module AST
     class ResolvedData
       class ImageReference < CaptionedItemReference
-        def label_key
-          'image'
-        end
-
         def reference_type
           :image
-        end
-
-        def self.deserialize_from_hash(hash)
-          caption_node = if hash['caption_node']
-                           ReVIEW::AST::JSONSerializer.deserialize_from_hash(hash['caption_node'])
-                         end
-          new(
-            chapter_number: hash['chapter_number'],
-            item_number: hash['item_number'],
-            item_id: hash['item_id'],
-            chapter_id: hash['chapter_id'],
-            chapter_type: hash['chapter_type']&.to_sym,
-            caption_node: caption_node
-          )
         end
       end
     end

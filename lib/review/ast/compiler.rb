@@ -599,10 +599,8 @@ module ReVIEW
         # chapter/book, and a chapter without a book is a test/standalone context.
         return unless @input.book
 
-        resolver = ReferenceResolver.new(@chapter)
-        result = resolver.resolve_references(@ast_root)
-
-        warn "Reference resolution: #{result[:resolved]} resolved, #{result[:failed]} failed" if result[:failed] > 0
+        # Fail-fast: an unresolvable reference raises CompileError from here.
+        ReferenceResolver.new(@chapter).resolve_references(@ast_root)
       end
 
       # Stamp each image-bearing node with its resolved filesystem path

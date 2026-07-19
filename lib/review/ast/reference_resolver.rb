@@ -46,6 +46,16 @@ module ReVIEW
         bibref: :resolve_bib_ref
       }.freeze
 
+      # The resolved-data class for each indexed item type. Spelling the pairs
+      # out keeps the registry key and the class visible in one place, instead
+      # of relying on a label and a factory method happening to share a name.
+      INDEXED_ITEM_CLASSES = {
+        image: ResolvedData::ImageReference,
+        table: ResolvedData::TableReference,
+        list: ResolvedData::ListReference,
+        column: ResolvedData::ColumnReference
+      }.freeze
+
       def initialize(chapter)
         super()
         @chapter = chapter
@@ -53,6 +63,11 @@ module ReVIEW
         @resolver_methods = DEFAULT_RESOLVER_METHODS.dup
       end
 
+      # Resolve every reference in the tree, replacing each ReferenceNode with a
+      # resolved copy. Resolution is fail-fast: an unresolvable reference raises
+      # CompileError rather than being counted and skipped.
+      # @param ast [Node] The tree to resolve
+      # @return [Integer] Number of references resolved
       def resolve_references(ast)
         # Build indexes for current chapter from AST. This also stamps the AST
         # nodes, sets chapter title for Markdown files, and yields the AST-owned
@@ -62,11 +77,10 @@ module ReVIEW
         @chapter_registries = { chapter_key(@chapter) => @registry }
 
         @resolve_count = 0
-        @error_count = 0
 
         visit(ast)
 
-        { resolved: @resolve_count, failed: @error_count }
+        @resolve_count
       end
 
       # The AST index registry for a chapter. The current chapter's is built up
@@ -88,7 +102,10 @@ module ReVIEW
         ast = ReVIEW::AST::Compiler.for_chapter(chapter).compile_to_ast(chapter, reference_resolution: false)
         Indexer.new(chapter).build_indexes(ast).registry
       rescue StandardError => e
-        warn "Failed to index chapter #{chapter.id} for cross-reference: #{e.message}" if $DEBUG
+        # Warn unconditionally: swallowed silently, a chapter that fails to
+        # index surfaces later as "reference not found" for every reference into
+        # it, which points at the reference rather than at the real cause.
+        warn "Failed to index chapter #{chapter.id} for cross-reference: #{e.message}"
         ChapterIndexRegistry.new
       end
 
@@ -131,19 +148,16 @@ module ReVIEW
         indexer.registry
       end
 
-      # Resolve ReferenceNode (ref_type taken from parent InlineNode)
+      # Resolve ReferenceNode (ref_type taken from parent InlineNode) and swap in
+      # the resolved copy. Raises CompileError if the reference cannot be resolved.
       # @param node [ReferenceNode] The reference node to resolve
       # @param ref_type [Symbol] The reference type (e.g., :img, :table, :list)
       def resolve_node(node, ref_type)
         method_name = @resolver_methods[ref_type]
         raise CompileError, "Unknown reference type: #{ref_type}" unless method_name
 
-        resolved_data = send(method_name, node)
-
-        resolved_node = node.with_resolved_data(resolved_data)
+        resolved_node = node.with_resolved_data(send(method_name, node))
         node.parent&.replace_child(node, resolved_node)
-
-        !resolved_data.nil?
       end
 
       def visit_document(node)
@@ -238,18 +252,13 @@ module ReVIEW
         # Only process elements that are registered as reference types
         return unless @resolver_methods.key?(ref_type.to_sym)
 
-        if resolve_node(node, ref_type.to_sym)
-          @resolve_count += 1
-        else
-          @error_count += 1
-        end
+        resolve_node(node, ref_type.to_sym)
+        @resolve_count += 1
       end
 
       # Generic method to resolve indexed item references (image, table, list, etc.)
-      # Both the index method and ResolvedData factory method are automatically derived from item_type_label
-      # (e.g., :image -> :image_index and ResolvedData.image)
       # @param node [ReferenceNode] The reference node containing ref_id and context_id
-      # @param item_type_label [Symbol] Label for index method, factory method, and error messages (e.g., :image, ]:table, :list)
+      # @param item_type_label [Symbol] Registry key, also used in error messages (e.g., :image, :table, :list)
       # @return [ResolvedData] The resolved reference data
       def resolve_indexed_item_ref(node, item_type_label)
         target_chapter = target_chapter_for(node)
@@ -258,13 +267,14 @@ module ReVIEW
         entry = registry_for(target_chapter).lookup(item_type_label, node.ref_id)
         raise CompileError, "#{item_type_label.to_s.capitalize} reference not found: #{node.full_ref_id}" unless entry
 
-        ResolvedData.send(item_type_label,
-                          chapter_number: target_chapter.number,
-                          item_number: entry_number(entry),
-                          chapter_id: node.context_id,
-                          item_id: node.ref_id,
-                          chapter_type: chapter_type(target_chapter),
-                          caption_node: entry.caption_node)
+        INDEXED_ITEM_CLASSES.fetch(item_type_label).new(
+          chapter_number: target_chapter.number,
+          item_number: entry_number(entry),
+          chapter_id: node.context_id,
+          item_id: node.ref_id,
+          chapter_type: chapter_type(target_chapter),
+          caption_node: entry.caption_node
+        )
       end
 
       def resolve_image_ref(node)
@@ -292,8 +302,6 @@ module ReVIEW
           chapter_type: chapter_type(@chapter),
           caption_node: entry.caption_node
         )
-      rescue ReVIEW::KeyError
-        raise CompileError, "Equation reference not found: #{node.ref_id}"
       end
 
       def resolve_footnote_ref(node)
