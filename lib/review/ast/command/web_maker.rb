@@ -9,6 +9,7 @@
 require 'fileutils'
 require 'review/webmaker'
 require 'review/ast/web_assets'
+require 'review/ast/web_toc_builder'
 require_relative 'ast_html_converter'
 
 module ReVIEW
@@ -50,7 +51,34 @@ module ReVIEW
         # WEBMaker builds @book itself, so the converter reuses it (its chapter
         # order drives next/prev nav and the sidebar TOC).
         def ast_converter
-          @ast_converter ||= AstHtmlConverter.new(@book, img_math: @img_math)
+          @ast_converter ||= AstHtmlConverter.new(@book, img_math: @img_math, web_toc: deep_toc)
+        end
+
+        # The section-level sidebar TOC, built once from the AST.
+        def deep_toc
+          @deep_toc ||= ReVIEW::AST::WebTocBuilder.new(@book).build
+        end
+
+        # The index page (rendered by the base maker, not the converter) hard-sets
+        # @toc to the gem's part/chapter WEBTOCPrinter. Override it to use the AST
+        # section-level TOC; the titlepage and part pages built afterwards inherit
+        # @toc, so the whole site gets the deep TOC. Body otherwise matches the base.
+        def build_indexpage(basetmpdir)
+          @title = h('index')
+          File.open("#{basetmpdir}/index.html", 'w') do |f|
+            if @config['coverimage']
+              file = File.join(@config['imagedir'], @config['coverimage'])
+              @body = %Q(  <div id="cover-image" class="cover-image">\n    <img src="#{file}" class="max"/>\n  </div>\n)
+            else
+              @body = ''
+            end
+            @language = @config['language']
+            @stylesheets = @config['stylesheet']
+            @toc = deep_toc
+            @next = @book.chapters[0]
+            @next_title = @next ? @next.title : ''
+            f.write ReVIEW::Template.generate(path: template_name, binding: binding)
+          end
         end
 
         # Ship the modern default stylesheet alongside the user's own; the layout

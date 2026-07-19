@@ -36,8 +36,12 @@ module ReVIEW
 
       attr_reader :chapter, :book
 
-      def initialize(chapter, img_math: nil)
+      def initialize(chapter, img_math: nil, web_toc: nil)
         super(chapter)
+
+        # Pre-built sidebar TOC (webmaker section-level TOC). When nil, post_process
+        # falls back to the gem's part/chapter WEBTOCPrinter.
+        @web_toc = web_toc
 
         # Initialize logger like HTMLBuilder for error handling
         @logger = ReVIEW.logger
@@ -568,11 +572,11 @@ module ReVIEW
         @next_title = @next ? escape_content(@next.title) : ''
         @prev_title = @prev ? escape_content(@prev.title) : ''
 
-        # The webmaker layout has a sidebar table of contents; build it like
-        # HTMLBuilder#result does (WEBTOCPrinter, part/chapter level). The AST-based
-        # deeper TOC is a later webmaker step.
-        if config.maker == 'webmaker' && @book
-          @toc = ReVIEW::WEBTOCPrinter.book_to_string(@book)
+        # The webmaker layout has a sidebar table of contents. Prefer the injected
+        # section-level TOC (WebTocBuilder); otherwise fall back to the gem's
+        # part/chapter WEBTOCPrinter, matching HTMLBuilder#result.
+        if config.maker == 'webmaker'
+          @toc = @web_toc || (@book && ReVIEW::WEBTOCPrinter.book_to_string(@book))
         end
 
         # Handle MathJax configuration like HTMLBuilder

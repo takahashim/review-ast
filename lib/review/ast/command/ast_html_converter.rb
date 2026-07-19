@@ -18,12 +18,13 @@ module ReVIEW
       # sidebar) is chosen by HtmlRenderer from config.maker, so the same converter
       # serves both makers.
       class AstHtmlConverter
-        def initialize(book, img_math:)
+        def initialize(book, img_math:, web_toc: nil)
           @book = book
           # Match ReVIEW::Converter.new, which sets the builder so image paths
           # resolve under <imagedir>/html/... as the legacy converter would.
           @book.config['builder'] = 'html'
           @img_math = img_math
+          @web_toc = web_toc
         end
 
         def convert(file, output_path)
@@ -32,7 +33,7 @@ module ReVIEW
 
           compiler = ReVIEW::AST::Compiler.for_chapter(chapter)
           ast_root = compiler.compile_to_ast(chapter)
-          renderer = ReVIEW::Renderer::HtmlRenderer.new(chapter, img_math: @img_math)
+          renderer = ReVIEW::Renderer::HtmlRenderer.new(chapter, img_math: @img_math, web_toc: @web_toc)
           File.write(output_path, renderer.render(ast_root))
         end
 
