@@ -18,15 +18,16 @@ Gem::Specification.new do |gem|
   gem.require_paths = ['lib']
   gem.required_ruby_version = '>= 3.1'
 
-  gem.add_dependency('review', '~> 5.11')
   gem.add_dependency('diff-lcs')
   gem.add_dependency('nokogiri')
+  gem.add_dependency('review', '~> 5.11')
   gem.add_dependency('unicode-eaw')
 
   gem.add_development_dependency('math_ml')
   gem.add_development_dependency('rake')
-  gem.add_development_dependency('test-unit')
   gem.add_development_dependency('rubocop', '~> 1.80.1')
   gem.add_development_dependency('rubocop-performance')
   gem.add_development_dependency('rubocop-rake')
+  gem.add_development_dependency('test-unit')
+  gem.metadata['rubygems_mfa_required'] = 'true'
 end
