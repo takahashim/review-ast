@@ -374,6 +374,30 @@ module ReVIEW
         render_lead_block(node)
       end
 
+      # HTMLBuilder aliases lead to read, so the two produce the same markup.
+      def visit_block_read(node)
+        render_lead_block(node)
+      end
+
+      def visit_block_talk(node)
+        %Q(<div class="talk">\n#{render_children(node)}</div>\n)
+      end
+
+      # HTMLBuilder#doorquote takes the attribution as an argument and prints it
+      # after the quoted lines.
+      def visit_block_doorquote(node)
+        attribution = escape(node.args.first.to_s)
+        %Q(<blockquote style="text-align:right;">\n#{render_children(node)}<p>#{attribution}より</p>\n</blockquote>\n)
+      end
+
+      def visit_block_point(node)
+        render_captioned_block('point', node)
+      end
+
+      def visit_block_bpo(node)
+        "<bpo>\n#{render_children(node)}</bpo>\n"
+      end
+
       def visit_block_comment(node)
         render_comment_block(node)
       end
@@ -959,6 +983,16 @@ module ReVIEW
 
         content_str = content_lines.join('<br />')
         %Q(<div class="draft-comment">#{content_str}</div>)
+      end
+
+      # HTMLBuilder#captionblock: a plain div whose caption is a <p>, distinct
+      # from the minicolumn markup render_callout_block produces.
+      def render_captioned_block(type, node)
+        caption = render_caption_inline(node.caption_node)
+        caption = node.args.first.to_s if caption.empty?
+        caption_html = caption.empty? ? '' : %Q(<p class="caption">#{caption}</p>\n)
+
+        %Q(<div class="#{type}">\n#{caption_html}#{render_children(node)}</div>\n)
       end
 
       def render_callout_block(node, type)

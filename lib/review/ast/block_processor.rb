@@ -405,9 +405,11 @@ module ReVIEW
                 context.process_inline_elements(line, para_node) unless line.empty?
                 node.add_child(para_node)
               end
-            when :point, :shoot, :term
-              # Paragraph-based processing for point/shoot/term
-              # Empty lines separate paragraphs
+            when :point, :shoot, :term, :doorquote
+              # Paragraph-based processing: these builders pass their lines to
+              # split_paragraph. doorquote was missing, so its content stayed a
+              # bare TextNode and HTML rendered it without the <p> the builder
+              # emits.
               @ast_compiler.process_structured_content(node, context.lines)
             else
               # Default: inline processing for each line

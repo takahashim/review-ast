@@ -1114,7 +1114,14 @@ review-ast 側には受け口だけが残っている。
   `Renderer::Base` の dispatch 契約に準拠しており移植は容易。
 - `diff/markdown.rb`(120 行): テスト専用の正規化比較器。
 - テスト 7 ファイルと 2 系統のコーパス。
-  `samples/md-syntax-book`(`.md` と `.re` の手書き並行コーパス。Markdown→AST 方向のオラクル)と、`.re` から生成したゴールデン `.md`(Re:VIEW→Markdown 方向のオラクル)。
+  `samples/md-syntax-book`(`.md` コーパス)と、`.re` から生成したゴールデン `.md`(Re:VIEW→Markdown 方向のオラクル)。
+  なお元ブランチの md-syntax-book には同名の `.re` が併存していたが、移植後に削除した。
+  `catalog.yml` が `.md` を指すため book モデルは `.re` を章として認識せず、どのテストからも使われていなかった。
+  「Markdown→AST 方向のオラクル」という当初の役割も果たせない:
+  両者は機械的な対訳ではなく各記法で自然に書いた別文書であり(`.md` の段落が `.re` では `//lead{}`、`#@#` コメントは `.re` のみ)、
+  AST でも描画結果でも突き合わせが成立しない。
+  実害もあり、章名 `ch01` が `.md` に解決される一方で隣に `.re` があるため、
+  コーパス比較を書いた際に「レガシーが Markdown を Re:VIEW として読んだ出力」と比較する誤りを誘発した。
 - モンキーパッチ、旧 `core_ext`、レガシー Index 系への依存はない。
 
 ### 設計(review-ast の契約への適合)

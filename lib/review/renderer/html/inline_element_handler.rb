@@ -247,6 +247,15 @@ module ReVIEW
           wrap_reference_with_html(text, data, 'imgref')
         end
 
+        # Builder#inline_imgref is @<img> plus the image's caption in quotes.
+        def render_inline_imgref(type, content, node)
+          rendered = render_inline_img(type, content, node)
+          caption = resolved_reference_node(node).resolved_data.caption_text
+          return rendered if caption.empty?
+
+          "#{rendered}#{I18n.t('image_quote', caption)}"
+        end
+
         def render_inline_comment(_type, content, _node)
           if @ctx.config['draft']
             %Q(<span class="draft-comment">#{content}</span>)
