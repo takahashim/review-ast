@@ -55,7 +55,7 @@ module ReVIEW
         @rendering_context = RenderingContext.new(:document)
 
         # Initialize HTML-specific inline context and inline element handler
-        @inline_context = Html::InlineContext.new(config: config, book: book, chapter: chapter, renderer: self, img_math: @img_math)
+        @inline_context = Html::InlineContext.new(config: config, render_context: render_context, renderer: self, img_math: @img_math)
         @inline_element_handler = Html::InlineElementHandler.new(@inline_context)
       end
 
@@ -522,7 +522,7 @@ module ReVIEW
                          File.join(htmldir, 'layout-xhtml1.html.erb')
                        end
 
-        layout_file = File.join(@book.basedir || '.', 'layouts', localfilename)
+        layout_file = File.join(render_context.basedir || '.', 'layouts', localfilename)
 
         # Check for custom layout file
         if File.exist?(layout_file)
@@ -809,7 +809,7 @@ module ReVIEW
         return %Q(<span class="#{css_class}">#{text}</span>) unless config['chapterlink']
 
         # Use chapter_id from data, or fall back to current chapter's id
-        chapter_id = data.chapter_id || @chapter&.id
+        chapter_id = data.chapter_id || render_context.chapter_id
         extname = ".#{config['htmlext'] || 'html'}"
         %Q(<span class="#{css_class}"><a href="./#{chapter_id}#{extname}##{normalize_id(data.item_id)}">#{text}</a></span>)
       end

@@ -23,7 +23,7 @@ module ReVIEW
     # free of I18n, so building the context before a renderer runs I18n.setup is
     # safe.
     class RenderContext
-      attr_reader :chapter_number, :chapter_id, :chapter_type, :imagedir, :basedir, :config
+      attr_reader :chapter_number, :chapter_id, :chapter_type, :imagedir, :basedir, :bib_file, :htmlversion, :config
 
       # Classify a chapter into the type symbol used by TextFormatter and
       # ResolvedData: :chapter, :appendix, :part, :predef (nil for no chapter).
@@ -48,30 +48,35 @@ module ReVIEW
       def self.from_chapter(chapter)
         book = chapter&.book
         new(
-          chapter_present: !chapter.nil?,
           chapter_number: chapter&.number,
           chapter_id: chapter&.id,
           chapter_type: chapter_type(chapter),
           imagedir: book&.imagedir,
           basedir: book&.basedir,
+          bib_file: book&.bib_file,
+          htmlversion: book&.htmlversion,
           config: book&.config || {}
         )
       end
 
-      def initialize(chapter_present:, chapter_number:, chapter_id:, chapter_type:, imagedir:, basedir:, config:)
-        @chapter_present = chapter_present
+      def initialize(chapter_number:, chapter_id:, chapter_type:,
+                     imagedir:, basedir:, bib_file:, htmlversion:, config:)
         @chapter_number = chapter_number
         @chapter_id = chapter_id
         @chapter_type = chapter_type
         @imagedir = imagedir
         @basedir = basedir
+        @bib_file = bib_file
+        @htmlversion = htmlversion
         @config = config
       end
 
       # Whether a chapter was present at build time. Renderers that emitted
-      # test-only fallbacks when @chapter was nil branch on this.
+      # test-only fallbacks when @chapter was nil branch on this. A present
+      # chapter always classifies to a non-nil type, so absence is exactly a nil
+      # type.
       def chapter_present?
-        @chapter_present
+        !@chapter_type.nil?
       end
 
       def part?

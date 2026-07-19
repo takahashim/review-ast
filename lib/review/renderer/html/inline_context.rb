@@ -19,12 +19,11 @@ module ReVIEW
         include ReVIEW::HTMLUtils
         include ReVIEW::HtmlEscapeUtils
 
-        attr_reader :config, :book, :chapter, :img_math
+        attr_reader :config, :render_context, :img_math
 
-        def initialize(config:, book:, chapter:, renderer:, img_math: nil)
+        def initialize(config:, render_context:, renderer:, img_math: nil)
           @config = config
-          @book = book
-          @chapter = chapter
+          @render_context = render_context
           # Automatically create proxy from renderer to limit access
           @render_proxy = InlineRenderProxy.new(renderer)
           @img_math = img_math
@@ -51,20 +50,12 @@ module ReVIEW
         # - escape_content(str) - Content escaping (same as escape)
         # - escape_url(str) - URL escaping using CGI.escape
 
-        def chapter_number(chapter_id)
-          book.chapter_index.number(chapter_id)
-        end
-
-        def chapter_title(chapter_id)
-          book.chapter_index.title(chapter_id)
-        end
-
         def chapter_link_enabled?
           config['chapterlink']
         end
 
         def build_bib_reference_link(bib_id, number)
-          bib_file = book.bib_file.gsub(/\.re\Z/, extname)
+          bib_file = render_context.bib_file.gsub(/\.re\Z/, extname)
           %Q(<a href="#{bib_file}#bib-#{normalize_id(bib_id)}">[#{number}]</a>)
         end
 

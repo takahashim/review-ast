@@ -400,7 +400,7 @@ module ReVIEW
 
           if @ctx.config['chapterlink'] && full_number.present?
             # Get target chapter ID for link
-            chapter_id = data.chapter_id || @ctx.chapter.id
+            chapter_id = data.chapter_id || @ctx.render_context.chapter_id
             anchor = 'h' + full_number.tr('.', '-')
             %Q(<a href="#{chapter_id}#{@ctx.extname}##{anchor}">#{full_number}</a>)
           else
@@ -467,7 +467,7 @@ module ReVIEW
           str = @ctx.text_formatter.format_headline_quote(display_number, caption_html)
 
           if @ctx.config['chapterlink'] && anchor_number
-            chapter_id = data.chapter_id || @ctx.chapter.id
+            chapter_id = data.chapter_id || @ctx.render_context.chapter_id
             anchor = 'h' + anchor_number.tr('.', '-')
             %Q(<a href="#{chapter_id}#{@ctx.extname}##{anchor}">#{str}</a>)
           else
@@ -495,7 +495,7 @@ module ReVIEW
           column_text = @ctx.text_formatter.format_column_label(caption_html)
 
           if @ctx.config['chapterlink']
-            chapter_id = data.chapter_id || @ctx.chapter.id
+            chapter_id = data.chapter_id || @ctx.render_context.chapter_id
             %Q(<a href="#{chapter_id}#{@ctx.extname}##{anchor}" class="columnref">#{column_text}</a>)
           else
             column_text
@@ -525,7 +525,7 @@ module ReVIEW
             anchor = 'h' + full_number.tr('.', '-')
 
             # Get target chapter ID for link
-            chapter_id = data.chapter_id || @ctx.chapter.id
+            chapter_id = data.chapter_id || @ctx.render_context.chapter_id
             %Q(<a href="#{chapter_id}#{@ctx.extname}##{anchor}">#{title_html}</a>)
           else
             title_html
@@ -561,7 +561,7 @@ module ReVIEW
           # "base(reading)". HTML5 wraps the base bare; older HTML wraps it in <rb>.
           prefix = @ctx.text_formatter.ruby_prefix
           postfix = @ctx.text_formatter.ruby_postfix
-          if @ctx.book.htmlversion == 5
+          if @ctx.render_context.htmlversion == 5
             %Q(<ruby>#{escape_content(base)}<rp>#{prefix}</rp><rt>#{escape_content(ruby_text)}</rt><rp>#{postfix}</rp></ruby>)
           else
             %Q(<ruby><rb>#{escape_content(base)}</rb><rp>#{prefix}</rp><rt>#{ruby_text}</rt><rp>#{postfix}</rp></ruby>)
@@ -611,7 +611,7 @@ module ReVIEW
           return %Q(<span class="#{css_class}">#{escaped_text}</span>) unless @ctx.config['chapterlink']
 
           # Build link with chapter_id and item_id
-          chapter_id = data.chapter_id || @ctx.chapter&.id
+          chapter_id = data.chapter_id || @ctx.render_context.chapter_id
           extname = ".#{@ctx.config['htmlext'] || 'html'}"
           %Q(<span class="#{css_class}"><a href="./#{chapter_id}#{extname}##{normalize_id(data.item_id)}">#{escaped_text}</a></span>)
         end
