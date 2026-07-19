@@ -51,8 +51,6 @@ module ReVIEW
         # Initialize logger for Loggable module
         @logger = ReVIEW.logger
 
-        I18n.setup(config['language'] || 'ja')
-
         # Initialize section counters like IDGXMLBuilder
         @section = 0
         @subsection = 0

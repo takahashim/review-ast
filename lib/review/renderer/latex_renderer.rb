@@ -32,8 +32,6 @@ module ReVIEW
         # The indexing will be done when we process the AST
         @ast_compiler = nil
 
-        I18n.setup(config['language'] || 'ja')
-
         # Initialize LaTeX character escaping
         initialize_metachars(config['texcommand'])
 

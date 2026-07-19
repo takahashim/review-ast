@@ -67,9 +67,6 @@ module ReVIEW
         # renderers already do this; text did not, so section numbers were
         # missing from its output entirely).
         @sec_counter = SecCounter.new(5, @chapter) if @chapter
-
-        # Ensure locale strings are available
-        I18n.setup(config['language'] || 'ja')
       end
 
       # Format type for this renderer
