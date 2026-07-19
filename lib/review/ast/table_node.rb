@@ -97,29 +97,11 @@ module ReVIEW
         result
       end
 
-      # Override serialize_to_hash to use header_rows/body_rows instead of children
-      def serialize_to_hash(options = nil)
-        options ||= JSONSerializer::Options.new
-        hash = {
-          type: self.class.name.split('::').last
-        }
-
-        # Include location information
-        if options.include_location
-          hash[:location] = location&.to_h
-        end
-
-        # Add TableNode-specific properties (no children field)
-        hash[:id] = id if id && !id.empty?
-        hash[:table_type] = table_type
-        serialize_caption_to_hash(hash, options)
-        hash[:header_rows] = header_rows.map { |row| row.serialize_to_hash(options) }
-        hash[:body_rows] = body_rows.map { |row| row.serialize_to_hash(options) }
-        hash[:metric] = metric if metric
-        hash[:tsize] = tsize if tsize
-        hash[:imgtable_image_number] = @imgtable_image_number.to_h if @imgtable_image_number
-
-        serialize_common_node_fields(hash)
+      # Rows are grouped as header_rows/body_rows in serialize_properties, so the
+      # generic "children" key is suppressed. The base skeleton still runs
+      # serialize_common_node_fields, so no field is dropped.
+      def serialize_children(hash, _options)
+        hash
       end
 
       def self.deserialize_from_hash(hash)
@@ -147,6 +129,20 @@ module ReVIEW
         end
 
         node
+      end
+
+      private
+
+      def serialize_properties(hash, options)
+        hash[:id] = id if id && !id.empty?
+        hash[:table_type] = table_type
+        serialize_caption_to_hash(hash, options)
+        hash[:header_rows] = header_rows.map { |row| row.serialize_to_hash(options) }
+        hash[:body_rows] = body_rows.map { |row| row.serialize_to_hash(options) }
+        hash[:metric] = metric if metric
+        hash[:tsize] = tsize if tsize
+        hash[:imgtable_image_number] = @imgtable_image_number.to_h if @imgtable_image_number
+        hash
       end
     end
   end

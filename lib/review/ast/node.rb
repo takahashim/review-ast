@@ -195,12 +195,20 @@ module ReVIEW
         # Call node-specific serialization
         serialize_properties(hash, options)
 
-        # Serialize child nodes if any
-        if children && children.any?
-          hash[:children] = children.map { |child| child.serialize_to_hash(options) }
-        end
+        # Serialize the ordinary children (overridable for nodes that group them
+        # under other keys, e.g. TableNode's header_rows/body_rows).
+        serialize_children(hash, options)
 
         serialize_common_node_fields(hash)
+      end
+
+      # Append #children to a serialized hash. A node whose children are grouped
+      # under different keys overrides this so the generic "children" key is not
+      # also emitted. Kept in the base skeleton so every node -- including those
+      # that override this -- still goes through serialize_common_node_fields.
+      def serialize_children(hash, options)
+        hash[:children] = children.map { |child| child.serialize_to_hash(options) } if children&.any?
+        hash
       end
 
       # Attach the cross-cutting base-node fields (the Indexer-stamped
