@@ -43,14 +43,13 @@ module ReVIEW
         # Initialize RenderingContext for cleaner state management
         @rendering_context = RenderingContext.new(:document)
 
-        # Footnote ids used inside a moving argument (heading/caption/table/…),
-        # which therefore need a deferred \footnotetext emitted at the //footnote
-        # DEFINITION -- mirroring LATEXBuilder's @foottext (set by inline_fn,
-        # consumed by footnote). Emitting there rather than right after the
-        # heading keeps the footnote on the builder's page even across a break.
-        @deferred_footnotetext_ids = {}
-
-        # Initialize LaTeX-specific inline context and inline element handler
+        # Initialize LaTeX-specific inline context and inline element handler.
+        # The context also holds the ids of footnotes used inside a moving
+        # argument (heading/caption/table/…), whose \footnotetext must be
+        # deferred to the //footnote DEFINITION -- mirroring LATEXBuilder's
+        # @foottext (set by inline_fn, consumed by footnote). Emitting there
+        # rather than right after the heading keeps the footnote on the
+        # builder's page even across a break.
         @inline_context = Latex::InlineContext.new(
           config: config,
           render_context: render_context,
@@ -1266,13 +1265,6 @@ module ReVIEW
         render_children(footnote_node)
       end
 
-      # Record that footnote `id` was used inside a moving argument, so its
-      # \footnotetext must be emitted at the //footnote definition (visit_footnote)
-      # rather than inline. Called from render_inline_fn via the inline context.
-      def defer_footnotetext(id)
-        @deferred_footnotetext_ids[id] = true
-      end
-
       # Render inline elements from caption_node
       # @param caption_node [CaptionNode] Caption node to render
       # @return [String] Rendered inline elements
@@ -1672,7 +1664,7 @@ module ReVIEW
       def footnotetext_output?(node)
         node.is_a?(ReVIEW::AST::FootnoteNode) &&
           node.footnote_type != :endnote &&
-          (config['footnotetext'] || @deferred_footnotetext_ids.key?(node.id))
+          (config['footnotetext'] || @inline_context.deferred_footnotetext?(node.id))
       end
 
       # Render document children with proper separation
@@ -1708,7 +1700,7 @@ module ReVIEW
         # this footnote was used inside a moving argument (heading/caption/table/
         # column/dt) so @<fn> emitted a \footnotemark and deferred the text.
         return '' if node.footnote_type == :endnote # //endnote is not a footnote
-        return '' unless config['footnotetext'] || @deferred_footnotetext_ids.key?(node.id)
+        return '' unless config['footnotetext'] || @inline_context.deferred_footnotetext?(node.id)
         return '' unless node.id && node.definition_number
 
         number = node.definition_number.number

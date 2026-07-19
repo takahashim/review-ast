@@ -21,7 +21,6 @@ module ReVIEW
     # Optional methods (available if renderer supports them):
     # - rendering_context: Current rendering context (for LaTeX footnote handling)
     # - render_caption_inline(caption_node): Render caption with inline markup (for LaTeX/IDGXML)
-    # - increment_texinlineequation: Increment equation counter (for IDGXML math rendering)
     class InlineRenderProxy
       def initialize(renderer)
         @renderer = renderer
@@ -46,27 +45,12 @@ module ReVIEW
         @renderer.rendering_context if @renderer.respond_to?(:rendering_context)
       end
 
-      # Defer a footnote's \footnotetext to its //footnote definition
-      # (LaTeX-specific: footnote used inside a moving argument).
-      # @param id [String] Footnote id
-      def defer_footnotetext(id)
-        @renderer.defer_footnotetext(id) if @renderer.respond_to?(:defer_footnotetext)
-      end
-
       # Render caption with inline markup (LaTeX/IDGXML-specific feature)
       # @param caption_node [Object] Caption node to render
       # @return [String, nil] Rendered caption if available
       def render_caption_inline(caption_node)
         if @renderer.respond_to?(:render_caption_inline)
           @renderer.render_caption_inline(caption_node)
-        end
-      end
-
-      # Increment inline equation counter (IDGXML-specific feature)
-      # @return [Integer, nil] Counter value if available
-      def increment_texinlineequation
-        if @renderer.respond_to?(:increment_texinlineequation)
-          @renderer.increment_texinlineequation
         end
       end
     end

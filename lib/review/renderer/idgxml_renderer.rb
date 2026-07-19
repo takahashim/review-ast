@@ -67,7 +67,6 @@ module ReVIEW
 
         # Initialize equation counters
         @texblockequation = 0
-        @texinlineequation = 0
 
         # Initialize ImgMath for math rendering
         @img_math = nil
@@ -100,12 +99,6 @@ module ReVIEW
       # @return [Symbol] Format type :idgxml
       def format_type
         :idgxml
-      end
-
-      # Increment texinlineequation counter and return new value
-      # Called from inline element handler via InlineContext
-      def increment_texinlineequation
-        @texinlineequation += 1
       end
 
       def visit_document(node)

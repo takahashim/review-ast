@@ -24,6 +24,11 @@ module ReVIEW
           @render_context = render_context
           # Automatically create proxy from renderer to limit access
           @render_proxy = InlineRenderProxy.new(renderer)
+          # Footnote ids seen inside a moving argument, recorded here rather
+          # than pushed back into the renderer through the proxy: the handler
+          # writes them and the renderer reads them, so the context that both
+          # already share is where they belong.
+          @deferred_footnotetext_ids = {}
           # Initialize index support
           initialize_index_support
         end
@@ -37,7 +42,12 @@ module ReVIEW
 
         # Defer a footnote's \footnotetext to its //footnote definition.
         def defer_footnotetext(id)
-          @render_proxy.defer_footnotetext(id)
+          @deferred_footnotetext_ids[id] = true
+        end
+
+        # Whether this footnote's \footnotetext was deferred to its definition.
+        def deferred_footnotetext?(id)
+          @deferred_footnotetext_ids.key?(id)
         end
 
         def chapter_link_enabled?

@@ -6,6 +6,7 @@
 # You can distribute or modify this program under the terms of
 # the GNU LGPL, Lesser General Public License version 2.1.
 
+require_relative '../resolved_reference'
 require 'digest/sha2'
 
 module ReVIEW
@@ -15,6 +16,7 @@ module ReVIEW
       # Uses InlineContext for shared logic
       class InlineElementHandler
         include ReVIEW::HTMLUtils
+        include ReVIEW::Renderer::ResolvedReference
         include ReVIEW::Loggable
 
         def initialize(inline_context)
@@ -199,10 +201,7 @@ module ReVIEW
 
         # References
         def render_inline_list(_type, _content, node)
-          ref_node = node.children.first
-          unless ref_node.reference_node? && ref_node.resolved?
-            raise 'BUG: Reference should be resolved at AST construction time'
-          end
+          ref_node = resolved_reference_node(node)
 
           data = ref_node.resolved_data
           base_ref = @ctx.text_formatter.format_reference(:list, data)
@@ -210,10 +209,7 @@ module ReVIEW
         end
 
         def render_inline_table(_type, _content, node)
-          ref_node = node.children.first
-          unless ref_node.reference_node? && ref_node.resolved?
-            raise 'BUG: Reference should be resolved at AST construction time'
-          end
+          ref_node = resolved_reference_node(node)
 
           data = ref_node.resolved_data
           base_ref = @ctx.text_formatter.format_reference(:table, data)
@@ -221,10 +217,7 @@ module ReVIEW
         end
 
         def render_inline_img(_type, _content, node)
-          ref_node = node.children.first
-          unless ref_node.reference_node? && ref_node.resolved?
-            raise 'BUG: Reference should be resolved at AST construction time'
-          end
+          ref_node = resolved_reference_node(node)
 
           data = ref_node.resolved_data
           base_ref = @ctx.text_formatter.format_reference(:image, data)
@@ -232,10 +225,7 @@ module ReVIEW
         end
 
         def render_inline_eq(_type, _content, node)
-          ref_node = node.children.first
-          unless ref_node.reference_node? && ref_node.resolved?
-            raise 'BUG: Reference should be resolved at AST construction time'
-          end
+          ref_node = resolved_reference_node(node)
 
           data = ref_node.resolved_data
           base_ref = @ctx.text_formatter.format_reference(:equation, data)
@@ -243,10 +233,7 @@ module ReVIEW
         end
 
         def render_inline_imgref(type, content, node)
-          ref_node = node.children.first
-          unless ref_node.reference_node? && ref_node.resolved?
-            raise 'BUG: Reference should be resolved at AST construction time'
-          end
+          ref_node = resolved_reference_node(node)
 
           data = ref_node.resolved_data
 
@@ -263,10 +250,7 @@ module ReVIEW
 
         # Column reference
         def render_inline_column(_type, _content, node)
-          ref_node = node.children.first
-          unless ref_node.reference_node? && ref_node.resolved?
-            raise 'BUG: Reference should be resolved at AST construction time'
-          end
+          ref_node = resolved_reference_node(node)
 
           data = ref_node.resolved_data
 
@@ -289,10 +273,7 @@ module ReVIEW
 
         # Footnotes
         def render_inline_fn(_type, _content, node)
-          ref_node = node.children.first
-          unless ref_node.reference_node? && ref_node.resolved?
-            raise 'BUG: Reference should be resolved at AST construction time'
-          end
+          ref_node = resolved_reference_node(node)
 
           data = ref_node.resolved_data
           if data.caption_node
@@ -308,10 +289,7 @@ module ReVIEW
 
         # Endnotes
         def render_inline_endnote(_type, _content, node)
-          ref_node = node.children.first
-          unless ref_node.reference_node? && ref_node.resolved?
-            raise 'BUG: Reference should be resolved at AST construction time'
-          end
+          ref_node = resolved_reference_node(node)
 
           data = ref_node.resolved_data
           %Q(<span type='endnoteref' idref='endnoteb-#{normalize_id(data.item_id)}'>(#{data.item_number})</span>)
@@ -319,10 +297,7 @@ module ReVIEW
 
         # Bibliography
         def render_inline_bib(_type, _content, node)
-          ref_node = node.children.first
-          unless ref_node.reference_node? && ref_node.resolved?
-            raise 'BUG: Reference should be resolved at AST construction time'
-          end
+          ref_node = resolved_reference_node(node)
 
           data = ref_node.resolved_data
           bib_id = data.item_id
@@ -369,10 +344,7 @@ module ReVIEW
 
         # Chapter reference
         def render_inline_chap(_type, _content, node)
-          ref_node = node.children.first
-          unless ref_node.reference_node? && ref_node.resolved?
-            raise 'BUG: Reference should be resolved at AST construction time'
-          end
+          ref_node = resolved_reference_node(node)
 
           data = ref_node.resolved_data
           # Format chapter number to full form (e.g., "第1章", "付録A", "第II部")
@@ -385,10 +357,7 @@ module ReVIEW
         end
 
         def render_inline_chapref(_type, _content, node)
-          ref_node = node.children.first
-          unless ref_node.reference_node? && ref_node.resolved?
-            raise 'BUG: Reference should be resolved at AST construction time'
-          end
+          ref_node = resolved_reference_node(node)
 
           data = ref_node.resolved_data
           display_str = @ctx.text_formatter.format_reference(:chapter, data)
@@ -400,10 +369,7 @@ module ReVIEW
         end
 
         def render_inline_title(_type, _content, node)
-          ref_node = node.children.first
-          unless ref_node.reference_node? && ref_node.resolved?
-            raise 'BUG: Reference should be resolved at AST construction time'
-          end
+          ref_node = resolved_reference_node(node)
 
           data = ref_node.resolved_data
           title = data.chapter_title || ''

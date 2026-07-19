@@ -24,6 +24,7 @@ module ReVIEW
           # Automatically create proxy from renderer to limit access
           @render_proxy = InlineRenderProxy.new(renderer)
           @img_math = img_math
+          @texinlineequation = 0
         end
 
         # === HTMLUtils methods are available via include ===
@@ -52,8 +53,11 @@ module ReVIEW
           secnolevel >= n.to_s.split('.').size
         end
 
+        # Numbering for inline TeX equations. Held here rather than pushed
+        # back into the renderer through the proxy: the handler is the only
+        # thing that advances it, and the value it returns is all that is used.
         def increment_texinlineequation
-          @render_proxy.increment_texinlineequation
+          @texinlineequation += 1
         end
 
         def render_children(node)

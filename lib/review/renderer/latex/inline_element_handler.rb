@@ -6,6 +6,7 @@
 # You can distribute or modify this program under the terms of
 # the GNU LGPL, Lesser General Public License version 2.1.
 
+require_relative '../resolved_reference'
 require 'review/latexutils'
 
 module ReVIEW
@@ -15,6 +16,7 @@ module ReVIEW
       # Uses InlineContext for shared logic
       class InlineElementHandler
         include ReVIEW::LaTeXUtils
+        include ReVIEW::Renderer::ResolvedReference
 
         def initialize(inline_context)
           @ctx = inline_context
@@ -98,10 +100,7 @@ module ReVIEW
         end
 
         def render_inline_fn(_type, _content, node)
-          ref_node = node.children.first
-          unless ref_node.reference_node? && ref_node.resolved?
-            raise 'BUG: Reference should be resolved at AST construction time'
-          end
+          ref_node = resolved_reference_node(node)
 
           data = ref_node.resolved_data
           footnote_number = data.item_number
@@ -140,10 +139,7 @@ module ReVIEW
 
         # Render list reference
         def render_inline_list(_type, _content, node)
-          ref_node = node.children.first
-          unless ref_node.reference_node? && ref_node.resolved?
-            raise 'BUG: Reference should be resolved at AST construction time'
-          end
+          ref_node = resolved_reference_node(node)
 
           data = ref_node.resolved_data
           list_number = data.item_number
@@ -163,10 +159,7 @@ module ReVIEW
 
         # Render table reference
         def render_inline_table(_type, _content, node)
-          ref_node = node.children.first
-          unless ref_node.reference_node? && ref_node.resolved?
-            raise 'BUG: Reference should be resolved at AST construction time'
-          end
+          ref_node = resolved_reference_node(node)
 
           data = ref_node.resolved_data
           table_number = data.item_number
@@ -189,10 +182,7 @@ module ReVIEW
 
         # Render image reference
         def render_inline_img(_type, _content, node)
-          ref_node = node.children.first
-          unless ref_node.reference_node? && ref_node.resolved?
-            raise 'BUG: Reference should be resolved at AST construction time'
-          end
+          ref_node = resolved_reference_node(node)
 
           data = ref_node.resolved_data
           image_number = data.item_number
@@ -224,10 +214,7 @@ module ReVIEW
 
         # Render equation reference
         def render_inline_eq(_type, _content, node)
-          ref_node = node.children.first
-          unless ref_node.reference_node? && ref_node.resolved?
-            raise 'BUG: Reference should be resolved at AST construction time'
-          end
+          ref_node = resolved_reference_node(node)
 
           data = ref_node.resolved_data
           equation_number = data.item_number
@@ -247,10 +234,7 @@ module ReVIEW
 
         # Render bibliography reference
         def render_inline_bib(_type, _content, node)
-          ref_node = node.children.first
-          unless ref_node.reference_node? && ref_node.resolved?
-            raise 'BUG: Reference should be resolved at AST construction time'
-          end
+          ref_node = resolved_reference_node(node)
 
           data = ref_node.resolved_data
           bib_number = data.item_number
@@ -265,10 +249,7 @@ module ReVIEW
 
         # Render chapter number reference
         def render_inline_chap(_type, _content, node)
-          ref_node = node.children.first
-          unless ref_node.reference_node? && ref_node.resolved?
-            raise 'BUG: Reference should be resolved at AST construction time'
-          end
+          ref_node = resolved_reference_node(node)
 
           data = ref_node.resolved_data
           # Format chapter number to full form (e.g., "第1章", "付録A", "第II部")
@@ -278,10 +259,7 @@ module ReVIEW
 
         # Render chapter title reference
         def render_inline_chapref(_type, _content, node)
-          ref_node = node.children.first
-          unless ref_node.reference_node? && ref_node.resolved?
-            raise 'BUG: Reference should be resolved at AST construction time'
-          end
+          ref_node = resolved_reference_node(node)
 
           data = ref_node.resolved_data
           display_str = @ctx.text_formatter.format_reference(:chapter, data)
@@ -345,10 +323,7 @@ module ReVIEW
 
         # Render heading reference
         def render_inline_hd(_type, _content, node)
-          ref_node = node.children.first
-          unless ref_node.reference_node? && ref_node.resolved?
-            raise 'BUG: Reference should be resolved at AST construction time'
-          end
+          ref_node = resolved_reference_node(node)
 
           data = ref_node.resolved_data
           section_number, section_label, section_title, numbered = build_heading_reference_parts(data)
@@ -362,10 +337,7 @@ module ReVIEW
 
         # Render section reference
         def render_inline_sec(_type, _content, node)
-          ref_node = node.children.first
-          unless ref_node.reference_node? && ref_node.resolved?
-            raise 'BUG: Reference should be resolved at AST construction time'
-          end
+          ref_node = resolved_reference_node(node)
 
           data = ref_node.resolved_data
           section_number, section_label, _section_title = build_heading_reference_parts(data)
@@ -374,10 +346,7 @@ module ReVIEW
 
         # Render section reference with full title
         def render_inline_secref(_type, _content, node)
-          ref_node = node.children.first
-          unless ref_node.reference_node? && ref_node.resolved?
-            raise 'BUG: Reference should be resolved at AST construction time'
-          end
+          ref_node = resolved_reference_node(node)
 
           data = ref_node.resolved_data
           section_number, section_label, section_title, numbered = build_heading_reference_parts(data)
@@ -391,10 +360,7 @@ module ReVIEW
 
         # Render section title only
         def render_inline_sectitle(_type, _content, node)
-          ref_node = node.children.first
-          unless ref_node.reference_node? && ref_node.resolved?
-            raise 'BUG: Reference should be resolved at AST construction time'
-          end
+          ref_node = resolved_reference_node(node)
 
           data = ref_node.resolved_data
           _section_number, section_label, section_title = build_heading_reference_parts(data)
@@ -679,10 +645,7 @@ module ReVIEW
 
         # Render column reference
         def render_inline_column(_type, _content, node)
-          ref_node = node.children.first
-          unless ref_node.reference_node? && ref_node.resolved?
-            raise 'BUG: Reference should be resolved at AST construction time'
-          end
+          ref_node = resolved_reference_node(node)
 
           data = ref_node.resolved_data
           column_number = data.item_number
@@ -701,10 +664,7 @@ module ReVIEW
 
         # Render endnote
         def render_inline_endnote(_type, _content, node)
-          ref_node = node.children.first
-          unless ref_node.reference_node? && ref_node.resolved?
-            raise 'BUG: Reference should be resolved at AST construction time'
-          end
+          ref_node = resolved_reference_node(node)
 
           data = ref_node.resolved_data
           # LATEXBuilder#inline_endnote emits \endnote{compile_inline(content)}:
@@ -721,10 +681,7 @@ module ReVIEW
 
         # Render title reference (@<title>{chapter_id})
         def render_inline_title(_type, _content, node)
-          ref_node = node.children.first
-          unless ref_node.reference_node? && ref_node.resolved?
-            raise 'BUG: Reference should be resolved at AST construction time'
-          end
+          ref_node = resolved_reference_node(node)
 
           data = ref_node.resolved_data
           title = data.chapter_title || ''
