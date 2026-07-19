@@ -1073,3 +1073,119 @@ LaTeX / HTML / IDGXML の目標(DVI 一致 / rendered-equivalence / byte 一致)
 - ただし idgxml `visit_graph` が描画メソッド内で `system("dot ...")` と Tempfile I/O を行っている点は
   設計として筋が悪く、いつか ImgGraph 側(既に遅延生成を持つ)へ寄せる価値がある。挙動に触れるため、
   単独で検証する変更として切り出すこと。
+
+---
+
+## 10. MarkdownCompiler の取り込み
+
+upstream 作業ブランチ(kmuto/review の `ast-renderer`。以下「元ブランチ」)には、Markdown を入力とするコンパイラ一式が実装済みである。
+本項目は、それを現在の review-ast の契約(CompileInput、SourceLocation、EmbedNode、lowering パイプライン)に合わせて取り込む計画を記す。
+
+### 現状と元ブランチの実測
+
+review-ast 側には受け口だけが残っている。
+`Compiler.for_chapter` は `.md` 拡張子で `markdown_compiler` を require する分岐を持ち(実体が存在しないため現状は LoadError)、`review-ast-compile -t markdown` も同様に `markdown_renderer` へのダングリング参照を持つ。
+`MarkdownHtmlNode` は既に削除済みである。
+
+元ブランチの構成(行数は実測):
+
+- `markdown_compiler.rb`(111 行): 外部 gem **markly**(cmark-gfm の C 拡張バインディング)でパースし、`markdown_adapter.rb`(904 行)が markly の木を Re:VIEW AST へ変換する。
+  生成されるノードは既存ノード型のみで、新しいノード型は要らない。
+  `InlineTokenizer` と `ReferenceResolver` は Re:VIEW 側と共有する(Markdown 中の `@<img>{id}` 等の参照記法をそのまま解釈する)。
+  なお本項目では markly を採らず、pure Ruby の **red_quilt** に差し替える(後述)。
+- 方言は CommonMark + GFM(strikethrough、table、autolink、脚注)。
+  Re:VIEW 拡張として、コラム(`### [column]` 開始、`<!-- /column -->` または見出しレベルで終了)、属性ブロック(`{#id caption="..."}`)、Re:VIEW 参照記法を持つ。
+  `//cmd` 等の特殊ブロックや一部インライン記法は意図的に非対応(全機能が要る章は `.re` で書く)。
+- `markdown_renderer.rb`(1,039 行): 逆方向(AST → Markdown)のレンダラ。
+  `Renderer::Base` の dispatch 契約に準拠しており移植は容易。
+- `diff/markdown.rb`(120 行): テスト専用の正規化比較器。
+- テスト 7 ファイルと 2 系統のコーパス。
+  `samples/md-syntax-book`(`.md` と `.re` の手書き並行コーパス。Markdown→AST 方向のオラクル)と、`.re` から生成したゴールデン `.md`(Re:VIEW→Markdown 方向のオラクル)。
+- モンキーパッチ、旧 `core_ext`、レガシー Index 系への依存はない。
+
+### 設計(review-ast の契約への適合)
+
+取り込みは「移植 + 4 点の適合」で構成する。
+
+- **パイプラインへの接ぎ方**:
+  元ブランチの `MarkdownCompiler` は `compile_to_ast` を丸ごと override し、参照解決の呼び出しを親と重複実装している。
+  review-ast では「surface tree の構築だけを差し替えるテンプレートメソッド」として接ぐ。
+  すなわち親 `Compiler` を「surface tree 構築(フック)→ lowering パス群 → 参照解決・画像パス解決」に整理し、`MarkdownCompiler` はフックだけを override する。
+  これにより directive lowering(Markdown は `DirectiveNode` を生まないので実質 no-op)、リスト項目番号付与、auto-id、`definition_number` の刻印、`ChapterIndexRegistry`、`ImagePathProcessor` がすべて自動で共有され、Markdown 章も `.re` 章と同じ core tree 契約(項目 3、ast-semantics 2.1)を満たす。
+- **入力契約**:
+  `compile_to_ast(chapter)` 前提のコードを `CompileInput` 契約(`input.source` / `input.basename` / `input.book`、source-only 入力可)へ書き換える。
+  元実装が chapter から読んでいるのはこの 3 要素だけであり、機械的な置換で済む。
+- **位置情報**:
+  `SnapshotLocation.new(basename, line)`(review-ast には存在しない)を `SourceLocation` へ置換する。
+  red_quilt 0.9.0 は行・列とも 1-based で、ブロックの span がマーカーを含む(`# 見出し` が `#` から始まる)ため、
+  `source_location` の `start_line` / `start_column` をそのまま `SourceLocation` に渡せる。
+  ただしインライン要素は `source_location` が nil を返す(red_quilt が `track_source: false` で走らせる経路がある)。
+  元実装のフォールバックは「行 1」だが、それでは誤った位置を持つノードができるので、
+  移植では囲んでいるブロックの位置を継承する。
+- **MarkdownHtmlNode は復活させない**(先行検討どおり)。
+  元実装でもこのノードは adapter 内の一時オブジェクトで、最終 AST には残らない(HTML ブロックは `EmbedNode` になり、`<!-- /column -->` はコラム閉じ判定にだけ使われる)。
+  移植では、コラム終了コメント判定(正規表現 1 本)を adapter のローカルヘルパにし、生 HTML は `EmbedNode(embed_type: :block, target_builders: ['html'])` とする。
+  元ブランチの `embed_type: :html` は採らない。
+  レンダラが知らない embed_type を増やさず、既存の `targeted_for?` 機構だけで「HTML 出力にのみ現れる」意味論を表現するためである。
+  インライン HTML(元実装はテキスト化の暫定)は、将来 `embed_type: :inline, target_builders: ['html']` へ寄せる。
+- **依存**:
+  パーサは markly ではなく **red_quilt** を使い、gemspec の実依存に加える
+  (元実装の「soft require + 実行時 CompileError」はやめる。条件分岐を持ち続ける理由がない)。
+  markly は cmark-gfm への C 拡張バインディングだが、red_quilt は pure Ruby で外部依存を持たない。
+  `required_ruby_version` は 0.9.0 で `>= 3.1` に下げられており、review-ast の下限を引き上げる必要はない。
+  `diff-lcs` は既存依存。
+
+  パースの呼び出しは次の形になる(表・打消し線・HTML ブロックは既定で有効、脚注と拡張 autolink は opt-in)。
+
+  ```ruby
+  RedQuilt.parse(source, footnotes: true, extended_autolinks: true)
+  ```
+
+- **ノード型の対応**:
+  markly と red_quilt で型名が異なるため、adapter の分岐をリネームする(不足している型はない)。
+  `:header`→`:heading`、`:hrule`→`:thematic_break`、`:code`→`:code_span`、`:emph`→`:emphasis`、
+  `:linebreak`→`:hardbreak`、`:table_header`→`:table_row`(`header?` で判別)。
+  他は同名。
+  ノード属性は `NodeRef` の公開アクセサ(`heading_level` / `list_ordered?` / `list_start` /
+  `list_delimiter` / `link_destination` / `link_title` / `footnote_label` / `footnote_number` /
+  `header?` / `info`)から読む。型が合わない場合は nil が返る。
+
+### 移行手順
+
+0. (完了)パーサ側の前提を整える。
+   red_quilt に必要な変更を `doc/red-quilt-requirements.ja.md` にまとめ、0.9.0 で対応済み。
+   多バイト文字で行番号がずれるバグ(行頭テーブルを文字オフセットで作り、バイトとして引いていた)の修正、
+   列の 1-based 化、ブロック span をマーカー込みにする修正(フェンスコードブロックは行番号自体が誤っていた)、
+   ノード属性アクセサの `NodeRef` への公開。
+   `required_ruby_version` も `>= 3.1` に下げられた。
+1. red_quilt を依存に追加し、`markdown_compiler.rb` と `markdown_adapter.rb` を移植する(SourceLocation 化、CompileInput 化、EmbedNode 化、コラム判定のローカル化、ノード型のリネームを含む)。
+   単体テスト(`test_markdown_compiler.rb`、`test_markdown_adapter.rb`、`test_markdown_column.rb`)を同時に移植し、AST 構造のオラクルを先に立てる。
+2. 親 `Compiler` に surface-tree 構築フックを抽出し、`MarkdownCompiler` をフック override に縮める(参照解決の重複実装を削除)。
+   `.md` 章に `definition_number`、registry、`image_path` が刻印されることをテストで確認する。
+3. 参照解決の統合テスト(`test_markdown_references_integration.rb`)と `samples/md-syntax-book` 並行コーパスを移植し、`.md` 章を既存 5 レンダラで描画できることを確認する。
+   ダングリングだった `.md` 経路(`review-ast-compile` の各ターゲット)がここで機能し始める。
+4. `markdown_renderer.rb`(AST → Markdown)と `diff/markdown.rb`、fixtures テストを移植する。
+   ゴールデン `.md` はコピーせず review-ast 側で再生成する(バックアップファイル `*~` は持ち込まない)。
+5. 文書整備。
+   元ブランチの `doc/ast_markdown.ja.md` を移植し、実装との既知の齟齬(`DefinitionListNode` 表記。実体は `ListNode(list_type: :dl)`)を直す。
+   ast-semantics の `EmbedNode` の「Markdown 対応時の想定」記述を現実に更新し、Markdown 入力の節を追加する(項目 6 と合流)。
+
+### 検証
+
+- 移植した単体テスト(AST 構造オラクル)と統合テスト(参照解決 + HTML 描画)が緑であること。
+- round-trip: `.md` からコンパイルした core tree のシリアライズがバイト同一で往復すること。
+  新ノード型ゼロなので `ast_format` は不変であり、既存の round-trip ハーネスに md コーパスを足すだけでよい。
+- render-identity: `.md` 章について「新規コンパイル描画 == ダンプ読み戻し描画」が 5 形式で一致すること。
+- Re:VIEW→Markdown 方向はゴールデン比較(`Diff::Markdown`)。
+  ゴールデンの再生成手順をリポジトリに残す。
+- `.re` 経路の全比較スイート(DVI、IDGXML byte、HTML)が手順 2 のフック抽出の前後で緑であり続けること(既存経路の挙動保存が最優先)。
+
+### 範囲外・要確認
+
+- **book モデルの `.md` 章の扱い**(実測済み。当初の懸念は解消):
+  `catalog.yml` の `CHAPS` に `ch02.md` を並べたところ、review gem 5.11 の `Book` は
+  `.re` と同じように章として列挙した(`chapters` に `["ch02", "ch02.md"]` が入る)。
+  したがって maker 統合を後続に回す必要はなく、`Compiler.for_chapter` の `.md` 分岐が
+  機能し始めた時点で、maker 経由のビルドもそのまま通る見込みである。
+- `Diff::Markdown` の正規化オプション 5 種は、`Diff::Latex` と同様のコンフィグ過剰(lib/diff レビューでの指摘と同種)であり、移植時に実使用分へ縮めてよい。
+- Markdown 方言の拡張(定義リストの入力対応、インライン HTML の EmbedNode 化)は、取り込み完了後の別項目とする。
