@@ -43,10 +43,25 @@ module ReVIEW
         @html_type == :tag
       end
 
-      # Check if this is a column end comment
-      # Matches patterns like "<!-- /column -->"
-      #
-      # @return [Boolean] True if this is a column end comment
+      def to_h
+        super.merge(html_content: html_content, html_type: html_type)
+      end
+
+      def self.deserialize_from_hash(hash)
+        new(
+          location: ReVIEW::AST::JSONSerializer.restore_location(hash),
+          html_content: hash['html_content'],
+          html_type: (hash['html_type'] || 'block').to_sym
+        )
+      end
+
+      private
+
+      def serialize_properties(hash, _options)
+        hash[:html_content] = html_content
+        hash[:html_type] = html_type
+        hash
+      end
     end
   end
 end
