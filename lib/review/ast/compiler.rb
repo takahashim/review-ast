@@ -11,6 +11,7 @@ require 'review/exception'
 require 'review/loggable'
 require 'review/lineinput'
 require 'review/snapshot_location'
+require_relative 'compile_input'
 require_relative 'inline_processor'
 require_relative 'block_processor'
 require_relative 'block_data'
@@ -113,16 +114,21 @@ module ReVIEW
         ]
       end
 
-      attr_reader :ast_root, :current_ast_node, :chapter, :inline_processor, :block_processor, :list_processor
+      attr_reader :ast_root, :current_ast_node, :chapter, :input, :inline_processor, :block_processor, :list_processor
 
-      def compile_to_ast(chapter, reference_resolution: true)
-        @chapter = chapter
+      # Accepts a CompileInput or, for backward compatibility, a chapter (which is
+      # wrapped in a CompileInput). The pure-data source/basename come off the
+      # input; @chapter stays the environment service handle for the resolution
+      # passes (nil for a source-only input).
+      def compile_to_ast(input, reference_resolution: true)
+        @input = input.is_a?(CompileInput) ? input : CompileInput.from_chapter(input)
+        @chapter = @input.chapter
         # Create AST root with appropriate location
         # For test compatibility, use a special calculation for line numbers
-        f = LineInput.from_string(@chapter.content)
+        f = LineInput.from_string(@input.source)
 
         @ast_root = AST::DocumentNode.new(
-          location: SourceLocation.new(@chapter.basename, f.lineno + 1, 1)
+          location: SourceLocation.new(@input.basename, f.lineno + 1, 1)
         )
         @current_ast_node = @ast_root
 
@@ -143,7 +149,7 @@ module ReVIEW
 
         # Check for accumulated errors (similar to HTMLBuilder's Compiler)
         if @compile_errors
-          raise CompileError, "#{chapter.basename} cannot be compiled."
+          raise CompileError, "#{@input.basename} cannot be compiled."
         end
 
         # Return the compiled AST
@@ -181,7 +187,7 @@ module ReVIEW
       # Update current location based on file input position
       # @param file_input [LineInput] The file input object
       def update_current_location(file_input)
-        @current_location = SourceLocation.new(@chapter.basename, file_input.lineno, 1)
+        @current_location = SourceLocation.new(@input.basename, file_input.lineno, 1)
       end
 
       # Override error method to accumulate errors (similar to HTMLBuilder's Compiler)
@@ -264,7 +270,7 @@ module ReVIEW
         # Process lines using the same logic as main document processing
         while line_input.next?
           # Create location that reflects position within the block
-          @current_location = SourceLocation.new(@chapter&.basename || 'block', line_input.lineno, 1)
+          @current_location = SourceLocation.new(@input&.basename || 'block', line_input.lineno, 1)
           line_content = line_input.peek
 
           case line_content
@@ -352,12 +358,12 @@ module ReVIEW
       private
 
       def build_ast_from_chapter
-        f = LineInput.from_string(@chapter.content)
+        f = LineInput.from_string(@input.source)
 
         # Build the complete AST structure
         while f.next?
           # Create a location that captures the current line number (column 1)
-          @current_location = SourceLocation.new(@chapter.basename, f.lineno + 1, 1)
+          @current_location = SourceLocation.new(@input.basename, f.lineno + 1, 1)
           line_content = f.peek
           case line_content
           when /\A\#@/
@@ -589,9 +595,9 @@ module ReVIEW
 
       # Resolve references in the AST
       def resolve_references
-        # Skip reference resolution in test environments or when chapter lacks book context
-        # Chapter objects always have book method (from BookUnit/Chapter)
-        return unless @chapter.book
+        # Skip when there is no environment: a source-only CompileInput has no
+        # chapter/book, and a chapter without a book is a test/standalone context.
+        return unless @input.book
 
         resolver = ReferenceResolver.new(@chapter)
         result = resolver.resolve_references(@ast_root)
