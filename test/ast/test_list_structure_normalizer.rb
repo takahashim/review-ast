@@ -103,7 +103,8 @@ class ListStructureNormalizerTest < Test::Unit::TestCase
     definition = nested_lists.find { |child| child.list_type == :dl }
     assert_not_nil(definition)
     assert_equal(%w[UL1-DL1 UL1-DL2], definition.children.map { |item| item.term_children.first.content })
-    assert_equal(%w[UL1-DD1 UL1-DD2], definition.children.map { |item| item.children.first.content.strip })
+    # Definition content is a paragraph (parsed as inline content).
+    assert_equal(%w[UL1-DD1 UL1-DD2], definition.children.map { |item| item.children.first.to_inline_text.strip })
 
     second_item = document.children.last
     assert_equal 'UL2', second_item.children.first.content
@@ -133,11 +134,12 @@ class ListStructureNormalizerTest < Test::Unit::TestCase
 
     term1 = items.first
     assert_equal 'Term1', term1.term_children.first.content
-    assert_equal 'First definition', term1.children.first.content.strip
+    # Definition lines are paragraphs (each parsed as inline content).
+    assert_equal 'First definition', term1.children.first.to_inline_text.strip
 
     term2 = items.last
     assert_equal 'Term2', term2.term_children.first.content
-    assert_equal(['Second line', 'Third line'], term2.children.map { |child| child.content.strip })
+    assert_equal(['Second line', 'Third line'], term2.children.map { |child| child.to_inline_text.strip })
   end
 
   def test_missing_endchild_raises

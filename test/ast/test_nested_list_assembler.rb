@@ -162,9 +162,12 @@ class TestNestedListAssembler < Test::Unit::TestCase
     term_text = first_item.term_children.find { |c| c.is_a?(ReVIEW::AST::TextNode) }
     assert_equal 'Term 1', term_text.content
 
-    # Verify definition content is added as children
+    # Verify definition content is added as a paragraph (definitions are always
+    # parsed as inline content; a plain line yields a paragraph with one text node)
     assert_equal 1, first_item.children.size
-    definition_text = first_item.children.find { |c| c.is_a?(ReVIEW::AST::TextNode) }
+    definition_para = first_item.children.first
+    assert_instance_of(ReVIEW::AST::ParagraphNode, definition_para)
+    definition_text = definition_para.children.find { |c| c.is_a?(ReVIEW::AST::TextNode) }
     assert_equal 'Definition 1', definition_text.content
   end
 

@@ -156,32 +156,29 @@ module ReVIEW
           @inline_processor.parse_inline_elements(content, item_node)
         end
 
-        # Add definition content with special handling for definition lists
-        # @param item_node [ReVIEW::AST::ListItemNode] Target item node
-        # @param definition_content [String] Definition content
+        # Add one definition line to a definition-list item as a paragraph.
+        # Always parses the line as inline content -- a line with no inline
+        # command simply yields a single text node inside the paragraph -- rather
+        # than deciding the node type from a fragile content.include?('@<') check.
         def add_definition_content(item_node, definition_content)
-          if definition_content.include?('@<')
-            # Create a paragraph node to hold the definition with inline elements
-            definition_paragraph = ReVIEW::AST::ParagraphNode.new(location: current_location)
-            @inline_processor.parse_inline_elements(definition_content, definition_paragraph)
-            item_node.add_child(definition_paragraph)
-          else
-            # Create a simple text node for the definition
-            definition_node = ReVIEW::AST::TextNode.new(location: current_location, content: definition_content)
-            item_node.add_child(definition_node)
-          end
+          item_node.add_child(parse_inline_to_paragraph(definition_content))
         end
 
-        # Process definition list term content with inline elements
+        # Process definition list term content into inline element nodes.
         # @param term_content [String] Term content to process
         # @return [Array<Node>] Processed term children nodes
         def process_definition_term_content(term_content)
-          # Create a temporary container to collect processed term elements
-          temp_container = ReVIEW::AST::ParagraphNode.new(location: current_location)
-          @inline_processor.parse_inline_elements(term_content, temp_container)
+          parse_inline_to_paragraph(term_content).children
+        end
 
-          # Return the processed elements
-          temp_container.children
+        # Parse a string of inline content into a fresh ParagraphNode. Used both
+        # to hold a definition line and (via #children) to collect a term's inline
+        # nodes -- the inline processor parses into a node, so a paragraph is the
+        # natural container.
+        def parse_inline_to_paragraph(content)
+          paragraph = ReVIEW::AST::ParagraphNode.new(location: current_location)
+          @inline_processor.parse_inline_elements(content, paragraph)
+          paragraph
         end
 
         # Create a new ListNode
