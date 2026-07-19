@@ -7,6 +7,7 @@
 # the GNU LGPL, Lesser General Public License version 2.1.
 
 require 'review/htmlutils'
+require_relative '../section_numbering'
 require_relative '../inline_render_proxy'
 
 module ReVIEW
@@ -16,6 +17,7 @@ module ReVIEW
       # Used by InlineElementHandler
       class InlineContext
         include ReVIEW::HTMLUtils
+        include ReVIEW::Renderer::SectionNumbering
 
         attr_reader :config, :img_math
 
@@ -46,11 +48,6 @@ module ReVIEW
 
         def math_format
           config['math_format']
-        end
-
-        def over_secnolevel?(n)
-          secnolevel = config['secnolevel'] || 2
-          secnolevel >= n.to_s.split('.').size
         end
 
         # Numbering for inline TeX equations. Held here rather than pushed

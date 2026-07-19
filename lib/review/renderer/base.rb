@@ -77,8 +77,19 @@ module ReVIEW
       #
       # @param type [String] Element type (e.g., 'image', 'table', 'list', 'equation')
       # @return [Boolean] true if caption should be at top, false otherwise
+      # Whether the caption for this block type goes above it.
+      #
+      # Builder#caption_top? treats anything that is not the string 'bottom' --
+      # including a missing or malformed setting -- as 'top'. This used to test
+      # for 'top' instead, so an absent caption_position flipped every caption
+      # to the bottom; LaTeX carried its own correct copy, and IDGXML a second
+      # inverted one. Configure supplies defaults (image bottom, the rest top),
+      # so this only shows up when the config does not come from there.
+      #
+      # @param type [String] Block type: 'image', 'table', 'list' or 'equation'
+      # @return [Boolean] true if the caption goes above the block
       def caption_top?(type)
-        config['caption_position'] && config['caption_position'][type] == 'top'
+        config.dig('caption_position', type) != 'bottom'
       end
 
       # Render all children of a node and join the results.

@@ -8,6 +8,7 @@
 
 require 'review/htmlutils'
 require 'review/html_escape_utils'
+require_relative '../section_numbering'
 require_relative '../inline_render_proxy'
 
 module ReVIEW
@@ -17,6 +18,7 @@ module ReVIEW
       # Used by InlineElementHandler
       class InlineContext
         include ReVIEW::HTMLUtils
+        include ReVIEW::Renderer::SectionNumbering
         include ReVIEW::HtmlEscapeUtils
 
         attr_reader :config, :render_context, :img_math
@@ -57,14 +59,6 @@ module ReVIEW
         def build_bib_reference_link(bib_id, number)
           bib_file = render_context.bib_file.gsub(/\.re\Z/, extname)
           %Q(<a href="#{bib_file}#bib-#{normalize_id(bib_id)}">[#{number}]</a>)
-        end
-
-        def over_secnolevel?(n)
-          secnolevel = config['secnolevel'] || 0
-          # Section level = chapter level (1) + n.size
-          # Only show numbers if secnolevel is >= section level
-          section_level = n.is_a?(::Array) ? (1 + n.size) : (1 + n.to_s.split('.').size)
-          secnolevel >= section_level
         end
 
         def render_children(node)

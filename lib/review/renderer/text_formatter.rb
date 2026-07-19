@@ -8,6 +8,7 @@
 
 require 'review/i18n'
 require 'review/ast/chapter_number_formatter'
+require_relative 'section_numbering'
 
 module ReVIEW
   module Renderer
@@ -22,6 +23,8 @@ module ReVIEW
     # - Format-agnostic core with format-specific decorations
     # - Reusable from Renderer, InlineElementHandler, and ResolvedData
     class TextFormatter
+      include ReVIEW::Renderer::SectionNumbering
+
       attr_reader :config
 
       # Initialize formatter
@@ -318,7 +321,12 @@ module ReVIEW
         caption = data.caption_text
         headline_numbers = Array(data.headline_number).compact
 
-        if !headline_numbers.empty?
+        # The builders drop the number for a heading deeper than secnolevel
+        # (inline_hd_chap picks hd_quote_without_number); this showed it at any
+        # depth, so IDGXML printed "「1.1.1.1 段」" where the builder prints
+        # "「段」". HTML was unaffected -- its handler makes the same check
+        # itself before asking for the text.
+        if !headline_numbers.empty? && over_secnolevel?(headline_numbers)
           # Use short form of chapter number for headline references
           chapter_number_short = format_chapter_number_short(data.chapter_number, data.chapter_type)
 

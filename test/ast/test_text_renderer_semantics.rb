@@ -169,6 +169,16 @@ class TestTextRendererSemantics < Test::Unit::TestCase
     end
   end
 
+  def test_deep_headline_reference_drops_the_number_beyond_secnolevel
+    # The builders switch to hd_quote_without_number past secnolevel; the
+    # formatter numbered at any depth, so IDGXML printed "「1.1.1.1 段」".
+    source = "= 章\n\n== 節\n\n=== 項\n\n===={deep} 段\n\n参照 @<hd>{deep} 終わり。\n"
+    comparator = ReVIEW::Test::TextComparator.new(format: :plaintext)
+
+    assert_equal comparator.convert_with_builder(source).lines.grep(/参照/),
+                 comparator.convert_with_renderer(source).lines.grep(/参照/)
+  end
+
   def test_image_marker_names_the_file_not_the_id
     # An unbound image warns and falls back to the body; either way the marker
     # must never be built from the id.

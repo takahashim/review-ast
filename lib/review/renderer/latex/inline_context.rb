@@ -7,6 +7,7 @@
 # the GNU LGPL, Lesser General Public License version 2.1.
 
 require 'review/latexutils'
+require_relative '../section_numbering'
 require_relative '../inline_render_proxy'
 
 module ReVIEW
@@ -16,6 +17,7 @@ module ReVIEW
       # Used by InlineElementHandler
       class InlineContext
         include ReVIEW::LaTeXUtils
+        include ReVIEW::Renderer::SectionNumbering
 
         attr_reader :config, :render_context, :index_db, :index_mecab
 
@@ -56,11 +58,6 @@ module ReVIEW
 
         def draft_mode?
           config['draft']
-        end
-
-        def over_secnolevel?(n)
-          secnolevel = config['secnolevel'] || 2
-          secnolevel >= n.to_s.split('.').size
         end
 
         def render_children(node)

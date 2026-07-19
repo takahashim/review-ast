@@ -983,10 +983,6 @@ module ReVIEW
       end
 
       # Check caption position
-      def caption_top?(type)
-        config.dig('caption_position', type) == 'top'
-      end
-
       # Handle metric for IDGXML
       def handle_metric(str)
         k, v = str.split('=', 2)

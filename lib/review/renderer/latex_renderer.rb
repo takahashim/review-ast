@@ -1712,15 +1712,6 @@ module ReVIEW
       end
 
       # Check caption position configuration
-      def caption_top?(type)
-        unless %w[top bottom].include?(config.dig('caption_position', type))
-          # Default to top if not configured
-          return true
-        end
-
-        config['caption_position'][type] != 'bottom'
-      end
-
       # This method calls super to use the base implementation, then applies LaTeX-specific logic
       def parse_metric(type, metric)
         s = super
