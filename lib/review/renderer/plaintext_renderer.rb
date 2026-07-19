@@ -314,16 +314,14 @@ module ReVIEW
       end
 
       def visit_block_printendnotes(_node)
-        # Print all endnotes collected in the chapter
-        return '' unless @chapter
-        return '' if @chapter.endnotes.size == 0
+        # Print all endnotes collected from the AST (doc/design-improvements #7).
+        return '' if endnote_nodes.empty?
 
         result = +''
-        @chapter.endnotes.each do |en|
-          # Format: (number) content
-          number = en.number
-          content_text = en.content || ''
-          result += "(#{number}) #{content_text}\n"
+        endnote_nodes.each do |en|
+          # Format: (number) content -- the endnote's own node is its content.
+          number = en.definition_number.number
+          result += "(#{number}) #{render_children(en)}\n"
         end
         result
       end
@@ -427,9 +425,9 @@ module ReVIEW
       end
 
       def visit_footnote(node)
-        footnote_id = node.id
         content = render_children(node)
-        footnote_number = @chapter&.footnote(footnote_id)&.number || '??'
+        # The number is stamped on the definition node (definition_number).
+        footnote_number = node.definition_number&.number || '??'
 
         "注#{footnote_number} #{content}\n"
       end
@@ -454,13 +452,12 @@ module ReVIEW
 
       # Inline rendering methods
       def render_inline_fn(_type, _content, node)
-        fn_id = node.target_item_id
-        return '' unless fn_id && @chapter
+        # The number comes from the resolved @<fn> reference data.
+        ref = node.children.first
+        number = ref&.resolved_data&.item_number
+        return '' unless number
 
-        footnote_number = @chapter.footnote(fn_id).number
-        " 注#{footnote_number} "
-      rescue ReVIEW::KeyError
-        ''
+        " 注#{number} "
       end
 
       def render_inline_kw(_type, _content, node)

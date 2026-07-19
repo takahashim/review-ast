@@ -501,6 +501,8 @@ module ReVIEW
       # @param ast_root [Object] The root AST node to render
       # @return [String] HTML body content only
       def render_body(ast_root)
+        # render_body bypasses Base#render, so collect endnotes here too.
+        @endnote_nodes = collect_endnotes(ast_root)
         visit(ast_root)
       end
 
@@ -962,24 +964,20 @@ module ReVIEW
 
       def render_printendnotes_block(_node)
         # Render collected endnotes like HTMLBuilder's printendnotes method
-        return '' unless @chapter
-        return '' unless @chapter.endnotes
-
-        # Check if there are any endnotes using size
-        return '' if @chapter.endnotes.size == 0
+        return '' if endnote_nodes.empty?
 
         # Begin endnotes block
         result = %Q(<div class="endnotes">\n)
 
         # Render each endnote like HTMLBuilder's endnote_item
-        @chapter.endnotes.each do |en|
+        endnote_nodes.each do |en|
           back = ''
           if config['epubmaker'] && config['epubmaker']['back_footnote']
             back = %Q(<a href="#endnoteb-#{normalize_id(en.id)}">#{text_formatter.format_footnote_backmark}</a>)
           end
-          # Render endnote content from footnote_node
-          endnote_content = render_children(en.footnote_node)
-          endnote_number = en.footnote_node.definition_number.number
+          # The endnote's own node is its content node.
+          endnote_content = render_children(en)
+          endnote_number = en.definition_number.number
           result += %Q(<div class="endnote" id="endnote-#{normalize_id(en.id)}"><p class="endnote">#{back}#{text_formatter.format_endnote_textmark(endnote_number)}#{endnote_content}</p></div>\n)
         end
 

@@ -7,6 +7,7 @@
 # the GNU LGPL, Lesser General Public License version 2.1.
 
 require 'review/ast/visitor'
+require 'review/ast/footnote_node'
 require 'review/exception'
 require 'review/renderer/text_formatter'
 
@@ -60,8 +61,17 @@ module ReVIEW
       # @param ast_root [Object] The root AST node to render
       # @return [String] The rendered output
       def render(ast_root)
+        @endnote_nodes = collect_endnotes(ast_root)
         result = visit(ast_root)
         post_process(result)
+      end
+
+      # The chapter's //endnote definition nodes, in number order. Collected from
+      # the AST (each carries its number as definition_number and is its own
+      # content node), so //printendnotes needs no chapter endnote index
+      # (doc/design-improvements #7). Replaces reading @chapter.endnotes.
+      def endnote_nodes
+        @endnote_nodes ||= []
       end
 
       # Check if caption should be positioned at top for given type
@@ -91,6 +101,20 @@ module ReVIEW
       private
 
       attr_reader :config
+
+      # Walk the tree collecting //endnote definition nodes (FootnoteNode with
+      # footnote_type == :endnote), ordered by their stamped number.
+      def collect_endnotes(root)
+        acc = []
+        gather = lambda do |node|
+          if node.is_a?(ReVIEW::AST::FootnoteNode) && node.footnote_type == :endnote
+            acc << node
+          end
+          node.children.each { |child| gather.call(child) }
+        end
+        gather.call(root)
+        acc.sort_by { |n| n.definition_number&.number || 0 }
+      end
 
       # Appendix/secnolevel-aware chapter number for caption headers and
       # reference numbers, mirroring ReVIEW::Builder#get_chap. Returns nil when

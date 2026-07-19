@@ -584,9 +584,9 @@ module ReVIEW
       end
 
       def visit_footnote(node)
-        footnote_id = node.id
         content = render_children(node).chomp
-        footnote_number = get_footnote_number(footnote_id)
+        # The number is stamped on the definition node (definition_number).
+        footnote_number = node.definition_number&.number || 1
 
         "【注#{footnote_number}】#{content}\n"
       end
@@ -693,10 +693,10 @@ module ReVIEW
         end
       end
 
-      def render_footnote_ref(node, content)
-        args = node.args || []
-        footnote_id = args.first || content
-        footnote_number = get_footnote_number(footnote_id)
+      def render_footnote_ref(node, _content)
+        # The number comes from the resolved @<fn> reference data.
+        ref = node.children.first
+        footnote_number = ref&.resolved_data&.item_number || 1
         "【注#{footnote_number}】"
       end
 
@@ -774,16 +774,14 @@ module ReVIEW
       end
 
       def visit_block_printendnotes(_node)
-        # Print all endnotes collected in the chapter
-        return '' unless @chapter
-        return '' if @chapter.endnotes.size == 0
+        # Print all endnotes collected from the AST (doc/design-improvements #7).
+        return '' if endnote_nodes.empty?
 
         result = +''
-        @chapter.endnotes.each do |en|
-          # Format: (number) content
-          number = en.number
-          content_text = en.content || ''
-          result += "(#{number}) #{content_text}\n"
+        endnote_nodes.each do |en|
+          # Format: (number) content -- the endnote's own node is its content.
+          number = en.definition_number.number
+          result += "(#{number}) #{render_children(en)}\n"
         end
         result
       end
@@ -832,19 +830,6 @@ module ReVIEW
 
         # For block embeds, add trailing newline
         node.embed_type == :block ? content + "\n" : content
-      end
-
-      def get_footnote_number(footnote_id)
-        # Use chapter's footnote numbering (matches TOPBuilder)
-        return 1 unless @chapter
-
-        begin
-          footnote = @chapter.footnote(footnote_id)
-          footnote&.number || 1
-        rescue KeyError
-          # Fallback if footnote not found
-          1
-        end
       end
     end
   end

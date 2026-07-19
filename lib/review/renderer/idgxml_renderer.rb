@@ -646,10 +646,8 @@ module ReVIEW
           end
         end
 
-        # Add the generated file to the image index
-        @chapter.image_index.image_finder.add_entry(file_path) if @chapter.image_index
-
-        # Now render as a regular numbered image
+        # Now render as a regular numbered image using the just-generated file
+        # path directly (no chapter image index needed).
         # Use caption_node to render inline elements
         caption_content = node.caption_node ? render_caption_inline(node.caption_node) : nil
 
@@ -672,25 +670,16 @@ module ReVIEW
       end
 
       def visit_printendnotes(_node)
-        return '' unless @chapter && @chapter.endnotes
-
-        endnotes = @chapter.endnotes
-        return '' if endnotes.size == 0
+        return '' if endnote_nodes.empty?
 
         result = []
         result << '<endnotes>'
 
-        endnotes.each do |endnote_item|
-          id = endnote_item.id
-          # Prefer the number stamped on the definition node (definition_number);
-          # fall back to the index item's own number when no node is attached.
-          number = endnote_item.footnote_node? ? endnote_item.footnote_node.definition_number.number : endnote_item.number
-          # Use footnote_node.children if available to avoid re-parsing
-          content = if endnote_item.footnote_node?
-                      endnote_item.footnote_node.children.map { |child| visit(child) }.join
-                    else
-                      render_caption_inline(endnote_item.content)
-                    end
+        endnote_nodes.each do |en|
+          id = en.id
+          number = en.definition_number.number
+          # The endnote's own node is its content node.
+          content = en.children.map { |child| visit(child) }.join
           result << %Q(<endnote id='endnoteb-#{normalize_id(id)}'><span type='endnotenumber'>(#{number})</span>\t#{content}</endnote>)
         end
 
