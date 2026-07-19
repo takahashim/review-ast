@@ -66,14 +66,6 @@ module ReVIEW
           @render_proxy.text_formatter
         end
 
-        def bibpaper_number(bib_id)
-          if book.bibpaper_index.blank?
-            raise ReVIEW::KeyError, "unknown bib: #{bib_id}"
-          end
-
-          book.bibpaper_index.number(bib_id)
-        end
-
         private
 
         # Initialize index support (database and MeCab)

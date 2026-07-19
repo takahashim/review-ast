@@ -33,7 +33,14 @@ module ReVIEW
   module Book
     class BookUnit
       unless method_defined?(:ast_indexes=)
-        # Set indexes using AST-based indexing
+        # Write-only one-way adapter: install AST-built legacy indexes onto the
+        # BookUnit/Book (doc/design-improvements #7, step 4). The AST never reads
+        # these back -- reference resolution uses the AST-owned
+        # ChapterIndexRegistry and definition numbers come from stamped
+        # DefinitionNumbers. They exist only for non-AST consumers (the IDGXML
+        # image_finder, and downstream epub/TOC makers). Assigning ivars directly
+        # is the compatibility shim; at merge-time (step 5) this becomes ordinary
+        # Re:VIEW code with a proper public setter.
         def ast_indexes=(indexes)
           @footnote_index = indexes[:footnote_index] if indexes[:footnote_index]
           @endnote_index = indexes[:endnote_index] if indexes[:endnote_index]

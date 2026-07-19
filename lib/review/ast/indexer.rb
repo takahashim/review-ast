@@ -137,7 +137,17 @@ module ReVIEW
         visit_all(node.caption_node.children) if node.caption_node
       end
 
-      # Set indexes on chapter using public API
+      # Write the built legacy indexes onto the chapter/book via the one-way
+      # ast_indexes= adapter (doc/design-improvements #7, step 4).
+      #
+      # This is WRITE-ONLY: the AST pipeline never reads these back to resolve
+      # references or compute numbers -- reference resolution reads the AST-owned
+      # ChapterIndexRegistry and definition-side numbers come from each node's
+      # stamped DefinitionNumber. The legacy indexes exist only to supply
+      # non-AST consumers: the IDGXML image_finder (image-path resolution, an
+      # environment concern) and downstream makers (epub/TOC). If a new read of
+      # chapter.<x>_index appears in the AST path, it is a regression toward the
+      # old read-back cycle -- route it through the registry instead.
       def set_indexes_on_chapter
         @chapter.ast_indexes = {
           footnote_index: @footnote_index,

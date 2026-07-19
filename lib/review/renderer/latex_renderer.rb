@@ -837,28 +837,6 @@ module ReVIEW
         end
       end
 
-      # Visit footnote block
-      def visit_block_footnote(node)
-        # Handle footnote blocks - generate \footnotetext LaTeX command
-        if node.args.length >= 2
-          footnote_id = node.args[0]
-          footnote_content = escape(node.args[1])
-          # Generate footnote number like LaTeXBuilder does
-          if @chapter && @chapter.footnote_index
-            begin
-              footnote_number = @chapter.footnote_index.number(footnote_id)
-              "\\footnotetext[#{footnote_number}]{#{footnote_content}}\n"
-            rescue ReVIEW::KeyError => e
-              raise NotImplementedError, "Footnote block processing failed for #{footnote_id}: #{e.message}"
-            end
-          else
-            raise NotImplementedError, 'Footnote processing requires chapter context but none provided'
-          end
-        else
-          raise NotImplementedError, 'Malformed footnote block: insufficient arguments'
-        end
-      end
-
       # Visit tsize block (table size control)
       def visit_block_tsize(_node)
         # tsize is now processed by TsizeProcessor during AST compilation
@@ -1263,26 +1241,6 @@ module ReVIEW
           result << '\\end{equation*}'
         end
         result.join("\n") + "\n\n"
-      end
-
-      # Get equation number for texequation blocks
-      def get_equation_number(equation_id)
-        if @chapter && @chapter.equation_index
-          begin
-            equation_number = @chapter.equation_index.number(equation_id)
-            chapter_num = get_chap
-            if chapter_num
-              "#{chapter_num}.#{equation_number}"
-            else
-              equation_number.to_s
-            end
-          rescue ReVIEW::KeyError
-            # Fallback if equation not found in index
-            '??'
-          end
-        else
-          '??'
-        end
       end
 
       def visit_bibpaper(node)
