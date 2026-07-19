@@ -8,6 +8,7 @@
 
 require 'review/textutils'
 require 'review/loggable'
+require_relative 'text_renderer_common'
 require_relative 'base'
 
 module ReVIEW
@@ -15,6 +16,7 @@ module ReVIEW
     class PlaintextRenderer < Base
       include ReVIEW::TextUtils
       include ReVIEW::Loggable
+      include ReVIEW::Renderer::TextRendererCommon
 
       # Configure's default, used when the book config does not set one.
       DEFAULT_SECNOLEVEL = 2
@@ -37,10 +39,6 @@ module ReVIEW
 
       def target_name
         'plaintext'
-      end
-
-      def visit_document(node)
-        render_children(node)
       end
 
       def visit_headline(node)
@@ -320,31 +318,9 @@ module ReVIEW
         ''
       end
 
-      def visit_block_blankline(_node)
-        "\n"
-      end
-
       def visit_block_pagebreak(_node)
         # Page breaks are not meaningful in plaintext
         ''
-      end
-
-      def visit_block_label(_node)
-        # Labels are not rendered
-        ''
-      end
-
-      def visit_block_printendnotes(_node)
-        # Print all endnotes collected from the AST (doc/design-improvements #7).
-        return '' if endnote_nodes.empty?
-
-        result = +''
-        endnote_nodes.each do |en|
-          # Format: (number) content -- the endnote's own node is its content.
-          number = en.definition_number.number
-          result += "(#{number}) #{render_children(en)}\n"
-        end
-        result
       end
 
       def visit_block_lead(node)
@@ -431,18 +407,21 @@ module ReVIEW
         if respond_to?(method_name, true)
           send(method_name, type, content, node)
         else
-          # For unknown inline elements (typically reference types), return content as-is
+          # For unknown inline elements (typically reference types), the content is
           # Reference types (list, img, table, hd, column, etc.) have their content already resolved
           content || ''
         end
       end
 
-      def visit_text(node)
-        node.content || ''
-      end
-
+      # A resolved reference renders as its formatted text ("図1.1"), the same
+      # text the builders produce. This returned node.content, which is the
+      # reference's own id, so every @<img>/@<list>/@<table> in plain-text
+      # output named the id instead of the number.
       def visit_reference(node)
-        node.content || ''
+        return node.content || '' unless node.resolved?
+
+        data = node.resolved_data
+        text_formatter.format_reference(data.reference_type, data)
       end
 
       def visit_footnote(node)

@@ -9,6 +9,7 @@
 require 'review/textutils'
 require 'review/loggable'
 require 'review/i18n'
+require_relative 'text_renderer_common'
 require_relative 'base'
 
 module ReVIEW
@@ -16,6 +17,7 @@ module ReVIEW
     class TopRenderer < Base
       include ReVIEW::TextUtils
       include ReVIEW::Loggable
+      include ReVIEW::Renderer::TextRendererCommon
 
       # Japanese titles for different block types (matching TOPBuilder)
       TITLES = {
@@ -78,10 +80,6 @@ module ReVIEW
 
       def target_name
         'top'
-      end
-
-      def visit_document(node)
-        render_children(node)
       end
 
       def visit_headline(node)
@@ -489,10 +487,6 @@ module ReVIEW
         result
       end
 
-      def visit_block_blankline(_node)
-        "\n"
-      end
-
       def visit_tex_equation(node)
         result = +''
         result += "\n◆→開始:#{TITLES[:texequation]}←◆\n"
@@ -622,10 +616,6 @@ module ReVIEW
         footnote_number = node.definition_number&.number || 1
 
         "【注#{footnote_number}】#{content}\n"
-      end
-
-      def visit_text(node)
-        node.content || ''
       end
 
       def visit_reference(node)
@@ -802,24 +792,6 @@ module ReVIEW
           # For other types, return plain text as-is
           plain_text
         end
-      end
-
-      def visit_block_label(_node)
-        # Labels are not rendered in TOP format
-        ''
-      end
-
-      def visit_block_printendnotes(_node)
-        # Print all endnotes collected from the AST (doc/design-improvements #7).
-        return '' if endnote_nodes.empty?
-
-        result = +''
-        endnote_nodes.each do |en|
-          # Format: (number) content -- the endnote's own node is its content.
-          number = en.definition_number.number
-          result += "(#{number}) #{render_children(en)}\n"
-        end
-        result
       end
 
       def visit_block_bibpaper(node)

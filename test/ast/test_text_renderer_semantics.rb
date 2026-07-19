@@ -129,6 +129,46 @@ class TestTextRendererSemantics < Test::Unit::TestCase
     assert_not_include(output, '■img1■')
   end
 
+  REFERENCES = <<~RE
+    = 章
+
+    //image[img1][図キャプション]{
+    //}
+
+    //table[tbl1][表キャプション]{
+    A\tB
+    //}
+
+    //list[lst1][リストキャプション]{
+    code
+    //}
+
+    参照 @<img>{img1} @<table>{tbl1} @<list>{lst1} 終わり。
+  RE
+
+  def test_references_render_as_numbers_not_ids
+    # plaintext returned the ReferenceNode's content, which is the reference's
+    # own id, so every @<img>/@<table>/@<list> named the id instead of the
+    # number.
+    %i[plaintext top].each do |format|
+      comparator = ReVIEW::Test::TextComparator.new(format: format)
+      line = comparator.convert_with_renderer(REFERENCES).lines.grep(/参照/).first
+
+      assert_equal '参照 図1.1 表1.1 リスト1.1 終わり。', line.chomp, "#{format} reference text"
+      assert_not_include(line, 'img1')
+    end
+  end
+
+  def test_references_match_the_builder
+    %i[plaintext top].each do |format|
+      comparator = ReVIEW::Test::TextComparator.new(format: format)
+
+      assert_equal comparator.convert_with_builder(REFERENCES).lines.grep(/参照/),
+                   comparator.convert_with_renderer(REFERENCES).lines.grep(/参照/),
+                   "#{format} reference line"
+    end
+  end
+
   def test_image_marker_names_the_file_not_the_id
     # An unbound image warns and falls back to the body; either way the marker
     # must never be built from the id.
