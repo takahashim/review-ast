@@ -14,7 +14,7 @@ Gem::Specification.new do |gem|
   gem.files       = Dir['lib/**/*.rb', 'bin/*', 'README.md']
   gem.executables = %w[review-ast-dump review-ast-dump2re review-ast-compile
                        review-ast-pdfmaker review-ast-idgxmlmaker review-ast-textmaker
-                       review-ast-epubmaker]
+                       review-ast-epubmaker review-ast-webmaker]
   gem.require_paths = ['lib']
   gem.required_ruby_version = '>= 3.1'
 

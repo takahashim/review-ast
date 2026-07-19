@@ -15,6 +15,7 @@ require 'review/highlighter'
 require 'review/sec_counter'
 require 'review/i18n'
 require 'review/loggable'
+require 'review/webtocprinter'
 require 'review/ast/indexer'
 require 'review/ast/compiler'
 require 'review/template'
@@ -554,6 +555,13 @@ module ReVIEW
         @prev = @chapter&.prev_chapter
         @next_title = @next ? escape_content(@next.title) : ''
         @prev_title = @prev ? escape_content(@prev.title) : ''
+
+        # The webmaker layout has a sidebar table of contents; build it like
+        # HTMLBuilder#result does (WEBTOCPrinter, part/chapter level). The AST-based
+        # deeper TOC is a later webmaker step.
+        if config.maker == 'webmaker' && @book
+          @toc = ReVIEW::WEBTOCPrinter.book_to_string(@book)
+        end
 
         # Handle MathJax configuration like HTMLBuilder
         if config['math_format'] == 'mathjax'
