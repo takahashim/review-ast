@@ -61,34 +61,21 @@ class TestASTIndexerPure < Test::Unit::TestCase
     indexer = ReVIEW::AST::Indexer.new(@chapter)
     indexer.build_indexes(ast_root)
 
-    list_item = indexer.list_index['sample-code']
-    assert_not_nil(list_item)
-    assert_equal 1, list_item.number
-    assert_equal 'sample-code', list_item.id
+    reg = indexer.registry
+    assert_equal 1, reg.lookup(:list, 'sample-code').number
 
-    assert_equal 1, indexer.table_index.size
-    table_item = indexer.table_index['sample-table']
-    assert_not_nil(table_item)
-    assert_equal 1, table_item.number
-    assert_equal 'sample-table', table_item.id
-    assert_equal 'Sample Table Caption', indexer.registry.lookup(:table, table_item.id).caption_node&.to_inline_text
+    assert_equal 1, reg.ids(:table).size
+    assert_equal 1, reg.lookup(:table, 'sample-table').number
+    assert_equal 'Sample Table Caption', reg.lookup(:table, 'sample-table').caption_node&.to_inline_text
 
-    assert_equal 1, indexer.image_index.size
-    image_item = indexer.image_index['sample-image']
-    assert_not_nil(image_item)
-    assert_equal 1, image_item.number
-    assert_equal 'sample-image', image_item.id
-    assert_equal 'Sample Image Caption', indexer.registry.lookup(:image, image_item.id).caption_node&.to_inline_text
+    assert_equal 1, reg.ids(:image).size
+    assert_equal 1, reg.lookup(:image, 'sample-image').number
+    assert_equal 'Sample Image Caption', reg.lookup(:image, 'sample-image').caption_node&.to_inline_text
 
-    assert_equal 1, indexer.footnote_index.size
-    footnote_item = indexer.footnote_index['footnote1']
-    assert_not_nil(footnote_item)
-    assert_equal 1, footnote_item.number
-    assert_equal 'footnote1', footnote_item.id
+    assert_equal 1, reg.ids(:footnote).size
+    assert_equal 1, reg.lookup(:footnote, 'footnote1').number
 
-    equation_item = indexer.equation_index['equation1']
-    assert_not_nil(equation_item)
-    assert_equal 'equation1', equation_item.id
+    assert_not_nil(reg.lookup(:equation, 'equation1'))
   end
 
   def test_headline_index_building
@@ -116,23 +103,14 @@ class TestASTIndexerPure < Test::Unit::TestCase
     indexer = ReVIEW::AST::Indexer.new(@chapter)
     indexer.build_indexes(ast_root)
 
-    assert_not_nil(indexer.headline_index)
-    assert indexer.headline_index.size >= 2
+    reg = indexer.registry
+    assert_operator(reg.ids(:headline).size, :>=, 2)
 
-    sec1_item = indexer.headline_index['sec1']
-    assert_not_nil(sec1_item)
-    assert_equal 'sec1', sec1_item.id
-    assert_equal [1], sec1_item.number
-
-    sec2_item = indexer.headline_index['sec2']
-    assert_not_nil(sec2_item)
-    assert_equal 'sec2', sec2_item.id
-    assert_equal [2], sec2_item.number
-
-    subsec_item = indexer.headline_index['sec2|subsec21']
-    assert_not_nil(subsec_item)
-    assert_equal 'sec2|subsec21', subsec_item.id
-    assert_equal [2, 1], subsec_item.number
+    assert_equal [1], reg.lookup(:headline, 'sec1').number
+    assert_equal [2], reg.lookup(:headline, 'sec2').number
+    # Addressable by full pipe-path and by leaf alone.
+    assert_equal [2, 1], reg.lookup(:headline, 'sec2|subsec21').number
+    assert_equal [2, 1], reg.lookup(:headline, 'subsec21').number
   end
 
   def test_minicolumn_index_building
@@ -160,15 +138,12 @@ class TestASTIndexerPure < Test::Unit::TestCase
     indexer = ReVIEW::AST::Indexer.new(@chapter)
     indexer.build_indexes(ast_root)
 
-    assert_equal 1, indexer.footnote_index.size
-    footnote_item = indexer.footnote_index['note-footnote']
-    assert_not_nil(footnote_item)
-    assert_equal 'note-footnote', footnote_item.id
+    reg = indexer.registry
+    assert_equal 1, reg.ids(:footnote).size
+    assert_not_nil(reg.lookup(:footnote, 'note-footnote'))
 
-    assert_equal 1, indexer.bibpaper_index.size
-    bib_item = indexer.bibpaper_index['bibitem1']
-    assert_not_nil(bib_item)
-    assert_equal 'bibitem1', bib_item.id
+    assert_equal 1, reg.ids(:bibpaper).size
+    assert_not_nil(reg.lookup(:bibpaper, 'bibitem1'))
   end
 
   def test_table_inline_elements
@@ -196,19 +171,15 @@ class TestASTIndexerPure < Test::Unit::TestCase
     indexer = ReVIEW::AST::Indexer.new(@chapter)
     indexer.build_indexes(ast_root)
 
-    assert_equal 1, indexer.table_index.size
-    table_item = indexer.table_index['inline-table']
-    assert_not_nil(table_item)
+    reg = indexer.registry
+    assert_equal 1, reg.ids(:table).size
+    assert_not_nil(reg.lookup(:table, 'inline-table'))
 
-    assert_equal 1, indexer.footnote_index.size
-    footnote_item = indexer.footnote_index['table-fn']
-    assert_not_nil(footnote_item)
-    assert_equal 'table-fn', footnote_item.id
+    assert_equal 1, reg.ids(:footnote).size
+    assert_not_nil(reg.lookup(:footnote, 'table-fn'))
 
-    assert_equal 1, indexer.equation_index.size
-    equation_item = indexer.equation_index['table-eq']
-    assert_not_nil(equation_item)
-    assert_equal 'table-eq', equation_item.id
+    assert_equal 1, reg.ids(:equation).size
+    assert_not_nil(reg.lookup(:equation, 'table-eq'))
   end
 
   def test_code_block_inline_elements
@@ -231,14 +202,12 @@ class TestASTIndexerPure < Test::Unit::TestCase
     indexer = ReVIEW::AST::Indexer.new(@chapter)
     indexer.build_indexes(ast_root)
 
-    assert_equal 1, indexer.list_index.size
-    list_item = indexer.list_index['code-with-inline']
-    assert_not_nil(list_item)
+    reg = indexer.registry
+    assert_equal 1, reg.ids(:list).size
+    assert_not_nil(reg.lookup(:list, 'code-with-inline'))
 
-    assert_equal 1, indexer.footnote_index.size
-    footnote_item = indexer.footnote_index['code-fn']
-    assert_not_nil(footnote_item)
-    assert_equal 'code-fn', footnote_item.id
+    assert_equal 1, reg.ids(:footnote).size
+    assert_not_nil(reg.lookup(:footnote, 'code-fn'))
   end
 
   def test_empty_ast
@@ -247,14 +216,15 @@ class TestASTIndexerPure < Test::Unit::TestCase
     result = indexer.build_indexes(nil)
 
     assert_equal indexer, result
-    assert_equal 0, indexer.list_index.size
-    assert_equal 0, indexer.table_index.size
-    assert_equal 0, indexer.image_index.size
-    assert_equal 0, indexer.footnote_index.size
-    assert_equal 0, indexer.equation_index.size
+    reg = indexer.registry
+    assert_equal 0, reg.ids(:list).size
+    assert_equal 0, reg.ids(:table).size
+    assert_equal 0, reg.ids(:image).size
+    assert_equal 0, reg.ids(:footnote).size
+    assert_equal 0, reg.ids(:equation).size
   end
 
-  def test_indexes_method
+  def test_registry_records_elements
     source = <<~EOS
       = Chapter Title
 
@@ -271,21 +241,10 @@ class TestASTIndexerPure < Test::Unit::TestCase
     indexer = ReVIEW::AST::Indexer.new(@chapter)
     indexer.build_indexes(ast_root)
 
-    indexes = indexer.indexes
-    assert_kind_of(Hash, indexes)
-
-    expected_keys = %i[
-      list table equation footnote endnote
-      image icon numberless_image indepimage
-      headline column bibpaper
-    ]
-
-    expected_keys.each do |key|
-      assert indexes.key?(key), "Should contain #{key} index"
-    end
-
-    assert_equal 1, indexes[:list].size
-    assert_not_nil(indexes[:list]['sample'])
+    reg = indexer.registry
+    assert_equal 1, reg.ids(:list).size
+    assert_not_nil(reg.lookup(:list, 'sample'))
+    assert_equal 1, reg.lookup(:list, 'sample').number
   end
 
   def test_id_validation_warnings

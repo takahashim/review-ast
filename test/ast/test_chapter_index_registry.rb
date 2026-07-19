@@ -8,10 +8,9 @@ require 'review/book/chapter'
 require 'review/ast/compiler'
 require 'review/configure'
 
-# ChapterIndexRegistry, and the Indexer writing it in parallel with the legacy
-# indexes (doc/design-improvements #7 migration step 1). At this step the
-# registry is populated but not yet read by the ReferenceResolver, so this test
-# pins its contents directly.
+# ChapterIndexRegistry, and the Indexer writing it as the chapter's sole index
+# table (doc/design-improvements #7/#8; the legacy ReVIEW::Book::*Index is no
+# longer built). This test pins the registry's contents directly.
 class TestChapterIndexRegistry < Test::Unit::TestCase
   Registry = ReVIEW::AST::ChapterIndexRegistry
 
@@ -45,6 +44,14 @@ class TestChapterIndexRegistry < Test::Unit::TestCase
     r.add(:list, 'dup', number: 1)
     r.add(:list, 'dup', number: 2)
     assert_equal 2, r.lookup(:list, 'dup').number
+  end
+
+  def test_ids_in_insertion_order
+    r = Registry.new
+    r.add(:list, 'a', number: 1)
+    r.add(:list, 'b', number: 2)
+    assert_equal %w[a b], r.ids(:list)
+    assert_equal [], r.ids(:table)
   end
 
   # The Indexer records the same numbers as the legacy indexes, and attaches the
@@ -83,7 +90,7 @@ class TestChapterIndexRegistry < Test::Unit::TestCase
     assert_equal 1, reg.lookup(:table, 't1').number
     assert_equal 1, reg.lookup(:image, 'img1').number
     assert_equal 1, reg.lookup(:equation, 'eq1').number
-    assert_equal indexer.footnote_index.number('fn1'), reg.lookup(:footnote, 'fn1').number
+    assert_equal 1, reg.lookup(:footnote, 'fn1').number
 
     # caption nodes come straight from the AST nodes (CaptionNode), except //list
     # whose legacy Index::Item carries no caption (mirrored as nil).

@@ -60,11 +60,6 @@ module ReVIEW
 
         # Override build_body to use Renderer
         def build_body(basetmpdir, _yamlfile)
-          # Build indexes for all chapters to support cross-chapter references
-          # This must be done before rendering any chapter
-          require_relative('../book_indexer')
-          ReVIEW::AST::BookIndexer.build(@book)
-
           @converter = create_converter(@book)
 
           base_path = Pathname.new(@basedir)

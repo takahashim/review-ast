@@ -3,7 +3,6 @@
 require_relative '../test_helper'
 require_relative '../book_test_helper'
 require 'review/ast/compiler'
-require 'review/ast/book_indexer'
 require 'review/renderer/idgxml_renderer'
 require 'review/book'
 require 'review/i18n'

@@ -67,11 +67,6 @@ module ReVIEW
         # Override the converter creation point in build_pdf
         # This method replaces the direct Converter.new call in the parent class
         def make_input_files(book)
-          # Build indexes for all chapters to support cross-chapter references
-          # This must be done before rendering any chapter
-          require_relative('../book_indexer')
-          ReVIEW::AST::BookIndexer.build(book)
-
           @converter = create_converter(book)
 
           super

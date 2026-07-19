@@ -50,6 +50,13 @@ module ReVIEW
       def key?(type, id)
         !lookup(type, id).nil?
       end
+
+      # The registered ids for a type, in insertion order (empty if none). Since
+      # this is the only index the pipeline keeps, it is also how a caller counts
+      # or enumerates a type's elements.
+      def ids(type)
+        @table[type]&.keys || []
+      end
     end
   end
 end

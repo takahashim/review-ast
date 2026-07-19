@@ -6,7 +6,6 @@
 # You can distribute or modify this program under the terms of
 # the GNU LGPL, Lesser General Public License version 2.1.
 
-require 'review/book/index'
 require 'review/i18n'
 require 'review/exception'
 require 'review/sec_counter'
@@ -40,13 +39,9 @@ module ReVIEW
     # - High-performance processing without Builder overhead
     # - Comprehensive index support (lists, tables, images, headlines, etc.)
     class Indexer < Visitor
-      attr_reader :list_index, :table_index, :equation_index,
-                  :footnote_index, :endnote_index,
-                  :numberless_image_index, :image_index, :icon_index, :indepimage_index,
-                  :headline_index, :column_index, :bibpaper_index
-
-      # AST-owned resolution table for this chapter, written in parallel with the
-      # legacy indexes. See ChapterIndexRegistry and doc/design-improvements #7.
+      # AST-owned resolution table for this chapter -- the single index the rest
+      # of the pipeline reads (see ChapterIndexRegistry, doc/design-improvements
+      # #7/#8). The Indexer no longer builds any legacy ReVIEW::Book::*Index.
       attr_reader :registry
 
       def initialize(chapter)
@@ -54,11 +49,10 @@ module ReVIEW
         @chapter = chapter
         @book = chapter.book
         @registry = ChapterIndexRegistry.new
-        initialize_indexes
         initialize_counters
       end
 
-      # Record an element in the AST-owned registry alongside the legacy index.
+      # Record an element in the AST-owned registry.
       def register(type, id, number:, caption_node: nil, footnote_node: nil)
         @registry.add(type, id, number: number, caption_node: caption_node, footnote_node: footnote_node)
       end
@@ -74,44 +68,6 @@ module ReVIEW
         visit(ast_root)
 
         self
-      end
-
-      # Get all indexes as a hash (for compatibility)
-      def indexes
-        {
-          list: @list_index,
-          table: @table_index,
-          equation: @equation_index,
-          footnote: @footnote_index.to_book_index,
-          endnote: @endnote_index.to_book_index,
-          image: @image_index,
-          icon: @icon_index,
-          numberless_image: @numberless_image_index,
-          indepimage: @indepimage_index,
-          headline: @headline_index,
-          column: @column_index,
-          bibpaper: @bibpaper_index
-        }
-      end
-
-      # Find index by type name (type-safe alternative to send)
-      def index_for(type)
-        case type.to_sym
-        when :list then @list_index
-        when :table then @table_index
-        when :equation then @equation_index
-        when :footnote then @footnote_index
-        when :endnote then @endnote_index
-        when :image then @image_index
-        when :icon then @icon_index
-        when :numberless_image then @numberless_image_index
-        when :indepimage then @indepimage_index
-        when :headline then @headline_index
-        when :column then @column_index
-        when :bibpaper then @bibpaper_index
-        else
-          raise ArgumentError, "Unknown index type: #{type}"
-        end
       end
 
       # Extract and set chapter title from first level-1 headline
@@ -140,35 +96,27 @@ module ReVIEW
         node.to_inline_text
       end
 
-      def initialize_indexes
-        @list_index = ReVIEW::Book::ListIndex.new
-        @table_index = ReVIEW::Book::TableIndex.new
-        @equation_index = ReVIEW::Book::EquationIndex.new
+      def initialize_counters
+        # Footnotes/endnotes keep the AST's own reference-order-numbering index
+        # (not a legacy ReVIEW::Book index); the number comes from #number(id).
         @footnote_index = AST::FootnoteIndex.new
         @endnote_index = AST::FootnoteIndex.new
-        @headline_index = ReVIEW::Book::HeadlineIndex.new(@chapter)
-        @column_index = ReVIEW::Book::ColumnIndex.new
-        @chapter_index = ReVIEW::Book::ChapterIndex.new
-        @bibpaper_index = ReVIEW::Book::BibpaperIndex.new
 
-        @image_index = ReVIEW::Book::ImageIndex.new(@chapter)
-        @icon_index = ReVIEW::Book::IconIndex.new(@chapter)
-        unless @book
-          # Create basic indexes even without book for testing
-        end
-        @numberless_image_index = ReVIEW::Book::NumberlessImageIndex.new(@chapter)
-        @indepimage_index = ReVIEW::Book::IndepImageIndex.new(@chapter)
-      end
+        # Definition numbers were previously derived from each legacy index's
+        # size; a plain per-type counter replicates that. //image and //graph
+        # share the image counter; //indepimage, //numberlessimage and the
+        # //imgtable image share the indepimage counter (matching IndexBuilder).
+        @number = Hash.new(0)
 
-      def initialize_counters
         @sec_counter = ReVIEW::SecCounter.new(6, @chapter) # 6 is max level
 
-        # Initialize cross-reference tracking like IndexBuilder
+        # Build the headline item id exactly like IndexBuilder.
         @headline_stack = []
-        @crossref = {
-          footnote: {},
-          endnote: {}
-        }
+      end
+
+      # Next 1-based number for a counted definition type.
+      def next_number(type)
+        @number[type] += 1
       end
 
       def visit_document(node)
@@ -228,14 +176,12 @@ module ReVIEW
 
           item_id = @headline_stack.join('|')
           leaf_id = @headline_stack[cursor]
+          number = @sec_counter.number_list
 
-          # Always add to headline index like IndexBuilder does
-          item = ReVIEW::Book::Index::Item.new(item_id, @sec_counter.number_list, caption_text)
-          @headline_index.add_item(item)
           # A headline is addressable both by its full pipe-path and by its leaf
           # segment alone (its label or caption), matching Book::HeadlineIndex.
-          register(:headline, item_id, number: item.number, caption_node: node.caption_node)
-          register(:headline, leaf_id, number: item.number, caption_node: node.caption_node) unless leaf_id == item_id
+          register(:headline, item_id, number: number, caption_node: node.caption_node)
+          register(:headline, leaf_id, number: number, caption_node: node.caption_node) unless leaf_id == item_id
 
           visit_caption_children(node)
         end
@@ -252,9 +198,7 @@ module ReVIEW
 
         check_id(node.label) if node.label
 
-        item = ReVIEW::Book::Index::Item.new(item_id, @column_index.size + 1, caption_text)
-        @column_index.add_item(item)
-        register(:column, item_id, number: item.number, caption_node: node.caption_node)
+        register(:column, item_id, number: next_number(:column), caption_node: node.caption_node)
 
         visit_caption_children(node)
         visit_all(node.children)
@@ -286,9 +230,7 @@ module ReVIEW
       def visit_code_block(node)
         if node.id?
           check_id(node.id)
-          number = @list_index.size + 1
-          item = ReVIEW::Book::Index::Item.new(node.id, number)
-          @list_index.add_item(item)
+          number = next_number(:list)
           register(:list, node.id, number: number)
           stamp_definition_number(node, number)
 
@@ -301,22 +243,18 @@ module ReVIEW
       def visit_table(node)
         if node.id?
           check_id(node.id)
-          caption_text = extract_caption_text(node.caption_node)
-          number = @table_index.size + 1
-          item = ReVIEW::Book::Index::Item.new(node.id, number, caption_text)
-          @table_index.add_item(item)
+          number = next_number(:table)
           register(:table, node.id, number: number, caption_node: node.caption_node)
           stamp_definition_number(node, number)
 
-          # For imgtable, also add to indepimage_index (like IndexBuilder does).
+          # An //imgtable also consumes an indepimage number (like IndexBuilder).
           # The image path is stamped later by ImagePathProcessor; here we record
           # the number an unbound imgtable would show if rendered as an image.
           if node.table_type == :imgtable
-            image_item = ReVIEW::Book::Index::Item.new(node.id, @indepimage_index.size + 1)
-            @indepimage_index.add_item(image_item)
-            register(:indepimage, node.id, number: image_item.number)
+            image_number = next_number(:indepimage)
+            register(:indepimage, node.id, number: image_number)
             node.imgtable_image_number = ReVIEW::AST::DefinitionNumber.new(
-              number: image_item.number, chapter_number: @chapter&.number
+              number: image_number, chapter_number: @chapter&.number
             )
           end
 
@@ -329,21 +267,16 @@ module ReVIEW
       def visit_image(node)
         if node.id?
           check_id(node.id)
-          caption_text = extract_caption_text(node.caption_node)
-          # Only //image is numbered (@image_index). //indepimage and
-          # //numberlessimage are unnumbered and go to @indepimage_index,
-          # matching IndexBuilder (index_builder.rb #image/#indepimage/
-          # #numberlessimage). Routing them all to @image_index would make a
-          # later //image's @<img> reference off by the indepimage count.
+          # Only //image is numbered (the image counter). //indepimage and
+          # //numberlessimage are unnumbered and take an indepimage number,
+          # matching IndexBuilder (#image/#indepimage/#numberlessimage). Sharing
+          # one counter would make a later //image's @<img> reference off by the
+          # indepimage count.
           case node.image_type
           when :indepimage, :numberlessimage
-            item = ReVIEW::Book::Index::Item.new(node.id, @indepimage_index.size + 1)
-            @indepimage_index.add_item(item)
-            register(:indepimage, node.id, number: item.number)
+            register(:indepimage, node.id, number: next_number(:indepimage))
           else
-            number = @image_index.size + 1
-            item = ReVIEW::Book::Index::Item.new(node.id, number, caption_text)
-            @image_index.add_item(item)
+            number = next_number(:image)
             register(:image, node.id, number: number, caption_node: node.caption_node)
             stamp_definition_number(node, number)
           end
@@ -377,12 +310,10 @@ module ReVIEW
         footnote_content = extract_footnote_content(node)
 
         if node.footnote_type == :footnote
-          @crossref[:footnote][node.id] ||= 0
           @footnote_index.add_or_update(node.id, content: footnote_content, footnote_node: node)
           register(:footnote, node.id, number: @footnote_index.number(node.id), footnote_node: node)
           stamp_definition_number(node, @footnote_index.number(node.id))
         elsif node.footnote_type == :endnote
-          @crossref[:endnote][node.id] ||= 0
           @endnote_index.add_or_update(node.id, content: footnote_content, footnote_node: node)
           register(:endnote, node.id, number: @endnote_index.number(node.id), footnote_node: node)
           stamp_definition_number(node, @endnote_index.number(node.id))
@@ -394,10 +325,7 @@ module ReVIEW
       def visit_tex_equation(node)
         if node.id?
           check_id(node.id)
-          caption_text = extract_caption_text(node.caption_node)
-          number = @equation_index.size + 1
-          item = ReVIEW::Book::Index::Item.new(node.id, number, caption_text)
-          @equation_index.add_item(item)
+          number = next_number(:equation)
           register(:equation, node.id, number: number, caption_node: node.caption_node)
           stamp_definition_number(node, number)
         end
@@ -411,11 +339,8 @@ module ReVIEW
           when 'bibpaper'
             if node.args.length >= 2
               bib_id = node.args[0]
-              bib_caption = node.args[1]
               check_id(bib_id)
-              number = @bibpaper_index.size + 1
-              item = ReVIEW::Book::Index::Item.new(bib_id, number, bib_caption)
-              @bibpaper_index.add_item(item)
+              number = next_number(:bibpaper)
               register(:bibpaper, bib_id, number: number, caption_node: node.caption_node)
               stamp_definition_number(node, number)
             end
@@ -427,8 +352,7 @@ module ReVIEW
             if node.args.first
               graph_id = node.args.first
               check_id(graph_id)
-              number = @image_index.size + 1
-              @image_index.add_item(ReVIEW::Book::Index::Item.new(graph_id, number))
+              number = next_number(:image)
               register(:image, graph_id, number: number, caption_node: node.caption_node)
               stamp_definition_number(node, number)
             end
@@ -445,18 +369,13 @@ module ReVIEW
           if node.args.first
             footnote_id = node.args.first
             check_id(footnote_id)
-            # Track cross-reference
-            @crossref[:footnote][footnote_id] = @crossref[:footnote][footnote_id] ? @crossref[:footnote][footnote_id] + 1 : 1
-            # Add reference entry (content will be filled when FootnoteNode is processed)
+            # Add reference entry (content is filled when the FootnoteNode is seen).
             @footnote_index.add_or_update(footnote_id)
           end
         when :endnote
           if node.args.first
             endnote_id = node.args.first
             check_id(endnote_id)
-            # Track cross-reference
-            @crossref[:endnote][endnote_id] = @crossref[:endnote][endnote_id] ? @crossref[:endnote][endnote_id] + 1 : 1
-            # Add reference entry (content will be filled when FootnoteNode is processed)
             @endnote_index.add_or_update(endnote_id)
           end
         when :bib
@@ -466,11 +385,9 @@ module ReVIEW
             # A bibpaper may be referenced by @<bib> without a parseable definition
             # (the bib file's one-line form isn't indexed by the compiler), so a
             # reference auto-registers the id, numbered by first-reference order.
-            # This mirrors IndexBuilder and keeps the AST registry in sync.
-            unless @bibpaper_index.key?(bib_id)
-              number = @bibpaper_index.size + 1
-              @bibpaper_index.add_item(ReVIEW::Book::Index::Item.new(bib_id, number))
-              register(:bibpaper, bib_id, number: number, caption_node: nil)
+            # This mirrors IndexBuilder and keeps the registry in sync.
+            unless @registry.key?(:bibpaper, bib_id)
+              register(:bibpaper, bib_id, number: next_number(:bibpaper), caption_node: nil)
             end
           end
         when :eq
@@ -478,19 +395,9 @@ module ReVIEW
             eq_id = node.args.first
             check_id(eq_id)
           end
-        when :img
-          # Image references are handled when the actual image blocks are processed
-          # No special processing needed for inline image references
-        when :icon
-          if node.args.first
-            icon_id = node.args.first
-            check_id(icon_id)
-            # Add icon to index if not already present
-            unless @icon_index.key?(icon_id)
-              item = ReVIEW::Book::Index::Item.new(icon_id, @icon_index.size + 1)
-              @icon_index.add_item(item)
-            end
-          end
+        when :img, :icon
+          # Image / icon references resolve to a path at compile time
+          # (ImagePathProcessor); no index entry is needed here.
         when :list, :table
           # These are references, already processed in their respective nodes
         end

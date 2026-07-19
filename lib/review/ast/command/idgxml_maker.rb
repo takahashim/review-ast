@@ -8,7 +8,6 @@
 
 require 'review/idgxmlmaker'
 require 'review/ast'
-require_relative '../book_indexer'
 require 'review/renderer/idgxml_renderer'
 
 module ReVIEW
@@ -30,8 +29,6 @@ module ReVIEW
           if @config.dig('ast', 'debug')
             puts "AST::Command::IdgxmlMaker: Using #{@processor_type} processor"
           end
-
-          ReVIEW::AST::BookIndexer.build(book)
 
           @renderer_adapter = create_converter(book)
           @converter = @renderer_adapter

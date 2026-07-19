@@ -11,7 +11,6 @@ require 'review/latexbuilder'
 require 'review/renderer/latex_renderer'
 require 'review/ast'
 require 'review/ast/compiler'
-require 'review/ast/book_indexer'
 require 'review/book'
 require 'review/configure'
 require 'review/i18n'
@@ -188,12 +187,13 @@ module ReVIEW
           # Initialize I18n
           I18n.setup(book_config['language'])
 
-          # Create book instance
+          # Create book instance and generate its indexes while the working
+          # directory is the book dir. This warms the ImageFinder directory cache
+          # (imagedir resolves relative to cwd), matching how production makers run
+          # inside the book directory; the AST pipeline itself no longer needs a
+          # book-wide index prepass.
           book = Book::Base.new(book_dir, config: book_config)
-
-          # Initialize book-wide indexes early for cross-chapter references
-          ReVIEW::AST::BookIndexer.build(book)
-
+          book.generate_indexes
           book
         end
       end

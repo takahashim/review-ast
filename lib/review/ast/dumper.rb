@@ -29,13 +29,10 @@ module ReVIEW
         # Determine the directory containing the file
         file_dir = File.dirname(File.expand_path(path))
 
-        # Load book from the file's directory and build indexes for cross-references
+        # Load book from the file's directory. Cross-chapter references resolve on
+        # demand via ReferenceResolver#registry_for, so no book-wide prepass is needed.
         Dir.chdir(file_dir) do
           book = ReVIEW::Book::Base.new('.', config: @config)
-
-          # Build book-wide indexes for cross-chapter references (headlines, images, tables, lists, columns, etc.)
-          require_relative('book_indexer')
-          ReVIEW::AST::BookIndexer.build(book)
 
           dump_ast(path, book)
         end

@@ -180,18 +180,13 @@ module ReVIEW
 
           chapter_number ||= 1
 
-          chapter = ReVIEW::Book::Chapter.new(
+          ReVIEW::Book::Chapter.new(
             book,
             chapter_number,
             basename,
             @input_file,
             StringIO.new(content)
           )
-
-          require 'review/ast/book_indexer'
-          ReVIEW::AST::BookIndexer.build(book)
-
-          chapter
         end
 
         def find_chapter_number(book, basename)
