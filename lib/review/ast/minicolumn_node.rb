@@ -14,7 +14,9 @@ module ReVIEW
 
       def initialize(location:, minicolumn_type: nil, caption_node: nil, **kwargs)
         super(location: location, **kwargs)
-        @minicolumn_type = minicolumn_type # :note, :memo, :tip, :info, :warning, :important, :caution, :notice
+        # :note, :memo, :tip, :info, :warning, :important, :caution, :notice.
+        # Canonicalize to a Symbol at construction (fresh compile or deserialized).
+        @minicolumn_type = minicolumn_type&.to_sym
         @caption_node = caption_node
       end
 
@@ -30,9 +32,7 @@ module ReVIEW
       def self.deserialize_from_hash(hash)
         node = new(
           location: ReVIEW::AST::JSONSerializer.restore_location(hash),
-          # The compiler makes minicolumn_type a Symbol (e.g. :note); restore it
-          # from the JSON String so renderers dispatching on the bare symbol match.
-          minicolumn_type: (hash['minicolumn_type'] || hash['column_type'])&.to_sym,
+          minicolumn_type: hash['minicolumn_type'] || hash['column_type'],
           caption_node: deserialize_caption_from_hash(hash)
         )
         if hash['children']

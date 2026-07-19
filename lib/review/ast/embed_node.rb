@@ -17,7 +17,8 @@ module ReVIEW
 
       def initialize(location:, embed_type: :block, target_builders: nil, content: '', **kwargs)
         super(location: location, content: content, **kwargs)
-        @embed_type = embed_type # :block, :inline, or :raw
+        # :block, :inline, or :raw. Canonicalize to a Symbol at construction.
+        @embed_type = (embed_type || :block).to_sym
         @target_builders = target_builders # Array of builder names, nil means all builders
       end
 
@@ -63,7 +64,7 @@ module ReVIEW
       def self.deserialize_from_hash(hash)
         new(
           location: ReVIEW::AST::JSONSerializer.restore_location(hash),
-          embed_type: hash['embed_type']&.to_sym || :inline,
+          embed_type: hash['embed_type'] || :inline,
           target_builders: hash['target_builders'],
           content: hash['content'] || ''
         )

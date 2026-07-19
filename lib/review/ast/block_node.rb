@@ -16,7 +16,8 @@ module ReVIEW
 
       def initialize(location:, block_type:, args: nil, caption_node: nil, **kwargs)
         super(location: location, **kwargs)
-        @block_type = block_type # :quote, :read, etc.
+        # :quote, :read, etc. Canonicalize to a Symbol at construction.
+        @block_type = block_type&.to_sym
         @args = args || []
         @caption_node = caption_node
       end
@@ -31,10 +32,9 @@ module ReVIEW
       end
 
       def self.deserialize_from_hash(hash)
-        block_type = hash['block_type'] ? hash['block_type'].to_sym : :quote
         node = new(
           location: ReVIEW::AST::JSONSerializer.restore_location(hash),
-          block_type: block_type,
+          block_type: hash['block_type'] || :quote,
           args: hash['args'],
           caption_node: deserialize_caption_from_hash(hash)
         )

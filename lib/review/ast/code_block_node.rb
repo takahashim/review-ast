@@ -17,7 +17,7 @@ module ReVIEW
         @lang = lang
         @caption_node = caption_node
         @line_numbers = line_numbers
-        @code_type = code_type
+        @code_type = code_type&.to_sym # canonicalize to Symbol at construction
         @first_line_num = first_line_num
         @children = []
       end
@@ -96,9 +96,7 @@ module ReVIEW
           caption_node: deserialize_caption_from_hash(hash),
           lang: hash['lang'],
           line_numbers: hash['numbered'] || hash['line_numbers'] || false,
-          # The compiler makes code_type a Symbol (e.g. :list); restore it from
-          # the JSON String so renderers dispatching on the bare symbol match.
-          code_type: hash['code_type']&.to_sym,
+          code_type: hash['code_type'],
           first_line_num: hash['first_line_num'],
           original_text: hash['original_text']
         )

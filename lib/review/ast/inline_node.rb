@@ -10,7 +10,10 @@ module ReVIEW
       def initialize(location:, inline_type: nil, args: nil,
                      target_chapter_id: nil, target_item_id: nil, **kwargs)
         super(location: location, **kwargs)
-        @inline_type = inline_type
+        # Canonicalize to a Symbol at construction (like TableNode/ListNode), so a
+        # fresh compile and a deserialized String behave identically and no
+        # consumer or deserializer has to coerce it.
+        @inline_type = inline_type&.to_sym
         @args = args || []
         @target_chapter_id = target_chapter_id
         @target_item_id = target_item_id
@@ -36,11 +39,7 @@ module ReVIEW
       def self.deserialize_from_hash(hash)
         node = new(
           location: ReVIEW::AST::JSONSerializer.restore_location(hash),
-          # The compiler makes inline_type a Symbol (e.g. :br); JSON round-trips it
-          # as a String, so restore the Symbol. Renderers that dispatch by
-          # convention (render_inline_#{type}) tolerate either, but a case/when on
-          # a bare symbol (TopRenderer) needs the Symbol back.
-          inline_type: (hash['element'] || hash['inline_type'])&.to_sym,
+          inline_type: hash['element'] || hash['inline_type'],
           args: hash['args'] || [],
           target_chapter_id: hash['target_chapter_id'],
           target_item_id: hash['target_item_id']

@@ -25,7 +25,7 @@ module ReVIEW
         super(location: location, **kwargs)
         @level = level
         @number = number
-        @item_type = item_type # :dt, :dd, or nil for regular list items
+        @item_type = item_type&.to_sym # :dt, :dd, or nil; canonicalized at construction
         @term_children = term_children # For definition lists: stores processed term content separately
         @item_number = nil # Absolute item number for ordered lists (set by ListItemNumberingProcessor)
         @source_line_breaks = source_line_breaks || []
@@ -69,7 +69,7 @@ module ReVIEW
           location: ReVIEW::AST::JSONSerializer.restore_location(hash),
           level: hash['level'] || 1,
           number: hash['number'],
-          item_type: hash['item_type']&.to_sym,
+          item_type: hash['item_type'],
           term_children: term_children,
           source_line_breaks: hash['source_line_breaks']
         )

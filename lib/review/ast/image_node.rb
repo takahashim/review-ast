@@ -15,7 +15,7 @@ module ReVIEW
         super(location: location, id: id, content: content, **kwargs)
         @caption_node = caption_node
         @metric = metric
-        @image_type = image_type
+        @image_type = image_type&.to_sym # canonicalize to Symbol at construction
       end
 
       # Override to_h to include ImageNode-specific attributes
@@ -55,7 +55,7 @@ module ReVIEW
           id: hash['id'],
           caption_node: deserialize_caption_from_hash(hash),
           metric: hash['metric'],
-          image_type: hash['image_type']&.to_sym || :image,
+          image_type: hash['image_type'] || :image,
           content: hash['content'] || ''
         )
       end

@@ -21,7 +21,8 @@ module ReVIEW
       def initialize(location:, id:, footnote_type: :footnote)
         super(location: location)
         @id = id
-        @footnote_type = footnote_type # :footnote or :endnote
+        # :footnote or :endnote. Canonicalize to a Symbol at construction.
+        @footnote_type = (footnote_type || :footnote).to_sym
       end
 
       # Convert footnote content to plain text (with markup removed)
@@ -47,7 +48,7 @@ module ReVIEW
         node = new(
           location: ReVIEW::AST::JSONSerializer.restore_location(hash),
           id: hash['id'],
-          footnote_type: hash['footnote_type'] ? hash['footnote_type'].to_sym : :footnote
+          footnote_type: hash['footnote_type']
         )
         if hash['children']
           hash['children'].each do |child_hash|
