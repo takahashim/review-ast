@@ -419,6 +419,19 @@ module ReVIEW
               register(:bibpaper, bib_id, number: number, caption_node: node.caption_node)
               stamp_definition_number(node, number)
             end
+          when 'graph'
+            # //graph[id][command][caption] renders as a numbered image, so it
+            # shares the image counter and gets a stamped definition_number
+            # (matching the legacy ImageIndex, whose item_type is image|graph|
+            # imgtable). Its file is generated at render time, so no path here.
+            if node.args.first
+              graph_id = node.args.first
+              check_id(graph_id)
+              number = @image_index.size + 1
+              @image_index.add_item(ReVIEW::Book::Index::Item.new(graph_id, number))
+              register(:image, graph_id, number: number, caption_node: node.caption_node)
+              stamp_definition_number(node, number)
+            end
           end
         end
 

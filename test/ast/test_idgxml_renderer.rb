@@ -1474,12 +1474,9 @@ EOS
   end
 
   def test_graph_mermaid
-    def @chapter.image(_id)
-      item = Book::Index::Item.new('id', 1, 'id')
-      item.instance_eval { @path = './images/idgxml/id.pdf' }
-      item
-    end
-
+    # //graph renders as a numbered image; its number comes from the stamped
+    # definition_number and its href from the generated file path, so no chapter
+    # image index is involved.
     begin
       require 'playwrightrunner'
     rescue LoadError
