@@ -34,7 +34,6 @@ require 'review/ast/block_node'
 require 'review/ast/column_node'
 require 'review/ast/minicolumn_node'
 require 'review/ast/caption_node'
-require 'review/ast/markdown_html_node'
 require 'review/ast/tex_equation_node'
 
 # AST Processing classes

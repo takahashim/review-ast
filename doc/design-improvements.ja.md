@@ -480,7 +480,7 @@ end
   - 実装済み(render-identity を samples コーパスへ): `test/ast/test_corpus_render_identity.rb` が `samples/syntax-book` の全章を compile→serialize→deserialize し、5レンダラ全てで fresh と reloaded の描画一致を検査(実コンテンツでの round-trip 忠実性ガード)。PBT コーパスへの拡張は残件。
   - 実装済み(render-identity に plaintext / TOP を追加): `test_serialization_round_trip.rb` の RENDERERS に plaintext/TOP を追加。これが `InlineNode#inline_type` の Symbol→String 復元バグを検出(JSON では両方 `"br"` で byte 一致するため round-trip 検査では不可視、TopRenderer の `case ... when :br` が String で外れて `@<br>` の改行が消えていた)。deserialize で `.to_sym` 復元して修正。「シリアライズには現れないが描画に効く差」を捕捉する render-identity の狙いどおりの検出。
   - 実装済み(deserialize フィールド忠実性の系統ガード): `test/ast/test_deserialize_field_fidelity.rb` が包括フィクスチャの fresh と reloaded を並行走査し、全スカラーフィールドの値・クラス一致を検査(既知の良性省略 `ListNode#start_number`/`ListItemNode#item_number` のみ allowlist)。これで新ノード/フィールド追加時の Symbol/String・型変化バグを網羅的に捕捉。同ガードで `CodeBlockNode#code_type`・`MinicolumnNode#minicolumn_type` の同種バグも検出・修正済み。
-  - 実装済み(round-trip 完全性テスト): `test/ast/test_serialization_completeness.rb`。(A) 全具象 Node サブクラスが `deserialize_from_hash` を実装している契約テスト(抽象は `LeafNode` のみと固定。新ノード型追加で deserialize を忘れると失敗)。(B) 21 のソース到達ノード型を1フィクスチャで実体化して byte 往復一致 + 型カバレッジ検証。副産物として、serialize/deserialize が非対称だった `MarkdownHtmlNode`(html_content/html_type を落とし deserialize 無し)を対称化(Markdown 未実装のため直接 round-trip で pin)。
+  - 実装済み(round-trip 完全性テスト): `test/ast/test_serialization_completeness.rb`。(A) 全具象 Node サブクラスが `deserialize_from_hash` を実装している契約テスト(抽象は `LeafNode` のみと固定。新ノード型追加で deserialize を忘れると失敗)。(B) 21 のソース到達ノード型を1フィクスチャで実体化して byte 往復一致 + 型カバレッジ検証。
 
 ---
 
@@ -548,7 +548,7 @@ end
   - 検証: フル `rake` 緑(1057 tests)、rubocop クリーン。DVI `samples/syntax-book` 6/6、round-trip 6/6、render-identity(LaTeX/HTML/IDGXML)6/6。新規フィクスチャ `list_continuation` を `test/ast/test_serialization_round_trip.rb` に追加。
 - 現状の形式名フィールドの棚卸し
   - `ListItemNode#latex_line_breaks` → 解消済み。
-  - `MarkdownHtmlNode#html_content`/`html_type` は残るが、これは「Markdown ソース中に埋め込まれた HTML」というソース事実(入力そのものが HTML)であり、出力形式の決定ではないため許容。
+  - Markdown 中の生 HTML 用の `MarkdownHtmlNode` は削除し、将来 MarkdownCompiler 導入時は `EmbedNode`(形式中立な `content`)を使う方針。format 名フィールドの allowlist も空にした。
 - 実装済み(移行手順 2: `//tsize` の源泉忠実化)
   - `TableNode#col_spec`/`cellwidth`(焼き込まれた LaTeX 文字列)を廃し、生の `//tsize` 引数(例 `"10,18,50"` / `"|latex|10,18,50"` / `"|l|c|r|"`)を `TableNode#tsize` にソース事実・対象中立で保持する。
   - `TsizeProcessor` はフィルタも導出もせず、生の tsize を次の表へ付与して directive を除去するだけにした。これにより共有木が「どのビルダーでコンパイルしたか」に依存しなくなった(従来は `config['builder']` で compile 時にフィルタしていた)。
@@ -558,14 +558,14 @@ end
 - 現状の形式名フィールドの棚卸し
   - `ListItemNode#latex_line_breaks` → 解消済み。
   - `TableNode#col_spec`/`cellwidth` → 解消済み(生の `tsize` に置換、描画時導出)。
-  - `MarkdownHtmlNode#html_content`/`html_type` は残るが、これは「Markdown ソース中に埋め込まれた HTML」というソース事実(入力そのものが HTML)であり、出力形式の決定ではないため許容。
+  - Markdown 中の生 HTML 用の `MarkdownHtmlNode` は削除し、将来 MarkdownCompiler 導入時は `EmbedNode`(形式中立な `content`)を使う方針。format 名フィールドの allowlist も空にした。
 - 移行手順 3(quote の構造的パース): 見送り。前提が実測に反する。
   - この手順の前提は「`build_quote_block_ast` の平坦パースは LATEXBuilder のパース挙動を焼き込んだもの」だが、実測すると LaTeX / HTML / IDGXML の 3 ビルダーすべてが `//quote` 内の `* x` / `1. x` / `: term` を「リストではなく平坦テキスト」として扱う(各 builder の read_block が行をインラインコンパイルするだけ)。
   - つまり `parse_lists: false` は「一つのビルダーの決定」ではなく Re:VIEW 共通のセマンティクスであり、むしろソース忠実(Re:VIEW における quote 内容の意味は「平坦テキスト」)。
   - これを構造的にパース(`parse_lists: true`)すると、(a) ソースの意味を誤って「リスト」と表現し、(b) パリティ維持のため LaTeX だけでなく 3 レンダラ全てに描画時平坦化を要し、(c) 出力上の利点はゼロでリスクだけ増える。よって実装しない。`build_quote_block_ast` のコメントを「全ビルダー共通の挙動」と明確化するに留めた。
   - 「quote 内リストをビルダー間で異ならせるべきか」という仕様の問いは依然として項目 6 のトリアージ対象。ただし現状の全ビルダー一致(平坦)が既定の答えである。
 - 実装済み(lint 水準の検査)
-  - `test/ast/test_no_format_named_fields.rb`: 共有 AST ノードに出力形式名を冠したフィールド(`latex_*`/`html_*`/`idgxml_*`/`top_*`/`epub_*`/`markdown_*`)が無いことを構造的に検査する。`MarkdownHtmlNode#html_content`/`html_type`(ソース事実)だけを理由付きで allowlist。`col_spec`/`latex_line_breaks` 等の再導入を parity スイートに見えない段階で捕捉する。
+  - `test/ast/test_no_format_named_fields.rb`: 共有 AST ノードに出力形式名を冠したフィールド(`latex_*`/`html_*`/`idgxml_*`/`top_*`/`epub_*`/`markdown_*`)が無いことを構造的に検査する。allowlist は空(生 HTML は EmbedNode の `content` で表す方針のため)。`col_spec`/`latex_line_breaks` 等の再導入を parity スイートに見えない段階で捕捉する。
 - 実装済み(IDGXML cellwidth の源泉数値直読)
   - IDGXML は `TableColumnWidthParser`(LaTeX 語彙)で `p{Nmm}` を作ってから regex で数値を逆抽出していたのをやめ、ソースの `//tsize` 数値 CSV(mm)を直接 `split(/\s*,\s*/)` して読む。これは legacy IDGXMLBuilder#table(`@tsize.split(/\s*,\s*/)`)そのままで、LaTeX 経由の往復を排除。`TableColumnWidthParser` は LaTeX renderer と target フィルタ(`value_for_target`)で引き続き使用。
   - 非数値 tsize(`|l|c|r|` のような LaTeX 列指定)は IDGXML では無意味なので幅なし=等分に倒す。これは legacy(tsize target フィルタで idgxml 非該当→nil→等分)とも、旧 AST(非数値を regex で落として空→等分)とも一致。旧コードが `.compact` で偶然マスクしていた `value_for_target` の単一文字 heuristic 差(`|l|c|r|` を generic 扱い)による乖離を、数値 CSV ガードで回避。

@@ -307,12 +307,6 @@ module ReVIEW
             compare_child_node(node.caption_node, @node2.caption_node, 'caption') if node.caption_node || @node2.caption_node
           end
         end
-
-        def visit_markdown_html(node)
-          compare_common(node) do
-            compare_attr(node, :content, 'markdown html content')
-          end
-        end
       end
     end
   end

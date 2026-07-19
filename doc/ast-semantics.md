@@ -50,10 +50,9 @@ an image-bearing node carries a resolved `image_path`.
 | `ColumnNode` | Column (sidebar section) | `label`, `level`, `caption_node` | `===[column]` … `===[/column]` |
 | `FootnoteNode` | Footnote/endnote definition | `id`, `footnote_type` (`footnote`/`endnote`) | `//footnote`, `//endnote` |
 | `TexEquationNode` | Display equation | `id`, `caption_node` | `//texequation` |
-| `EmbedNode` | Raw pass-through for chosen builders | `embed_type`, target builders | `//embed`, `@<embed>`, `//raw`, `@<raw>` |
+| `EmbedNode` | Raw pass-through for chosen builders (also the intended home for raw HTML once Markdown is supported) | `embed_type`, target builders, `content` | `//embed`, `@<embed>`, `//raw`, `@<raw>` |
 | `BlockNode` | Generic block not lowered to a specific node | `block_type`, `args` | `//bibpaper`, `//graph`, `//box`, `//insn`, `//point`, `//term`, `//doorquote`, control commands, … |
 | `DirectiveNode` | A `//directive` that modifies the next node; removed by lowering | `directive_type`, `args` | `//tsize`, `//firstlinenum`, `//noindent`, `//olnum`, `//beginchild`, `//endchild` |
-| `MarkdownHtmlNode` | Raw HTML inside Markdown | `html_content`, `html_type` | Markdown source (Markdown compiler not wired yet) |
 | `LeafNode` | Abstract base for childless content nodes | — | never serialized directly |
 
 ## 2. Pipeline semantics

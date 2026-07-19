@@ -45,10 +45,9 @@
 | `ColumnNode` | コラム | `label`, `level`, `caption_node` | `===[column]` … `===[/column]` |
 | `FootnoteNode` | 脚注/後注の定義 | `id`, `footnote_type`(`footnote`/`endnote`) | `//footnote`, `//endnote` |
 | `TexEquationNode` | 別行立て数式 | `id`, `caption_node` | `//texequation` |
-| `EmbedNode` | 指定ビルダー向けの生の埋め込み | `embed_type`, 対象ビルダー | `//embed`, `@<embed>`, `//raw`, `@<raw>` |
+| `EmbedNode` | 指定ビルダー向けの生の埋め込み(Markdown 対応時の生 HTML もここに載せる想定) | `embed_type`, 対象ビルダー, `content` | `//embed`, `@<embed>`, `//raw`, `@<raw>` |
 | `BlockNode` | 専用ノードへ lowering されない汎用ブロック | `block_type`, `args` | `//bibpaper`, `//graph`, `//box`, `//insn`, `//point`, `//term`, `//doorquote`, 制御命令, … |
 | `DirectiveNode` | 次のノードを修飾する `//directive`。lowering で除去 | `directive_type`, `args` | `//tsize`, `//firstlinenum`, `//noindent`, `//olnum`, `//beginchild`, `//endchild` |
-| `MarkdownHtmlNode` | Markdown 中の生 HTML | `html_content`, `html_type` | Markdown ソース(Markdown コンパイラは未配線) |
 | `LeafNode` | 子を持たない内容ノードの抽象基底 | — | 直接シリアライズされない |
 
 ## 2. パイプラインセマンティクス

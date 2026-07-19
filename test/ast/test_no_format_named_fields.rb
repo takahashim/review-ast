@@ -14,13 +14,10 @@ class TestNoFormatNamedFields < Test::Unit::TestCase
   FORMAT_PREFIXES = %w[latex html idgxml top epub markdown].freeze
 
   # Fields that name a format but record a genuine source fact (the input itself
-  # is that format), with the rationale. Keyed by "file.rb:field".
-  ALLOWED = {
-    # //embed / @<raw> in a Markdown source literally contains HTML; html_content
-    # / html_type describe what the source is, not an output decision.
-    'markdown_html_node.rb:html_content' => 'HTML embedded in Markdown source (source fact)',
-    'markdown_html_node.rb:html_type' => 'HTML embedded in Markdown source (source fact)'
-  }.freeze
+  # is that format), with the rationale. Keyed by "file.rb:field". Currently
+  # empty: raw HTML embedded in Markdown will be modeled with EmbedNode (whose
+  # field is the format-neutral +content+), not a dedicated html_* field.
+  ALLOWED = {}.freeze
 
   def test_no_format_named_attr_fields
     pattern = /attr_(?:reader|accessor|writer)\s+(.+)/

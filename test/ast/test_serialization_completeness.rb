@@ -33,8 +33,8 @@ class TestSerializationCompleteness < Test::Unit::TestCase
   end
 
   # Types reachable by compiling Re:VIEW source into the final (post-lowering)
-  # tree. DirectiveNode is lowered away, LeafNode is abstract, MarkdownHtmlNode is
-  # Markdown-only, so none of them appear here.
+  # tree. DirectiveNode is lowered away and LeafNode is abstract, so neither
+  # appears here.
   SOURCE_REACHABLE = %w[
     DocumentNode HeadlineNode ParagraphNode TextNode InlineNode ReferenceNode
     CodeBlockNode CodeLineNode ImageNode TableNode TableRowNode TableCellNode
@@ -125,23 +125,5 @@ class TestSerializationCompleteness < Test::Unit::TestCase
     covered = types_in(JSON.parse(s1))
     uncovered = SOURCE_REACHABLE - covered.to_a
     assert_empty(uncovered, "fixture missed source-reachable node types: #{uncovered.inspect}")
-  end
-
-  # MarkdownHtmlNode is not reachable from Re:VIEW source (it is Markdown-only and
-  # the Markdown compiler is not wired yet), so the fixture cannot cover it; pin
-  # its round trip directly.
-  def test_markdown_html_node_round_trips
-    node = ReVIEW::AST::MarkdownHtmlNode.new(
-      location: ReVIEW::AST::SourceLocation.new('m.md', 1, 1),
-      html_content: '<!-- /column -->',
-      html_type: :comment
-    )
-    s1 = ReVIEW::AST::JSONSerializer.serialize(node)
-    restored = ReVIEW::AST::JSONSerializer.deserialize(s1)
-
-    assert_instance_of(ReVIEW::AST::MarkdownHtmlNode, restored)
-    assert_equal '<!-- /column -->', restored.html_content
-    assert_equal :comment, restored.html_type
-    assert_equal s1, ReVIEW::AST::JSONSerializer.serialize(restored)
   end
 end
