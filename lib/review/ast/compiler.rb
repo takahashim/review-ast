@@ -109,11 +109,7 @@ module ReVIEW
           # Assign item numbers to ordered list items
           'ReVIEW::AST::Compiler::ListItemNumberingProcessor',
           # Generate auto_id for HeadlineNode (nonum/notoc/nodisp) and ColumnNode
-          'ReVIEW::AST::Compiler::AutoIdProcessor',
-
-          # Resolve image file paths on image/imgtable/icon nodes (independent of
-          # stages A/B; walks the whole tree including captions).
-          'ReVIEW::AST::Compiler::ImagePathProcessor'
+          'ReVIEW::AST::Compiler::AutoIdProcessor'
         ]
       end
 
@@ -139,6 +135,14 @@ module ReVIEW
         end
 
         execute_post_processes
+
+        # Resolve image file paths only for a tree that will be rendered. An
+        # index-only build (reference_resolution: false, e.g. cross-chapter
+        # registry construction) discards the tree, so there is no point walking
+        # it and touching the filesystem to stamp image paths.
+        if reference_resolution
+          ImagePathProcessor.process(@ast_root, chapter: @chapter, compiler: self)
+        end
 
         # Check for accumulated errors (similar to HTMLBuilder's Compiler)
         if @compile_errors
