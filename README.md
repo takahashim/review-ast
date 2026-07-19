@@ -5,10 +5,12 @@ distributed as a **separate gem that depends on the released `review` gem**.
 
 The goal is to develop the AST subsystem independently, with real users and a
 measurable output-parity signal, without requiring a large merge into Re:VIEW
-itself. The only changes the AST code needs in existing Re:VIEW classes are three
-small, purely-additive hooks (34 lines); here they are applied at load time as
-monkey patches in [`lib/review/ast/core_ext.rb`](lib/review/ast/core_ext.rb)
-instead of being merged upstream.
+itself. It runs against the released `review` gem through its public API alone:
+it re-opens no Re:VIEW class and applies no monkey patch. Everything the AST
+owns — its node model, indexes, reference resolution, image paths — lives in
+`ReVIEW::AST`; Re:VIEW is used only as a library of services (source line input,
+the Book/Chapter model for a handful of metadata values, i18n, image lookup, and
+the maker base classes). See [Relationship to Re:VIEW](#relationship-to-review).
 
 ## Status
 
@@ -66,16 +68,26 @@ the localization workflow, and a catalog of divergence classes found so far, and
 that are undocumented or look questionable, so they can be triaged rather than
 mistaken for AST bugs.
 
-## How the upstream hooks work
+## Relationship to Re:VIEW
 
-`core_ext.rb` adds three things to the released `review` gem, each guarded so it
-is a no-op if Re:VIEW ever ships them natively:
+The AST subsystem re-opens no Re:VIEW class and applies no monkey patch; there
+are no back-references from Re:VIEW into the AST either. It touches the released
+gem at three narrow, well-defined interfaces:
 
-| Patched | Change |
-| --- | --- |
-| `ReVIEW::SnapshotLocation` | `#to_h`, `#format_for_error` |
-| `ReVIEW::Book::Index::Item` | `caption_node:` keyword + accessor |
-| `ReVIEW::Book::BookUnit` | `#ast_indexes=` |
+- **Entry** — the compiler feeds `chapter.content` into `ReVIEW::LineInput`. That
+  is the only dependency on Re:VIEW's parser; the lexing (inline, block, headline)
+  is the AST's own.
+- **Renderer initialization** — `Renderer::Base#initialize` bundles chapter →
+  book → config. The values actually read afterwards are `chapter.number` (section
+  numbering), `chapter.id` (links and filenames), `is_a?(ReVIEW::Book::Part)`,
+  `book.imagedir` / `basedir` (asset paths), and `config`.
+- **Reused services** — `ReVIEW::I18n` for localized strings,
+  `ReVIEW::Book::ImageFinder` for image-path resolution, and the maker base
+  classes (PDF / IDGXML / TEXT extend Re:VIEW's own makers).
+
+Reference data, numbering, and image paths are all owned by the AST (stamped on
+the nodes or held in `ReVIEW::AST::ChapterIndexRegistry`), so the renderers read
+nothing back out of Re:VIEW's index objects.
 
 ## License
 

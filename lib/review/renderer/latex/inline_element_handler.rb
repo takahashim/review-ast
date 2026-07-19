@@ -220,7 +220,7 @@ module ReVIEW
           # index lookup. Nil caption node -> "" (an unnumbered image still gets
           # the empty quote), exactly like the legacy Index::Item#caption.
           caption = node.children.first.resolved_data.caption_node&.to_inline_text || ''
-          "#{img}#{ReVIEW::I18n.t('image_quote', caption)}"
+          "#{img}#{@ctx.text_formatter.format_image_quote(caption)}"
         end
 
         # Render equation reference

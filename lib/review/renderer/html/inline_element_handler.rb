@@ -559,8 +559,8 @@ module ReVIEW
           # Match HTMLBuilder#compile_ruby: include the <rp> fallback parentheses
           # (I18n ruby_prefix/postfix) so readers without ruby support still show
           # "base(reading)". HTML5 wraps the base bare; older HTML wraps it in <rb>.
-          prefix = ReVIEW::I18n.t('ruby_prefix')
-          postfix = ReVIEW::I18n.t('ruby_postfix')
+          prefix = @ctx.text_formatter.ruby_prefix
+          postfix = @ctx.text_formatter.ruby_postfix
           if @ctx.book.htmlversion == 5
             %Q(<ruby>#{escape_content(base)}<rp>#{prefix}</rp><rt>#{escape_content(ruby_text)}</rt><rp>#{postfix}</rp></ruby>)
           else

@@ -205,6 +205,15 @@ module ReVIEW
         end
       end
 
+      # Prefix/postfix wrapping a ruby reading in HTML output.
+      def ruby_prefix
+        I18n.t('ruby_prefix')
+      end
+
+      def ruby_postfix
+        I18n.t('ruby_postfix')
+      end
+
       # Format footnote reference mark
       # @param number [Integer] Footnote number
       # @return [String] Formatted footnote mark
