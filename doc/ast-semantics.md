@@ -97,7 +97,7 @@ nodes.
 | `MinicolumnNode` | Small admonition box | `minicolumn_type` | `//note`, `//memo`, `//tip`, `//info`, `//warning`, `//important`, `//caution`, `//notice` |
 | `FootnoteNode` | Footnote and endnote definitions | `id`, `footnote_type` (`footnote`/`endnote`) | `//footnote`, `//endnote` |
 | `TexEquationNode` | Display equation | `id`, `caption_node` | `//texequation` |
-| `EmbedNode` | Raw pass-through for chosen builders (once Markdown input is supported, raw HTML also goes here) | `embed_type`, target builders, `content` | `//embed`, `@<embed>`, `//raw`, `@<raw>` |
+| `EmbedNode` | Raw pass-through for chosen builders. A raw HTML block from Markdown input lands here too (`embed_type: :block`, html only) | `embed_type`, target builders, `content` | `//embed`, `@<embed>`, `//raw`, `@<raw>`, a Markdown HTML block |
 
 ### Generic blocks and transient nodes
 
@@ -184,6 +184,30 @@ The chapter title is the first headline's `raw_caption` (the source-faithful
 caption with markers and label stripped and inline markup kept raw), owned by
 the AST.
 It does not depend on the legacy book model (`BookUnit#title`).
+
+### 2.4 The other input language: Markdown
+
+Re:VIEW notation is not the only input. A chapter whose extension is `.md` is
+handled by `MarkdownCompiler`, which `Compiler.for_chapter` selects by
+extension. The dialect itself is documented in `doc/ast_markdown.ja.md`.
+
+What matters here is that Markdown replaces only the construction of the
+surface tree. `MarkdownCompiler` overrides the parent's
+`build_ast_from_chapter` and nothing else, so the lowering passes, numbering,
+auto ids, reference resolution and image path resolution are all inherited. A
+`.md` chapter's core tree therefore satisfies the same contract as a `.re`
+one (2.1 through 2.3), and renderers downstream do not distinguish the two.
+
+No node type was added for Markdown. Its constructs map onto existing nodes: a
+raw HTML block becomes an `EmbedNode` (`embed_type: :block`, html only) and a
+thematic break becomes `BlockNode(:hr)`. Definition lists are not read from
+Markdown input -- they parse as paragraphs; `ListNode(list_type: :dl)` comes
+from Re:VIEW's `: term`, and on the Markdown side it is an output concern.
+
+Re:VIEW inline notation such as `@<img>{id}` may be written inside Markdown.
+It is not interpreted on the Markdown side: the adapter hands it to the same
+`InlineProcessor` the `.re` path uses, so the same notation cannot build
+different nodes depending on the input language.
 
 ## 3. Command reference
 

@@ -479,6 +479,7 @@ end
   - スキーマ生成は今スキーマを消費する相手がいない(配布構想は近い具体ユースケースでない)。必要になった時点で、既に生成できる実ダンプ(samples/PBT)を introspect して起こす方が DSL 前提より素直。未使用ノードの構造的カバレッジも完全性テストが既に担う。
   - 将来 boilerplate を減らす場合も、全ノードに DSL を強いず「規則的なスカラー群だけを宣言する軽いヘルパを合う所にだけ」適用する方が現実的。
   - 駆動要因の例: 外部の AST 消費者がスキーマ(`additionalProperties: false` 含む)を要求する / 一度に多ノードを触るシリアライズ変更が必要になる。
+  - 運用規則は先行して文書化済み: [ast-format.ja.md](ast-format.ja.md)(草案)が、別名キーの非推奨手順、`ast_format` の版更新判断基準、読み手への適合条件、スキーマとの関係、版更新チェックリストを定める。駆動要因が現れたときはこの規則に従って実装する。
   - 実装済み(render-identity を samples コーパスへ): `test/ast/test_corpus_render_identity.rb` が `samples/syntax-book` の全章を compile→serialize→deserialize し、5レンダラ全てで fresh と reloaded の描画一致を検査(実コンテンツでの round-trip 忠実性ガード)。
   - 実装済み(render-identity を PBT コーパスへ = 検証 CI 化): `test/ast/test_pbt_round_trip_identity.rb` が `tools/pbt` の生成器で固定 seed(1..30)のランダム Re:VIEW 文書を作り、round-trip byte 一致 + 5レンダラの fresh/reloaded 描画一致を検査。builder オラクル不要の自己整合性プロパティで、`rake test` に載るため恒常実行(≈0.3s)。「稀な構文の組み合わせでだけ出るシリアライズ欠落」を通常のテスト実行で捕捉する。
   - 実装済み(render-identity に plaintext / TOP を追加): `test_serialization_round_trip.rb` の RENDERERS に plaintext/TOP を追加。これが `InlineNode#inline_type` の Symbol→String 復元バグを検出(JSON では両方 `"br"` で byte 一致するため round-trip 検査では不可視、TopRenderer の `case ... when :br` が String で外れて `@<br>` の改行が消えていた)。deserialize で `.to_sym` 復元して修正。「シリアライズには現れないが描画に効く差」を捕捉する render-identity の狙いどおりの検出。
@@ -1166,7 +1167,17 @@ review-ast 側には受け口だけが残っている。
    ダングリングだった `.md` 経路(`review-ast-compile` の各ターゲット)がここで機能し始める。
 4. `markdown_renderer.rb`(AST → Markdown)と `diff/markdown.rb`、fixtures テストを移植する。
    ゴールデン `.md` はコピーせず review-ast 側で再生成する(バックアップファイル `*~` は持ち込まない)。
-5. 文書整備。
+5. (完了)文書整備。
+   `doc/ast_markdown.ja.md` を移植し、実装と合っていなかった記述を直した:
+   パーサ名(markly → red_quilt)、`MarkdownHtmlNode`(削除済み)、
+   `DefinitionListNode`/`DefinitionItemNode`(実体は `ListNode(list_type: :dl)` /
+   `ListItemNode(item_type: :dt/:dd)`)、生 HTML の表記(`EmbedNode(:html)` は誤り)。
+   CLI の記述にも誤りがあり実測で訂正した(`--target=ast` は存在せず、
+   `review-ast-dump2re` の入力は `.md` ではなくダンプ JSON)。
+   AST → Markdown 方向は未移植なので、冒頭に実装状況の節を置いて区別した。
+   ast-semantics(英日)には 2.4「もう一つの入力言語: Markdown」を追加し、
+   `EmbedNode` の「将来 Markdown 対応時の想定」という記述を現実に更新した。
+   旧文書整備の項目:
    元ブランチの `doc/ast_markdown.ja.md` を移植し、実装との既知の齟齬(`DefinitionListNode` 表記。実体は `ListNode(list_type: :dl)`)を直す。
    ast-semantics の `EmbedNode` の「Markdown 対応時の想定」記述を現実に更新し、Markdown 入力の節を追加する(項目 6 と合流)。
 

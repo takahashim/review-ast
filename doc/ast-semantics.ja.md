@@ -79,7 +79,7 @@ LaTeX は DVI 一致(TeX の組版結果ファイルどうしの比較。TeX ソ
 | `MinicolumnNode` | 注意書きの小さな囲み | `minicolumn_type` | `//note`, `//memo`, `//tip`, `//info`, `//warning`, `//important`, `//caution`, `//notice` |
 | `FootnoteNode` | 脚注と後注の定義 | `id`, `footnote_type`(`footnote`/`endnote`) | `//footnote`, `//endnote` |
 | `TexEquationNode` | 別行立て数式 | `id`, `caption_node` | `//texequation` |
-| `EmbedNode` | 指定ビルダー向けの生の埋め込み(将来 Markdown 入力に対応する場合、生 HTML もここに載せる) | `embed_type`, 対象ビルダー, `content` | `//embed`, `@<embed>`, `//raw`, `@<raw>` |
+| `EmbedNode` | 指定ビルダー向けの生の埋め込み。Markdown 入力の生 HTML ブロックもここに載る(`embed_type: :block`、対象ビルダーは html のみ) | `embed_type`, 対象ビルダー, `content` | `//embed`, `@<embed>`, `//raw`, `@<raw>`, Markdown の HTML ブロック |
 
 ### 汎用ブロックと一時ノード
 
@@ -134,6 +134,28 @@ core tree に `DirectiveNode` は残らず(残っていればコンパイルエ�
 
 章タイトルは最初の見出しの `raw_caption`(マーカーとラベルを除去し、インライン記法は生のまま残した源泉忠実なキャプション)であり、AST が所有する。
 レガシー book モデル(`BookUnit#title`)には依存しない。
+
+### 2.4 もう一つの入力言語: Markdown
+
+入力言語は Re:VIEW 記法だけではない。拡張子が `.md` の章は `MarkdownCompiler` が扱う
+(`Compiler.for_chapter` が拡張子で振り分ける)。方言の詳細は `doc/ast_markdown.ja.md` を参照。
+
+ここで重要なのは、Markdown が置き換えるのは surface tree の構築だけだという点である。
+`MarkdownCompiler` は親の `build_ast_from_chapter` のみを override し、
+lowering パス群・番号付与・auto id・参照解決・画像パス解決はすべて親から継承する。
+したがって `.md` 章の core tree は `.re` 章と同じ契約(2.1〜2.3)を満たし、
+以降のレンダラは入力言語を区別しない。
+
+新しいノード型は導入していない。Markdown 固有の構成物は既存のノードに写る。
+生の HTML ブロックは `EmbedNode`(`embed_type: :block`、対象ビルダーは html のみ)、
+水平線は `BlockNode(:hr)` である。
+なお定義リストは Markdown 入力としては解釈しない(段落になる)。
+`ListNode(list_type: :dl)` は Re:VIEW の `: 用語` から作られるものであり、
+Markdown 側では出力方向の話題である。
+
+Re:VIEW のインライン記法(`@<img>{id}` など)は Markdown 中でもそのまま書ける。
+その解釈は Markdown 側で行わず、`.re` 経路と同じ `InlineProcessor` に委譲する。
+同じ記法が入力言語によって別のノードにならないことを、実装の共有によって保証している。
 
 ## 3. 命令リファレンス
 
