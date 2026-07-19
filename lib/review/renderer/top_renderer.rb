@@ -57,9 +57,7 @@ module ReVIEW
 
       def initialize(chapter)
         super
-        @minicolumn_stack = []
         @table_row_separator_count = 0
-        @rendering_context = nil
         # Loggable#warn goes through this; without it, warning about an unbound
         # image would raise instead of reporting.
         @logger = ReVIEW.logger
@@ -400,8 +398,6 @@ module ReVIEW
         result = +''
         minicolumn_title = TITLES[node.minicolumn_type.to_sym] || node.minicolumn_type.to_s
 
-        @minicolumn_stack.push(node.minicolumn_type)
-
         result += "\n"
         result += "◆→開始:#{minicolumn_title}←◆\n"
 
@@ -416,8 +412,6 @@ module ReVIEW
 
         result += "◆→終了:#{minicolumn_title}←◆\n"
         result += "\n"
-
-        @minicolumn_stack.pop
 
         result
       end

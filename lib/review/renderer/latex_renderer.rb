@@ -30,9 +30,7 @@ module ReVIEW
 
         # For AST rendering, we need to set up indexing properly
         # The indexing will be done when we process the AST
-        @ast_indexer = nil
         @ast_compiler = nil
-        @list_structure_normalizer = nil
 
         I18n.setup(config['language'] || 'ja')
 

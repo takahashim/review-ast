@@ -50,10 +50,7 @@ module ReVIEW
         @config = @book&.config || {}
         @render_context = ReVIEW::AST::RenderContext.from_chapter(chapter)
         super()
-        @text_formatter = ReVIEW::Renderer::TextFormatter.new(
-          config: @config,
-          chapter: @chapter
-        )
+        @text_formatter = ReVIEW::Renderer::TextFormatter.new(config: @config)
       end
 
       attr_reader :text_formatter, :render_context

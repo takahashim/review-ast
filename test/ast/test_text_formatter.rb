@@ -28,11 +28,6 @@ class TestTextFormatter < Test::Unit::TestCase
     assert_equal @config, formatter.config
   end
 
-  def test_initialize_with_chapter
-    formatter = ReVIEW::Renderer::TextFormatter.new(config: @config, chapter: @chapter)
-    assert_equal @chapter, formatter.chapter
-  end
-
   # Test format_caption
   def test_format_caption_html_with_caption_text
     formatter = ReVIEW::Renderer::TextFormatter.new(config: @config)
@@ -212,7 +207,7 @@ class TestTextFormatter < Test::Unit::TestCase
   end
 
   # Test error handling for unknown reference type
-  def test_format_reference_text_unknown_type
+  def test_format_reference_unknown_type
     formatter = ReVIEW::Renderer::TextFormatter.new(config: @config)
     data = ResolvedData.image(
       chapter_number: 1,
@@ -222,12 +217,12 @@ class TestTextFormatter < Test::Unit::TestCase
     )
 
     assert_raise(ArgumentError) do
-      formatter.format_reference_text(:unknown_type, data)
+      formatter.format_reference(:unknown_type, data)
     end
   end
 
-  # Test format_reference_text (plain text output without format-specific decorations)
-  def test_format_reference_text_image
+  # Test format_reference
+  def test_format_reference_image
     formatter = ReVIEW::Renderer::TextFormatter.new(config: @config)
     data = ResolvedData.image(
       chapter_number: 1,
@@ -235,13 +230,13 @@ class TestTextFormatter < Test::Unit::TestCase
       item_id: 'img1',
       chapter_type: :chapter
     )
-    result = formatter.format_reference_text(:image, data)
+    result = formatter.format_reference(:image, data)
     # Should return plain text like "図1.1" without HTML tags
     assert_equal '図1.1', result
     assert_no_match(/</, result) # No HTML tags
   end
 
-  def test_format_reference_text_table
+  def test_format_reference_table
     formatter = ReVIEW::Renderer::TextFormatter.new(config: @config)
     data = ResolvedData.table(
       chapter_number: 2,
@@ -249,12 +244,12 @@ class TestTextFormatter < Test::Unit::TestCase
       item_id: 'tbl1',
       chapter_type: :chapter
     )
-    result = formatter.format_reference_text(:table, data)
+    result = formatter.format_reference(:table, data)
     assert_equal '表2.3', result
     assert_no_match(/</, result)
   end
 
-  def test_format_reference_text_list
+  def test_format_reference_list
     formatter = ReVIEW::Renderer::TextFormatter.new(config: @config)
     data = ResolvedData.list(
       chapter_number: 1,
@@ -262,12 +257,12 @@ class TestTextFormatter < Test::Unit::TestCase
       item_id: 'list1',
       chapter_type: :chapter
     )
-    result = formatter.format_reference_text(:list, data)
+    result = formatter.format_reference(:list, data)
     assert_equal 'リスト1.2', result
     assert_no_match(/</, result)
   end
 
-  def test_format_reference_text_equation
+  def test_format_reference_equation
     formatter = ReVIEW::Renderer::TextFormatter.new(config: @config)
     data = ResolvedData.equation(
       chapter_number: 3,
@@ -275,22 +270,22 @@ class TestTextFormatter < Test::Unit::TestCase
       item_id: 'eq1',
       chapter_type: :chapter
     )
-    result = formatter.format_reference_text(:equation, data)
+    result = formatter.format_reference(:equation, data)
     assert_equal '式3.1', result
     assert_no_match(/</, result)
   end
 
-  def test_format_reference_text_footnote
+  def test_format_reference_footnote
     formatter = ReVIEW::Renderer::TextFormatter.new(config: @config)
     data = ResolvedData.footnote(
       item_number: 5,
       item_id: 'fn1'
     )
-    result = formatter.format_reference_text(:footnote, data)
+    result = formatter.format_reference(:footnote, data)
     assert_equal '5', result
   end
 
-  def test_format_reference_text_chapter
+  def test_format_reference_chapter
     formatter = ReVIEW::Renderer::TextFormatter.new(config: @config)
     data = ResolvedData.chapter(
       chapter_number: 1,
@@ -299,19 +294,19 @@ class TestTextFormatter < Test::Unit::TestCase
       chapter_title: 'Introduction',
       chapter_type: :chapter
     )
-    result = formatter.format_reference_text(:chapter, data)
+    result = formatter.format_reference(:chapter, data)
     # Should include chapter number and title formatted by I18n
     assert_match(/第1章/, result)
     assert_match(/Introduction/, result)
   end
 
-  def test_format_reference_text_word
+  def test_format_reference_word
     formatter = ReVIEW::Renderer::TextFormatter.new(config: @config)
     data = ResolvedData.word(
       word_content: 'Ruby',
       item_id: 'ruby'
     )
-    result = formatter.format_reference_text(:word, data)
+    result = formatter.format_reference(:word, data)
     assert_equal 'Ruby', result
   end
 end

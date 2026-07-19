@@ -85,7 +85,6 @@ module ReVIEW
         @rendering_context = RenderingContext.new(:document)
 
         # Initialize AST helpers
-        @ast_indexer = nil
         @ast_compiler = nil
 
         # Initialize IDGXML-specific inline context and inline element handler
@@ -920,11 +919,6 @@ module ReVIEW
 
       # Helpers
 
-      def over_secnolevel?(n)
-        secnolevel = config['secnolevel'] || 2
-        secnolevel >= n.to_s.split('.').size
-      end
-
       # Render inline elements from caption_node
       # @param caption_node [CaptionNode] Caption node to render
       # @return [String] Rendered inline elements
@@ -1745,17 +1739,6 @@ module ReVIEW
       end
 
       # Parse tsize target specification like |idgxml|2 or |idgxml,html|2
-      def parse_tsize_target(arg)
-        # Format: |target1,target2,...|value
-        if arg =~ /\A\|([^|]+)\|(.+)/
-          targets = Regexp.last_match(1).split(',').map(&:strip)
-          value = Regexp.last_match(2)
-          [targets, value]
-        else
-          # No target specification (malformed)
-          [nil, arg]
-        end
-      end
 
       # Get tabwidth setting (default to 8)
       def tabwidth

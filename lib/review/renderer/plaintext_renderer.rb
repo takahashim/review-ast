@@ -21,7 +21,6 @@ module ReVIEW
 
       def initialize(chapter)
         super
-        @blank_seen = true
         @ol_num = nil
         @logger = ReVIEW.logger
         # Section numbering, as in the legacy builders (LaTeX/HTML/IDGXML
@@ -676,11 +675,6 @@ module ReVIEW
         result += "\n"
 
         result
-      end
-
-      def over_secnolevel?(n, _chapter = nil)
-        secnolevel = config['secnolevel'] || 0
-        secnolevel >= n.to_s.split('.').size
       end
 
       def escape(str)

@@ -22,14 +22,12 @@ module ReVIEW
     # - Format-agnostic core with format-specific decorations
     # - Reusable from Renderer, InlineElementHandler, and ResolvedData
     class TextFormatter
-      attr_reader :config, :chapter
+      attr_reader :config
 
       # Initialize formatter
       # @param config [Hash] Configuration hash
-      # @param chapter [Chapter, nil] Current chapter (optional, used for HTML reference links)
-      def initialize(config:, chapter: nil)
+      def initialize(config:)
         @config = config
-        @chapter = chapter
       end
 
       # Format a numbered item's caption for HTML/LaTeX (e.g., "図1.1: キャプション")
@@ -90,40 +88,6 @@ module ReVIEW
           I18n.t('format_number_header', [chapter_number, item_number])
         else
           I18n.t('format_number_header_without_chapter', [item_number])
-        end
-      end
-
-      # Format a reference as plain text (without format-specific decorations)
-      # This method returns pure text suitable for wrapping with HTML tags, LaTeX commands, etc.
-      # @param type [Symbol] Reference type (:image, :table, :list, :equation, etc.)
-      # @param data [ResolvedData] Resolved reference data
-      # @return [String] Plain text reference (e.g., "図1.1", "表2.3")
-      def format_reference_text(type, data)
-        case type
-        when :image
-          format_numbered_reference_text('image', data)
-        when :table
-          format_numbered_reference_text('table', data)
-        when :list
-          format_numbered_reference_text('list', data)
-        when :equation
-          format_numbered_reference_text('equation', data)
-        when :footnote
-          format_footnote_reference_text(data)
-        when :endnote
-          format_endnote_reference_text(data)
-        when :chapter
-          format_chapter_reference_text(data)
-        when :headline
-          format_headline_reference_text(data)
-        when :column
-          format_column_reference_text(data)
-        when :bibpaper
-          format_bibpaper_reference_text(data)
-        when :word
-          data.word_content.to_s
-        else
-          raise ArgumentError, "Unknown reference type: #{type}"
         end
       end
 
@@ -286,7 +250,7 @@ module ReVIEW
       # @param data [ResolvedData] Resolved reference data
       # @param html_css_class [String] CSS class for HTML output (unused, kept for compatibility)
       # @return [String] Formatted reference without caption (e.g., "図1.1")
-      def format_numbered_reference(label_key, data, _html_css_class)
+      def format_numbered_reference(label_key, data)
         # Use short form of chapter number for figure/table/list references
         chapter_number_short = format_chapter_number_short(data.chapter_number, data.chapter_type)
 
@@ -295,17 +259,17 @@ module ReVIEW
 
       # Format image reference
       def format_image_reference(data)
-        format_numbered_reference('image', data, 'imgref')
+        format_numbered_reference('image', data)
       end
 
       # Format table reference
       def format_table_reference(data)
-        format_numbered_reference('table', data, 'tableref')
+        format_numbered_reference('table', data)
       end
 
       # Format list reference
       def format_list_reference(data)
-        format_numbered_reference('list', data, 'listref')
+        format_numbered_reference('list', data)
       end
 
       # Format equation reference
@@ -396,94 +360,6 @@ module ReVIEW
       end
 
       # Check if string is numeric
-      def numeric_string?(value)
-        value.to_s.match?(/\A-?\d+\z/)
-      end
-
-      # Format numbered reference as plain text (image, table, list, equation)
-      # @param label_key [String] I18n key for the label (e.g., 'image', 'table', 'list')
-      # @param data [ResolvedData] Resolved reference data
-      # @return [String] Plain text reference (e.g., "図1.1", "表2.3")
-      def format_numbered_reference_text(label_key, data)
-        # Use short form of chapter number for figure/table/list references
-        chapter_number_short = format_chapter_number_short(data.chapter_number, data.chapter_type)
-        label = I18n.t(label_key)
-        number_text = format_number(chapter_number_short, data.item_number)
-        "#{label}#{number_text}"
-      end
-
-      # Format footnote reference as plain text
-      # @param data [ResolvedData] Resolved reference data
-      # @return [String] Plain text reference
-      def format_footnote_reference_text(data)
-        data.item_number.to_s
-      end
-
-      # Format endnote reference as plain text
-      # @param data [ResolvedData] Resolved reference data
-      # @return [String] Plain text reference
-      def format_endnote_reference_text(data)
-        data.item_number.to_s
-      end
-
-      # Format chapter reference as plain text
-      # @param data [ResolvedData] Resolved reference data
-      # @return [String] Plain text reference
-      def format_chapter_reference_text(data)
-        chapter_title = data.chapter_title
-
-        # Use full form of chapter number for chapter references
-        chapter_number_full = format_chapter_number_full(data.chapter_number, data.chapter_type)
-
-        if chapter_title && !chapter_number_full.empty?
-          I18n.t('chapter_quote', [chapter_number_full, chapter_title])
-        elsif chapter_title
-          I18n.t('chapter_quote_without_number', chapter_title)
-        elsif !chapter_number_full.empty?
-          chapter_number_full
-        else
-          data.item_id || ''
-        end
-      end
-
-      # Format headline reference as plain text
-      # @param data [ResolvedData] Resolved reference data
-      # @return [String] Plain text reference
-      def format_headline_reference_text(data)
-        caption = data.caption_text
-        headline_numbers = Array(data.headline_number).compact
-
-        if !headline_numbers.empty?
-          # Use short form of chapter number for headline references
-          chapter_number_short = format_chapter_number_short(data.chapter_number, data.chapter_type)
-
-          # Build full number with chapter number if available
-          number_str = if chapter_number_short.empty?
-                         headline_numbers.join('.')
-                       else
-                         ([chapter_number_short] + headline_numbers).join('.')
-                       end
-          I18n.t('hd_quote', [number_str, caption])
-        elsif !caption.empty?
-          I18n.t('hd_quote_without_number', caption)
-        else
-          data.item_id || ''
-        end
-      end
-
-      # Format column reference as plain text
-      # @param data [ResolvedData] Resolved reference data
-      # @return [String] Plain text reference
-      def format_column_reference_text(data)
-        I18n.t('column', data.caption_text)
-      end
-
-      # Format bibpaper reference as plain text
-      # @param data [ResolvedData] Resolved reference data
-      # @return [String] Plain text reference
-      def format_bibpaper_reference_text(data)
-        "[#{data.item_number}]"
-      end
     end
   end
 end

@@ -240,7 +240,7 @@ module ReVIEW
           end
 
           data = ref_node.resolved_data
-          text = @ctx.text_formatter.format_reference_text(:list, data)
+          text = @ctx.text_formatter.format_reference(:list, data)
           wrap_reference_with_html(text, data, 'listref')
         end
 
@@ -251,7 +251,7 @@ module ReVIEW
           end
 
           data = ref_node.resolved_data
-          text = @ctx.text_formatter.format_reference_text(:table, data)
+          text = @ctx.text_formatter.format_reference(:table, data)
           wrap_reference_with_html(text, data, 'tableref')
         end
 
@@ -262,7 +262,7 @@ module ReVIEW
           end
 
           data = ref_node.resolved_data
-          text = @ctx.text_formatter.format_reference_text(:image, data)
+          text = @ctx.text_formatter.format_reference(:image, data)
           wrap_reference_with_html(text, data, 'imgref')
         end
 
@@ -432,7 +432,7 @@ module ReVIEW
           end
 
           data = ref_node.resolved_data
-          text = @ctx.text_formatter.format_reference_text(:equation, data)
+          text = @ctx.text_formatter.format_reference(:equation, data)
           wrap_reference_with_html(text, data, 'eqref')
         end
 
