@@ -36,7 +36,11 @@ module ReVIEW
       def self.deserialize_from_hash(hash)
         node = new(
           location: ReVIEW::AST::JSONSerializer.restore_location(hash),
-          inline_type: hash['element'] || hash['inline_type'],
+          # The compiler makes inline_type a Symbol (e.g. :br); JSON round-trips it
+          # as a String, so restore the Symbol. Renderers that dispatch by
+          # convention (render_inline_#{type}) tolerate either, but a case/when on
+          # a bare symbol (TopRenderer) needs the Symbol back.
+          inline_type: (hash['element'] || hash['inline_type'])&.to_sym,
           args: hash['args'] || [],
           target_chapter_id: hash['target_chapter_id'],
           target_item_id: hash['target_item_id']

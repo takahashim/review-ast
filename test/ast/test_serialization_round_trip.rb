@@ -7,6 +7,8 @@ require 'review/ast/json_serializer'
 require 'review/renderer/latex_renderer'
 require 'review/renderer/html_renderer'
 require 'review/renderer/idgxml_renderer'
+require 'review/renderer/plaintext_renderer'
+require 'review/renderer/top_renderer'
 require 'stringio'
 
 # Serialization fidelity tests (doc/design-improvements #4).
@@ -41,7 +43,9 @@ class TestSerializationRoundTrip < Test::Unit::TestCase
   RENDERERS = {
     latex: ReVIEW::Renderer::LatexRenderer,
     html: ReVIEW::Renderer::HtmlRenderer,
-    idgxml: ReVIEW::Renderer::IdgxmlRenderer
+    idgxml: ReVIEW::Renderer::IdgxmlRenderer,
+    plaintext: ReVIEW::Renderer::PlaintextRenderer,
+    top: ReVIEW::Renderer::TopRenderer
   }.freeze
 
   SOURCES.each do |name, source|
