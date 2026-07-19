@@ -473,10 +473,12 @@ end
   - `deserialize` はエンベロープを自動判別(`unwrap_document`): `ast_format`+`root` があれば版を検証して中身を取り出し、無ければ従来どおり bare ノードとして読む。未知の版は黙って誤読せず `StandardError`。`review-ast-dump2re` は `deserialize` 経由なので新旧両形式を読める。
   - コアの `serialize()` は据え置き(ノード単体のシリアライズは bare のまま)なので、既存テスト(`parsed['type']` を最上位で見る 31 箇所)への波及なし。境界テスト `test_dumper.rb` のみエンベロープに更新し、ヘッダ検証を追加。
   - テスト: `test_serialization_round_trip.rb` にエンベロープの round-trip バイト同一・版/generator の存在・bare/enveloped 両受理・未知版の拒否を追加。dump→dump2re の実フローも確認。フル `rake` 緑(1075 tests)、rubocop クリーン。
-- 積み残し(後付けの糖衣・契約。目的が要るときに)
-  - フィールド宣言 DSL(`serialize_fields`)。乖離防止目的ではなく、スキーマ自動導出・未使用ノードの構造的カバレッジ・boilerplate 削減が正当化理由。設計の見直しどおり優先度は低い(乖離防止は round-trip / render-identity とクラス設計で達成済み)。
-  - 別名キーの非推奨化(版更新で落とす)。
-  - スキーマ生成・`additionalProperties: false`・CI でのコーパス検証(現状の `json_schema` は装飾品のまま)。DSL のフィールド宣言からの導出が前提。
+- 見送り(2026-07 判断): フィールド宣言 DSL(`serialize_fields`)・スキーマ生成・別名キー非推奨化。以下の理由で、具体的な駆動要因が現れるまで実装しない。
+  - 乖離防止という当初の主目的は別手段で達成済み: 型判別子のコンストラクタ正規化統一(Symbol/String バグの根治)、全ノード型 deserialize 契約テスト、スカラーフィールド忠実性テスト、samples/PBT の render-identity、drift の温床だった `to_h` の撤去(表現を1系統化)。DSL で防ぐ必要がない。
+  - boilerplate 削減は残るが効果は限定的。不規則シリアライズ(TableNode の header/body、CaptionNode の空→`''`、ReferenceNode の resolved_data、`if id?`/`start_number != 1`/`footnote_type.to_s` 等の条件付き)を素朴な DSL では表現できず、escape hatch を足すほど旨みが薄れる。規則的な一部だけ DSL 化し不規則な残りは手書き、という中途半端になりやすい。
+  - スキーマ生成は今スキーマを消費する相手がいない(配布構想は近い具体ユースケースでない)。必要になった時点で、既に生成できる実ダンプ(samples/PBT)を introspect して起こす方が DSL 前提より素直。未使用ノードの構造的カバレッジも完全性テストが既に担う。
+  - 将来 boilerplate を減らす場合も、全ノードに DSL を強いず「規則的なスカラー群だけを宣言する軽いヘルパを合う所にだけ」適用する方が現実的。
+  - 駆動要因の例: 外部の AST 消費者がスキーマ(`additionalProperties: false` 含む)を要求する / 一度に多ノードを触るシリアライズ変更が必要になる。
   - 実装済み(render-identity を samples コーパスへ): `test/ast/test_corpus_render_identity.rb` が `samples/syntax-book` の全章を compile→serialize→deserialize し、5レンダラ全てで fresh と reloaded の描画一致を検査(実コンテンツでの round-trip 忠実性ガード)。
   - 実装済み(render-identity を PBT コーパスへ = 検証 CI 化): `test/ast/test_pbt_round_trip_identity.rb` が `tools/pbt` の生成器で固定 seed(1..30)のランダム Re:VIEW 文書を作り、round-trip byte 一致 + 5レンダラの fresh/reloaded 描画一致を検査。builder オラクル不要の自己整合性プロパティで、`rake test` に載るため恒常実行(≈0.3s)。「稀な構文の組み合わせでだけ出るシリアライズ欠落」を通常のテスト実行で捕捉する。
   - 実装済み(render-identity に plaintext / TOP を追加): `test_serialization_round_trip.rb` の RENDERERS に plaintext/TOP を追加。これが `InlineNode#inline_type` の Symbol→String 復元バグを検出(JSON では両方 `"br"` で byte 一致するため round-trip 検査では不可視、TopRenderer の `case ... when :br` が String で外れて `@<br>` の改行が消えていた)。deserialize で `.to_sym` 復元して修正。「シリアライズには現れないが描画に効く差」を捕捉する render-identity の狙いどおりの検出。
