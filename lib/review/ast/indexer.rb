@@ -354,6 +354,11 @@ module ReVIEW
       def visit_image(node)
         if node.id?
           check_id(node.id)
+          # Resolve the image file path once, at compile time, and stamp it on the
+          # node (a source-derived fact, like definition_number). The finder is
+          # filesystem- and builder-specific; doing it here means renderers read
+          # node.image_path and need no chapter image index (doc/design-improvements #7).
+          node.image_path = @image_index.find_path(node.id)
           caption_text = extract_caption_text(node.caption_node)
           # Only //image is numbered (@image_index). //indepimage and
           # //numberlessimage are unnumbered and go to @indepimage_index,

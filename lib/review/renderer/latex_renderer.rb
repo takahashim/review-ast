@@ -732,7 +732,8 @@ module ReVIEW
       end
 
       def visit_regular_image(node, caption)
-        image_path = find_image_path(node.id)
+        # Path resolved at compile time and stamped on the node (no chapter index).
+        image_path = node.image_path
 
         if image_path
           render_existing_image(node, image_path, caption, with_label: true)
@@ -742,7 +743,8 @@ module ReVIEW
       end
 
       def visit_indepimage(node, caption)
-        image_path = find_image_path(node.id)
+        # Path resolved at compile time and stamped on the node (no chapter index).
+        image_path = node.image_path
 
         if image_path
           render_existing_indepimage(node, image_path, caption)
