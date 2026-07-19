@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'json'
+require_relative 'definition_number'
 
 module ReVIEW
   module AST
@@ -64,6 +65,21 @@ module ReVIEW
         [caption_string, caption_node]
       end
 
+      # Restore the cross-cutting base-node fields written by
+      # Node#serialize_common_node_fields: the Indexer-stamped definition_number
+      # and the //noindent flag.
+      def restore_common_node_fields(node, hash)
+        dn = hash['definition_number']
+        if dn.is_a?(Hash)
+          node.definition_number = ReVIEW::AST::DefinitionNumber.new(
+            number: dn['number'],
+            chapter_number: dn['chapter_number']
+          )
+        end
+
+        node.noindent = true if hash['noindent']
+      end
+
       # Helper method to create location from hash or use a default
       def restore_location(hash)
         location_data = hash['location']
@@ -73,7 +89,7 @@ module ReVIEW
         lineno = location_data['lineno']
         return nil unless filename && lineno
 
-        ReVIEW::SnapshotLocation.new(filename, lineno)
+        ReVIEW::AST::SourceLocation.new(filename, lineno, location_data['column'])
       end
 
       # Deserialize hash to AST node
@@ -102,8 +118,12 @@ module ReVIEW
             raise StandardError, "Node class #{node_type} does not implement deserialize_from_hash method."
           end
 
-          # Delegate to the node class
-          node_class.deserialize_from_hash(hash)
+          # Delegate to the node class, then restore the cross-cutting base-node
+          # fields (definition_number, //noindent) that the base
+          # Node#serialize_common_node_fields wrote.
+          node = node_class.deserialize_from_hash(hash)
+          restore_common_node_fields(node, hash) if node.is_a?(ReVIEW::AST::Node)
+          node
         else
           raise StandardError, "invalid hash: `#{hash}`"
         end
@@ -128,7 +148,8 @@ module ReVIEW
               'type' => 'object',
               'properties' => {
                 'filename' => { 'type' => ['string', 'null'] },
-                'lineno' => { 'type' => ['integer', 'null'] }
+                'lineno' => { 'type' => ['integer', 'null'] },
+                'column' => { 'type' => ['integer', 'null'] }
               }
             },
             'children' => {

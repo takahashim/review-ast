@@ -13,7 +13,7 @@ class TestASTJSONSerialization < Test::Unit::TestCase
   include ReVIEW
 
   def setup
-    @location = SnapshotLocation.new('test.re', 42)
+    @location = ReVIEW::AST::SourceLocation.new('test.re', 42)
   end
 
   def test_basic_node_serialization
