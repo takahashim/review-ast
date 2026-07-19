@@ -12,21 +12,22 @@ require_relative 'result'
 module ReVIEW
   module AST
     module Diff
-      # Latex comparator with configurable normalization options
+      # Latex comparator: a coarse, text-level sieve.
       #
-      # Compares LaTeX strings with options to ignore whitespace differences,
-      # blank lines, and normalize command formatting.
+      # This does not decide LaTeX equivalence -- typesetting does. The parity
+      # harness (tools/compare_book.rb) compiles both outputs and compares the
+      # DVI, so this only has to be good enough to surface differences while
+      # reading, which is why it can normalize as aggressively as it does (the
+      # whitespace pass collapses space around every backslash, including
+      # around a forced break).
+      #
+      # Blank lines, paragraph breaks and command spacing are always
+      # normalized. Only whitespace collapsing is optional, because one test
+      # compares a space-sensitive pair and has to see the difference.
       class Latex
-        # @param ignore_whitespace [Boolean] Normalize whitespace for comparison
-        # @param ignore_blank_lines [Boolean] Remove blank lines before comparison
-        # @param ignore_paragraph_breaks [Boolean] Normalize paragraph breaks
-        # @param normalize_commands [Boolean] Normalize LaTeX command formatting
-        def initialize(ignore_whitespace: true, ignore_blank_lines: true,
-                       ignore_paragraph_breaks: true, normalize_commands: true)
+        # @param ignore_whitespace [Boolean] Collapse whitespace before comparing
+        def initialize(ignore_whitespace: true)
           @ignore_whitespace = ignore_whitespace
-          @ignore_blank_lines = ignore_blank_lines
-          @ignore_paragraph_breaks = ignore_paragraph_breaks
-          @normalize_commands = normalize_commands
         end
 
         # Compare two LaTeX strings
@@ -70,18 +71,9 @@ module ReVIEW
 
           normalized = latex.dup
 
-          # Handle paragraph breaks before removing blank lines
-          if @ignore_paragraph_breaks
-            # Normalize paragraph breaks (multiple newlines) to single newlines
-            normalized = normalized.gsub(/\n\n+/, "\n")
-          end
-
-          if @ignore_blank_lines
-            # Remove blank lines (but preserve paragraph structure if configured)
-            lines = normalized.split("\n")
-            lines = lines.reject { |line| line.strip.empty? }
-            normalized = lines.join("\n")
-          end
+          # Collapse paragraph breaks, then drop the blank lines that leaves.
+          normalized = normalized.gsub(/\n\n+/, "\n")
+          normalized = normalized.split("\n").reject { |line| line.strip.empty? }.join("\n")
 
           if @ignore_whitespace
             # Normalize whitespace around commands
@@ -96,20 +88,16 @@ module ReVIEW
             normalized = normalized.strip
           end
 
-          if @normalize_commands
-            # Normalize command spacing
-            normalized = normalized.gsub(/\\([a-zA-Z]+)\s*\{/, '\\\\\\1{')
-            # Normalize environment spacing
-            normalized = normalized.gsub(/\\(begin|end)\s*\{([^}]+)\}/, '\\\\\\1{\\2}')
-            # Add newlines around \begin{...} and \end{...}
-            # This makes diffs more readable by putting each environment on its own line
-            normalized = normalized.gsub(/([^\n])\\begin\{/, "\\1\n\\\\begin{")
-            normalized = normalized.gsub(/\\begin\{([^}]+)\}([^\n])/, "\\\\begin{\\1}\n\\2")
-            normalized = normalized.gsub(/([^\n])\\end\{/, "\\1\n\\\\end{")
-            normalized = normalized.gsub(/\\end\{([^}]+)\}([^\n])/, "\\\\end{\\1}\n\\2")
-          end
-
-          normalized
+          # Normalize command spacing
+          normalized = normalized.gsub(/\\([a-zA-Z]+)\s*\{/, '\\\\\\1{')
+          # Normalize environment spacing
+          normalized = normalized.gsub(/\\(begin|end)\s*\{([^}]+)\}/, '\\\\\\1{\\2}')
+          # Put each \begin{...}/\end{...} on its own line so the rendered diff
+          # shows one environment per line
+          normalized = normalized.gsub(/([^\n])\\begin\{/, "\\1\n\\\\begin{")
+          normalized = normalized.gsub(/\\begin\{([^}]+)\}([^\n])/, "\\\\begin{\\1}\n\\2")
+          normalized = normalized.gsub(/([^\n])\\end\{/, "\\1\n\\\\end{")
+          normalized.gsub(/\\end\{([^}]+)\}([^\n])/, "\\\\end{\\1}\n\\2")
         end
       end
     end

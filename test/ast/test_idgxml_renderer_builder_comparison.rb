@@ -2,13 +2,16 @@
 
 require_relative '../test_helper'
 require_relative '../support/review/test/idgxml_comparator'
-require 'review/ast/diff/idgxml'
 require 'review/ast/diff/byte_exact'
 
 class TestIdgxmlRendererBuilderComparison < Test::Unit::TestCase
   def setup
     @converter = ReVIEW::Test::IdgxmlComparator.new
-    @comparator = ReVIEW::AST::Diff::Idgxml.new
+    # Byte equality is the criterion for IDGXML, so there is one comparator here
+    # and not two. A whitespace-collapsing comparator used to judge most of
+    # these cases while the byte-level regressions below were pinned separately,
+    # which left "what counts as equal for IDGXML" answered twice.
+    @comparator = ReVIEW::AST::Diff::ByteExact.new
   end
 
   # IDGXML is compared byte-for-byte (see ReVIEW::AST::Diff::ByteExact): the

@@ -58,7 +58,7 @@ module ReVIEW
 
         VOID_ELEMENTS = %w[area base br col embed hr img input link meta param source track wbr].freeze
 
-        PreparedData = Struct.new(:tokens, :signature, :doc, keyword_init: true)
+        PreparedData = Struct.new(:tokens, :signature, keyword_init: true)
 
         def initialize
         end
@@ -90,7 +90,7 @@ module ReVIEW
           doc.xpath('//comment()').remove
           tokens = Serializer.new.run(doc)
           signature = Digest::SHA1.hexdigest(tokens.map { |t| Array(t).join('␟') }.join('␞'))
-          PreparedData.new(tokens: tokens, signature: signature, doc: doc)
+          PreparedData.new(tokens: tokens, signature: signature)
         end
 
         # Walks a parsed document and emits a canonical token stream applying the
