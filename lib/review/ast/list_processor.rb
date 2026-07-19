@@ -24,60 +24,35 @@ module ReVIEW
     # - Handle rendering through AST renderer
     # - Manage dependencies between parser, builder, and renderer
     class ListProcessor
-      # Each list kind maps to the ListParser method that parses it and the
-      # NestedListAssembler method that assembles its AST. One table drives every
-      # dispatch below, so a new kind (or an unknown one) is handled in one place.
-      KINDS = {
-        ul: { parse: :parse_unordered_list, build: :build_unordered_list },
-        ol: { parse: :parse_ordered_list,   build: :build_ordered_list },
-        dl: { parse: :parse_definition_list, build: :build_definition_list }
-      }.freeze
-
       def initialize(ast_compiler)
         @ast_compiler = ast_compiler
         @parser = ListParser.new(ast_compiler)
-        @nested_list_assembler = NestedListAssembler.new(ast_compiler, ast_compiler.inline_processor)
+        @assembler = NestedListAssembler.new(ast_compiler, ast_compiler.inline_processor)
       end
 
-      # Named entry points the compiler dispatches to per detected list marker.
+      # The compiler dispatches to one of these per the list marker it detected,
+      # so each just wires its own parser and assembler methods together -- no
+      # runtime type dispatch is needed here.
       def process_unordered_list(f)
-        process_list(f, :ul)
+        build_and_add(@parser.parse_unordered_list(f)) { |items| @assembler.build_unordered_list(items) }
       end
 
       def process_ordered_list(f)
-        process_list(f, :ol)
+        build_and_add(@parser.parse_ordered_list(f)) { |items| @assembler.build_ordered_list(items) }
       end
 
       def process_definition_list(f)
-        process_list(f, :dl)
-      end
-
-      # Parse a list of the given kind and add the assembled node to the AST.
-      # @param f [LineInput] Input file stream
-      # @param list_type [Symbol] Type of list (:ul, :ol, :dl)
-      def process_list(f, list_type)
-        items = parse_list_items(f, list_type)
-        return if items.empty?
-
-        list_node = @nested_list_assembler.public_send(kind_for(list_type)[:build], items)
-        @ast_compiler.add_child_to_current_node(list_node)
-      end
-
-      # Parse list items of the given kind without building the AST.
-      # @param f [LineInput] Input file stream
-      # @param list_type [Symbol] Type of list (:ul, :ol, :dl)
-      # @return [Array<ListParser::ListItemData>] Parsed items
-      def parse_list_items(f, list_type)
-        @parser.public_send(kind_for(list_type)[:parse], f)
+        build_and_add(@parser.parse_definition_list(f)) { |items| @assembler.build_definition_list(items) }
       end
 
       private
 
-      # Look up the parse/build methods for a kind, or fail with a located error.
-      def kind_for(list_type)
-        KINDS.fetch(list_type) do
-          raise CompileError, "Unknown list type: #{list_type}#{@ast_compiler.location.format_for_error}"
-        end
+      # Assemble the parsed items (yielded to the given block) and add the result
+      # to the AST, unless the list turned out empty.
+      def build_and_add(items)
+        return if items.empty?
+
+        @ast_compiler.add_child_to_current_node(yield(items))
       end
     end
   end
