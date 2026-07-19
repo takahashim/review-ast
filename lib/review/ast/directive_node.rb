@@ -35,12 +35,6 @@ module ReVIEW
         true
       end
 
-      def to_h
-        result = super.merge(directive_type: directive_type)
-        result[:args] = args if args && !args.empty?
-        result
-      end
-
       def self.deserialize_from_hash(hash)
         node = new(
           location: ReVIEW::AST::JSONSerializer.restore_location(hash),

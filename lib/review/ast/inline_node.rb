@@ -19,15 +19,6 @@ module ReVIEW
         @target_item_id = target_item_id
       end
 
-      def to_h
-        super.merge(
-          inline_type: inline_type,
-          args: args,
-          target_chapter_id: target_chapter_id,
-          target_item_id: target_item_id
-        )
-      end
-
       # Convert inline node to inline text representation (text without markup).
       # InlineNode recursively processes all child nodes and joins their text.
       #

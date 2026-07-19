@@ -24,7 +24,7 @@ class TestASTBidirectionalConversion < Test::Unit::TestCase
   end
 
   def test_simple_round_trip_conversion
-    # Test if caption serialization is now fixed with CaptionNode.to_h method
+    # Test caption serialization via CaptionNode serialization
 
     content = <<~EOB
       = Test Chapter

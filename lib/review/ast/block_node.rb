@@ -22,15 +22,6 @@ module ReVIEW
         @caption_node = caption_node
       end
 
-      def to_h
-        result = super.merge(
-          block_type: block_type
-        )
-        result[:args] = args if args
-        result[:caption_node] = caption_node&.to_h if caption_node
-        result
-      end
-
       def self.deserialize_from_hash(hash)
         node = new(
           location: ReVIEW::AST::JSONSerializer.restore_location(hash),

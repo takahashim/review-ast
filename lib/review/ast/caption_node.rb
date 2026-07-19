@@ -25,23 +25,10 @@ module ReVIEW
         children.empty? || children.all? { |child| child.is_a?(LeafNode) && child.content.to_s.strip.empty? }
       end
 
-      # Convert caption to hash representation
-      def to_h
-        {
-          type: 'CaptionNode',
-          location: location&.to_h,
-          children: children.map(&:to_h)
-        }
-      end
-
-      # Override serialize_to_hash to return CaptionNode structure
-      def serialize_to_hash(options)
-        if children.empty?
-          ''
-        else
-          # Return full CaptionNode structure
-          super
-        end
+      # Override serialize_to_hash to return the CaptionNode structure (or an
+      # empty string for an empty caption). Matches the base arity (options = nil).
+      def serialize_to_hash(options = nil)
+        children.empty? ? '' : super
       end
 
       def self.deserialize_from_hash(hash)

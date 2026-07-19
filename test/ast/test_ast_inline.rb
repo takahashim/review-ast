@@ -21,7 +21,7 @@ class TestASTInline < Test::Unit::TestCase
   def test_text_node_creation
     node = ReVIEW::AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Hello world')
 
-    hash = node.to_h
+    hash = node.serialize_to_hash
     assert_equal 'TextNode', hash[:type]
     assert_equal 'Hello world', hash[:content]
   end
@@ -31,7 +31,7 @@ class TestASTInline < Test::Unit::TestCase
                                        inline_type: :b,
                                        args: ['bold text'])
 
-    hash = node.to_h
+    hash = node.serialize_to_hash
     assert_equal 'InlineNode', hash[:type]
     assert_equal :b, hash[:inline_type]
     assert_equal ['bold text'], hash[:args]

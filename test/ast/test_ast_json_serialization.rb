@@ -19,7 +19,7 @@ class TestASTJSONSerialization < Test::Unit::TestCase
   def test_basic_node_serialization
     # Test with a concrete node class instead of abstract Node
     node = AST::ParagraphNode.new(location: @location)
-    json = node.to_json
+    json = ReVIEW::AST::JSONSerializer.serialize(node)
     parsed = JSON.parse(json)
 
     assert_equal 'ParagraphNode', parsed['type']
@@ -36,7 +36,7 @@ class TestASTJSONSerialization < Test::Unit::TestCase
       caption_node: CaptionParserHelper.parse('Introduction', location: @location)
     )
 
-    json = node.to_json
+    json = ReVIEW::AST::JSONSerializer.serialize(node)
     parsed = JSON.parse(json)
 
     assert_equal 'HeadlineNode', parsed['type']
@@ -84,7 +84,7 @@ class TestASTJSONSerialization < Test::Unit::TestCase
     )
     para.add_child(text2)
 
-    json = para.to_json
+    json = ReVIEW::AST::JSONSerializer.serialize(para)
     parsed = JSON.parse(json)
 
     assert_equal 'ParagraphNode', parsed['type']
@@ -128,7 +128,7 @@ class TestASTJSONSerialization < Test::Unit::TestCase
       node.add_child(line_node)
     end
 
-    json = node.to_json
+    json = ReVIEW::AST::JSONSerializer.serialize(node)
     parsed = JSON.parse(json)
 
     assert_equal 'CodeBlockNode', parsed['type']
@@ -178,7 +178,7 @@ class TestASTJSONSerialization < Test::Unit::TestCase
       node.add_body_row(body_row)
     end
 
-    json = node.to_json
+    json = ReVIEW::AST::JSONSerializer.serialize(node)
     parsed = JSON.parse(json)
 
     assert_equal 'TableNode', parsed['type']
@@ -221,7 +221,7 @@ class TestASTJSONSerialization < Test::Unit::TestCase
     item2.add_child(text2)
     list.add_child(item2)
 
-    json = list.to_json
+    json = ReVIEW::AST::JSONSerializer.serialize(list)
     parsed = JSON.parse(json)
 
     assert_equal 'ListNode', parsed['type']
@@ -242,7 +242,7 @@ class TestASTJSONSerialization < Test::Unit::TestCase
       content: "<div>HTML content</div>\n<p>Paragraph</p>"
     )
 
-    json = node.to_json
+    json = ReVIEW::AST::JSONSerializer.serialize(node)
     parsed = JSON.parse(json)
 
     assert_equal 'EmbedNode', parsed['type']
@@ -270,7 +270,7 @@ class TestASTJSONSerialization < Test::Unit::TestCase
     para.add_child(para_text)
     doc.add_child(para)
 
-    json = doc.to_json
+    json = ReVIEW::AST::JSONSerializer.serialize(doc)
     parsed = JSON.parse(json)
 
     assert_equal 'DocumentNode', parsed['type']
@@ -407,7 +407,7 @@ class TestASTJSONSerialization < Test::Unit::TestCase
     doc.add_child(code)
 
     # Serialize and verify
-    json = doc.to_json
+    json = ReVIEW::AST::JSONSerializer.serialize(doc)
     parsed = JSON.parse(json)
 
     assert_equal 'DocumentNode', parsed['type']
@@ -543,7 +543,7 @@ class TestASTJSONSerialization < Test::Unit::TestCase
     footnote.add_child(text)
 
     # Serialize to JSON
-    json = footnote.to_json
+    json = ReVIEW::AST::JSONSerializer.serialize(footnote)
     parsed = JSON.parse(json)
 
     # Verify serialization
@@ -579,7 +579,7 @@ class TestASTJSONSerialization < Test::Unit::TestCase
     endnote.add_child(text)
 
     # Serialize to JSON
-    json = endnote.to_json
+    json = ReVIEW::AST::JSONSerializer.serialize(endnote)
     parsed = JSON.parse(json)
 
     # Verify serialization - endnote type should be included
@@ -603,7 +603,7 @@ class TestASTJSONSerialization < Test::Unit::TestCase
     )
 
     # Serialize to JSON
-    json = ref.to_json
+    json = ReVIEW::AST::JSONSerializer.serialize(ref)
     parsed = JSON.parse(json)
 
     # Verify serialization
@@ -631,7 +631,7 @@ class TestASTJSONSerialization < Test::Unit::TestCase
     )
 
     # Serialize to JSON
-    json = ref.to_json
+    json = ReVIEW::AST::JSONSerializer.serialize(ref)
     parsed = JSON.parse(json)
 
     # Verify serialization
@@ -666,7 +666,7 @@ class TestASTJSONSerialization < Test::Unit::TestCase
     )
 
     # Serialize to JSON
-    json = ref.to_json
+    json = ReVIEW::AST::JSONSerializer.serialize(ref)
     parsed = JSON.parse(json)
 
     # Verify serialization
@@ -706,7 +706,7 @@ class TestASTJSONSerialization < Test::Unit::TestCase
       resolved_data: resolved_data
     )
 
-    json = ref.to_json
+    json = ReVIEW::AST::JSONSerializer.serialize(ref)
     parsed = JSON.parse(json)
 
     assert_equal 'TableReference', parsed['resolved_data']['type']
@@ -736,7 +736,7 @@ class TestASTJSONSerialization < Test::Unit::TestCase
       resolved_data: resolved_data
     )
 
-    json = ref.to_json
+    json = ReVIEW::AST::JSONSerializer.serialize(ref)
     parsed = JSON.parse(json)
 
     assert_equal 'ChapterReference', parsed['resolved_data']['type']
@@ -769,7 +769,7 @@ class TestASTJSONSerialization < Test::Unit::TestCase
       resolved_data: resolved_data
     )
 
-    json = ref.to_json
+    json = ReVIEW::AST::JSONSerializer.serialize(ref)
     parsed = JSON.parse(json)
 
     assert_equal 'HeadlineReference', parsed['resolved_data']['type']
@@ -798,7 +798,7 @@ class TestASTJSONSerialization < Test::Unit::TestCase
       resolved_data: resolved_data
     )
 
-    json = ref.to_json
+    json = ReVIEW::AST::JSONSerializer.serialize(ref)
     parsed = JSON.parse(json)
 
     assert_equal 'FootnoteReference', parsed['resolved_data']['type']
@@ -825,7 +825,7 @@ class TestASTJSONSerialization < Test::Unit::TestCase
       resolved_data: resolved_data
     )
 
-    json = ref.to_json
+    json = ReVIEW::AST::JSONSerializer.serialize(ref)
     parsed = JSON.parse(json)
 
     assert_equal 'WordReference', parsed['resolved_data']['type']

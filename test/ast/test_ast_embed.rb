@@ -26,7 +26,7 @@ class TestASTEmbed < Test::Unit::TestCase
       content: "content line 1\ncontent line 2"
     )
 
-    hash = node.to_h
+    hash = node.serialize_to_hash
     assert_equal 'EmbedNode', hash[:type]
     assert_equal :block, hash[:embed_type]
     assert_equal ['html'], hash[:target_builders]

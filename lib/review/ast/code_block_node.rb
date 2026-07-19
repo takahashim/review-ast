@@ -76,19 +76,6 @@ module ReVIEW
         end
       end
 
-      def to_h
-        result = super.merge(
-          lang: lang,
-          caption_node: caption_node&.to_h,
-          line_numbers: line_numbers,
-          children: children.map(&:to_h)
-        )
-        result[:code_type] = code_type if code_type
-        result[:first_line_num] = first_line_num if first_line_num
-        result[:original_text] = original_text if original_text
-        result
-      end
-
       def self.deserialize_from_hash(hash)
         node = new(
           location: ReVIEW::AST::JSONSerializer.restore_location(hash),

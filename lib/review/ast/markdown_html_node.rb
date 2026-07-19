@@ -43,10 +43,6 @@ module ReVIEW
         @html_type == :tag
       end
 
-      def to_h
-        super.merge(html_content: html_content, html_type: html_type)
-      end
-
       def self.deserialize_from_hash(hash)
         new(
           location: ReVIEW::AST::JSONSerializer.restore_location(hash),

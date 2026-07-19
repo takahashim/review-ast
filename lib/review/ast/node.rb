@@ -162,22 +162,6 @@ module ReVIEW
         raise ArgumentError, "Block element #{self.class} cannot be used in inline context"
       end
 
-      # Basic JSON serialization for compatibility
-      def to_h
-        result = {
-          type: self.class.name.split('::').last,
-          location: location&.to_h,
-          children: children.map(&:to_h)
-        }
-        result[:node_type] = @type if @type && !@type.empty?
-        result[:id] = @id if @id && !@id.empty?
-        result
-      end
-
-      def to_json(*args)
-        to_h.to_json(*args)
-      end
-
       # Enhanced JSON serialization with options (using JSONSerializer)
       def serialize_to_hash(options = nil)
         options ||= JSONSerializer::Options.new

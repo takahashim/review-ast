@@ -47,18 +47,6 @@ module ReVIEW
         tag?('nodisp')
       end
 
-      def to_h
-        result = super.merge(
-          level: level,
-          label: label,
-          caption_node: caption_node&.to_h,
-          tag: tag
-        )
-        result[:auto_id] = auto_id if auto_id
-        result[:raw_caption] = raw_caption if raw_caption
-        result
-      end
-
       def self.deserialize_from_hash(hash)
         new(
           location: ReVIEW::AST::JSONSerializer.restore_location(hash),

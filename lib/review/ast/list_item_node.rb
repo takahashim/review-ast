@@ -37,16 +37,6 @@ module ReVIEW
         @source_line_breaks << children.size
       end
 
-      def to_h
-        result = super.merge(
-          level: level
-        )
-        result[:number] = number if number
-        result[:item_type] = item_type if item_type
-        result[:term_children] = term_children.map(&:to_h) if term_children.any?
-        result
-      end
-
       # Include definition-list term nodes in a full-tree walk (Node#each_subnode).
       def extra_subnodes
         super + Array(term_children)

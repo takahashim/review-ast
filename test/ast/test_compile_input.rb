@@ -46,6 +46,6 @@ class TestCompileInput < Test::Unit::TestCase
     assert_same(book, input.book)
     ast_via_input = ReVIEW::AST::Compiler.new.compile_to_ast(input, reference_resolution: false)
 
-    assert_equal ast_via_chapter.to_h, ast_via_input.to_h
+    assert_equal ast_via_chapter.serialize_to_hash, ast_via_input.serialize_to_hash
   end
 end

@@ -18,16 +18,6 @@ module ReVIEW
         @image_type = image_type&.to_sym # canonicalize to Symbol at construction
       end
 
-      # Override to_h to include ImageNode-specific attributes
-      def to_h
-        result = super
-        result[:id] = id if id?
-        result[:caption_node] = caption_node&.to_h if caption_node
-        result[:metric] = metric if metric
-        result[:image_type] = image_type
-        result
-      end
-
       # Override serialize_to_hash to include ImageNode-specific attributes
       def serialize_to_hash(options = nil)
         options ||= ReVIEW::AST::JSONSerializer::Options.new

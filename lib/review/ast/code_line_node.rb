@@ -24,13 +24,6 @@ module ReVIEW
 
       attr_reader :line_number, :original_text, :children
 
-      def to_h
-        result = super
-        result[:line_number] = line_number
-        result[:original_text] = original_text
-        result
-      end
-
       def serialize_to_hash(options = nil)
         hash = super
         hash[:line_number] = line_number if line_number

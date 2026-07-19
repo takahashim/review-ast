@@ -5,17 +5,6 @@ require_relative 'leaf_node'
 module ReVIEW
   module AST
     class TextNode < LeafNode
-      # Override to_h to exclude children array for TextNode
-      def to_h
-        result = {
-          type: self.class.name.split('::').last,
-          location: location_to_h
-        }
-        result[:content] = @content if @content && !@content.empty?
-        # TextNode is a leaf node - do not include children array
-        result
-      end
-
       # Override serialize_to_hash to exclude children array for TextNode
       def serialize_to_hash(options = nil)
         options ||= ReVIEW::AST::JSONSerializer::Options.new

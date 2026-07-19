@@ -66,7 +66,7 @@ class TestUnifiedListNode < Test::Unit::TestCase
   def test_to_h_serialization
     # Test serialization without start_number
     node = ReVIEW::AST::ListNode.new(location: @location, list_type: :ul)
-    hash = node.to_h
+    hash = node.serialize_to_hash
     assert_equal :ul, hash[:list_type]
     assert_false(hash.key?(:start_number))
 
@@ -76,7 +76,7 @@ class TestUnifiedListNode < Test::Unit::TestCase
       list_type: :ol,
       start_number: 1
     )
-    hash = node.to_h
+    hash = node.serialize_to_hash
     assert_equal :ol, hash[:list_type]
     assert_false(hash.key?(:start_number))
 
@@ -86,7 +86,7 @@ class TestUnifiedListNode < Test::Unit::TestCase
       list_type: :ol,
       start_number: 5
     )
-    hash = node.to_h
+    hash = node.serialize_to_hash
     assert_equal :ol, hash[:list_type]
     assert_equal 5, hash[:start_number]
   end

@@ -35,7 +35,7 @@ class TestASTBasic < Test::Unit::TestCase
       caption_node: CaptionParserHelper.parse('Test Headline', location: location)
     )
 
-    hash = node.to_h
+    hash = node.serialize_to_hash
     assert_equal 'HeadlineNode', hash[:type]
     assert_equal 1, hash[:level]
     assert_equal 'test-label', hash[:label]
@@ -49,7 +49,7 @@ class TestASTBasic < Test::Unit::TestCase
     text_node = ReVIEW::AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'This is a test paragraph.')
     node.add_child(text_node)
 
-    hash = node.to_h
+    hash = node.serialize_to_hash
     assert_equal 'ParagraphNode', hash[:type]
     # Check that the text content is in the children
     assert_equal 1, hash[:children].size
@@ -97,7 +97,7 @@ class TestASTBasic < Test::Unit::TestCase
 
     node.add_child(child_node)
 
-    json_str = node.to_json
+    json_str = ReVIEW::AST::JSONSerializer.serialize(node)
     parsed = JSON.parse(json_str)
 
     assert_equal 'DocumentNode', parsed['type']

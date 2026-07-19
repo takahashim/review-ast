@@ -20,14 +20,6 @@ module ReVIEW
         @caption_node = caption_node
       end
 
-      def to_h
-        result = super.merge(
-          minicolumn_type: minicolumn_type
-        )
-        result[:caption_node] = caption_node&.to_h if caption_node
-        result
-      end
-
       # Deserialize from hash
       def self.deserialize_from_hash(hash)
         node = new(

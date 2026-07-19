@@ -32,18 +32,6 @@ module ReVIEW
         children.map(&:to_inline_text).join
       end
 
-      # Override to_h to include FootnoteNode-specific attributes
-      def to_h
-        result = {
-          type: self.class.name.split('::').last,
-          location: location&.to_h,
-          id: @id,
-          children: children.map(&:to_h)
-        }
-        result[:footnote_type] = @footnote_type.to_s if @footnote_type != :footnote
-        result
-      end
-
       def self.deserialize_from_hash(hash)
         node = new(
           location: ReVIEW::AST::JSONSerializer.restore_location(hash),

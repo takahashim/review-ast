@@ -34,14 +34,6 @@ module ReVIEW
         "TexEquationNode(id: #{@id.inspect}, caption_node: #{@caption_node.inspect})"
       end
 
-      # Override to_h to include TexEquationNode-specific attributes
-      def to_h
-        result = super
-        result[:id] = id if id?
-        result[:caption_node] = caption_node&.to_h if caption_node
-        result
-      end
-
       # Override serialize_to_hash to include TexEquationNode-specific attributes
       def serialize_to_hash(options = nil)
         options ||= ReVIEW::AST::JSONSerializer::Options.new

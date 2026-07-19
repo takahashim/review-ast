@@ -118,7 +118,7 @@ class TestCaptionNode < Test::Unit::TestCase
     caption.add_child(text_node)
 
     # Simple text caption should serialize as children array for compatibility
-    result = caption.to_h
+    result = caption.serialize_to_hash
     expected = {
       type: 'CaptionNode',
       location: { filename: 'test.re', lineno: 1 },
@@ -142,7 +142,7 @@ class TestCaptionNode < Test::Unit::TestCase
     caption.add_child(inline_node)
 
     # Complex caption should serialize as node structure
-    result = caption.to_h
+    result = caption.serialize_to_hash
     assert_instance_of(Hash, result)
     assert_equal 'CaptionNode', result[:type]
     assert_equal 2, result[:children].size

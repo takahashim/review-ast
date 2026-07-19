@@ -22,17 +22,6 @@ module ReVIEW
         @column_number = column_number
       end
 
-      def to_h
-        result = super.merge(
-          level: level,
-          label: label, caption_node: caption_node&.to_h,
-          column_type: column_type
-        )
-        result[:auto_id] = auto_id if auto_id
-        result[:column_number] = column_number if column_number
-        result
-      end
-
       # Deserialize from hash
       def self.deserialize_from_hash(hash)
         node = new(

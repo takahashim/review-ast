@@ -35,14 +35,6 @@ module ReVIEW
         list_type == :dl
       end
 
-      def to_h
-        result = super.merge(
-          list_type: list_type
-        )
-        result[:start_number] = start_number if start_number && start_number != 1
-        result
-      end
-
       def self.deserialize_from_hash(hash)
         node = new(location: ReVIEW::AST::JSONSerializer.restore_location(hash),
                    list_type: hash['list_type'],

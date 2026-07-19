@@ -85,18 +85,6 @@ module ReVIEW
         all_rows.first&.children&.length || 1
       end
 
-      def to_h
-        result = super.merge(
-          caption_node: caption_node&.to_h,
-          table_type: table_type,
-          header_rows: header_rows.map(&:to_h),
-          body_rows: body_rows.map(&:to_h)
-        )
-        result[:metric] = metric if metric
-        result[:tsize] = tsize if tsize
-        result
-      end
-
       # Rows are grouped as header_rows/body_rows in serialize_properties, so the
       # generic "children" key is suppressed. The base skeleton still runs
       # serialize_common_node_fields, so no field is dropped.

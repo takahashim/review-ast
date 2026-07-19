@@ -79,23 +79,6 @@ module ReVIEW
         "#<ReferenceNode {#{full_ref_id}} #{status}>"
       end
 
-      # Override to_h to include ReferenceNode-specific attributes
-      def to_h
-        result = {
-          type: self.class.name.split('::').last,
-          location: location_to_h
-        }
-        result[:content] = content if content
-        result[:ref_id] = @ref_id
-        result[:context_id] = @context_id if @context_id
-        if @resolved_data
-          # Pass default options to serialize_to_hash
-          options = ReVIEW::AST::JSONSerializer::Options.new
-          result[:resolved_data] = @resolved_data.serialize_to_hash(options)
-        end
-        result
-      end
-
       # Override serialize_to_hash to include ReferenceNode-specific attributes
       def serialize_to_hash(options = nil)
         options ||= ReVIEW::AST::JSONSerializer::Options.new

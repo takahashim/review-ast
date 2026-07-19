@@ -29,18 +29,6 @@ module ReVIEW
         @target_builders.include?(builder_name.to_s)
       end
 
-      # Override to_h to exclude children array for EmbedNode
-      def to_h
-        result = super
-        result.merge!(
-          embed_type: embed_type,
-          target_builders: target_builders,
-          content: content
-        )
-
-        result
-      end
-
       # Override serialize_to_hash to exclude children array for EmbedNode
       def serialize_to_hash(options = nil)
         options ||= ReVIEW::AST::JSONSerializer::Options.new
