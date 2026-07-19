@@ -32,12 +32,19 @@ module ReVIEW
           raise ReVIEW::ApplicationError, "chapter not found for #{file}" unless chapter
 
           compiler = ReVIEW::AST::Compiler.for_chapter(chapter)
-          ast_root = compiler.compile_to_ast(chapter)
+          ast_root = compiler.compile_to_ast(chapter, registry_provider: registry_provider)
           renderer = ReVIEW::Renderer::HtmlRenderer.new(chapter, img_math: @img_math, web_toc: @web_toc)
           File.write(output_path, renderer.render(ast_root))
         end
 
         private
+
+        # One provider for the whole book build, so a chapter referenced from
+        # several chapters is compiled and indexed once instead of once per
+        # referring chapter.
+        def registry_provider
+          @registry_provider ||= ReVIEW::AST::ChapterRegistryProvider.new
+        end
 
         def find_chapter(file)
           basename = File.basename(file, '.*')

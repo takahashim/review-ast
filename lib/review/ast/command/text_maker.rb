@@ -108,7 +108,7 @@ module ReVIEW
           begin
             # Compile chapter to AST using auto-detection for file format
             compiler = ReVIEW::AST::Compiler.for_chapter(chapter)
-            ast_root = compiler.compile_to_ast(chapter)
+            ast_root = compiler.compile_to_ast(chapter, registry_provider: registry_provider)
 
             # Create renderer with current chapter
             renderer = if @plaintext
@@ -168,6 +168,13 @@ module ReVIEW
         end
 
         private
+
+        # One provider for the whole book build, so a chapter referenced from
+        # several chapters is compiled and indexed once instead of once per
+        # referring chapter.
+        def registry_provider
+          @registry_provider ||= ReVIEW::AST::ChapterRegistryProvider.new
+        end
 
         # Find chapter or part object by filename
         def find_chapter(filename)

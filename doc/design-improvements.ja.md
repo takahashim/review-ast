@@ -810,9 +810,16 @@ AST はまずバグ互換でビルダーを置き換え、ゲート付きの修�
   - 併せて残りの chapter インデックス読みを AST 由来へ移行: endnotes は `//endnote` 定義ノードをツリーから収集(`Base#endnote_nodes`、番号順)、footnote 番号は定義側 `definition_number`・参照側 `resolved_data`、`//graph` は生成パスを直接使用(`image_finder.add_entry` 削除)。これでレンダラ・maker・比較ハーネスから `chapter.<x>_index` 読みが全廃。
   - `Indexer#set_indexes_on_chapter` と `BookUnit#ast_indexes=` を撤去。`core_ext.rb` は monkey patch ゼロになり、`require 'review/book/index'` と `require 'review/book/book_unit'` も不要に(残るは `unicode/eaw` の soft require のみ)。その後 `f2b6d17` で空になった `core_ext.rb` をファイルごと削除した。`BookIndexer` は索引を書き戻さなくなり vestigial な no-op(外部呼び出し互換のため保持)。
   - 検証: フル `rake` 緑(1075 tests)、rubocop クリーン。IDGXML byte 一致(syntax-book 6/6、FirstStep 11/12=review-introduction は既存差)。DVI ident 一致(syntax-book 6/6、FirstStep 12/12)。画像・icon・imgtable・endnote・脚注を含めて挙動不変。
-- 積み残し(本項目の残り)
-  - 効率化(任意): production では `BookIndexer.build` が集約した表を `compile_to_ast(index_registry:)` 経由で resolver へスレッドし、cross-chapter の on-demand 再コンパイルを回避する余地がある(sweep/test は on-demand フォールバックのまま)。現状は正しさ優先で on-demand。
-  - vestigial になった `BookIndexer.build` 呼び出しの外部側(maker / 比較ハーネス / bin)からの除去。
+- 手順 5(完了): レジストリ供給の注入化 —— 表の作り手を resolver から追い出す
+  - 動機: `ReferenceResolver#build_registry_for_chapter` が cross-chapter 参照のたびに `Compiler.for_chapter(...).compile_to_ast(...)` を呼んでいた。Compiler が解決フェーズとして resolver を呼び、resolver が Compiler を作るという相互知識(循環)であり、resolver を単体で検証するには Compiler ごと差し替える必要があった。
+  - `ChapterRegistryProvider` を新設(`lib/review/ast/chapter_registry_provider.rb`)。「章 → `ChapterIndexRegistry`」の供給とキャッシュだけを持つ。既定の作り手は従来どおり on-demand コンパイル+索引化で、`Compiler` の require は循環回避のため呼び出し時に遅延させる。
+  - `ReferenceResolver.new(chapter, registry_provider:)` で注入。resolver から `Compiler` 参照が 0 になり、`registry_for` は表を引くだけになった。自章の表は `provider.seed` で渡すので二重コンパイルはしない。`bib_file_registry` も provider 経由。
+  - `compile_to_ast(..., registry_provider:)` でスレッド可能にし、book 全体を回す出力側(`AstHtmlConverter`、PDF/IDGXML/Text の `RendererConverterAdapter`)が book 単位で 1 つの provider を共有するようにした。これが上記「効率化(任意)」の着地点であり、`BookIndexer` 前提の当初案は同クラス撤去済みのため provider 共有で置き換えた。
+  - 効果(索引構築回数): syntax-book 3 → 2、FirstStepReVIEW-v3(12章)3 → 0。book を順に回す間に各章の表が seed されるため、後方参照は追加コンパイルなしで解決する。
+  - 併せて、索引構築失敗時の `rescue` を `$DEBUG` 条件なしの warn に変更。従来は無言で空表にフォールバックし、その章への参照すべてが「reference not found」として現れて原因を誤診させていた。
+  - テスト `test/ast/test_chapter_registry_provider.rb`: キャッシュ(章ごと1回)、seed 済み章を再構築しないこと、nil 章、そして「用意した表だけで cross-chapter 参照が解決でき、対象章のコンパイルが一切起きないこと」(作り手が呼ばれたら `flunk`)を検証。
+  - 検証: フル `rake` 緑(1090 tests)、rubocop クリーン、syntax-book 6/6 DVI 一致。
+- 積み残しなし(本項目は完了)。vestigial だった `BookIndexer` とその外部呼び出しは手順 2 で撤去済みで、コード上に残存はない。
 
 ---
 

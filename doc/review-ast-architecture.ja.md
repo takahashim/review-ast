@@ -103,6 +103,7 @@ flowchart TD
   subgraph Resolve["参照解決フェーズ（条件付き）"]
     direction TB
     RR["ReferenceResolver"] --> IDX["Indexer: 採番・@title 設定・ChapterIndexRegistry"]
+    RR --> CRP["ChapterRegistryProvider（他章の表）"]
     IPP["ImagePathProcessor"] --> IF["Book::ImageFinder（本体）"]
   end
 
@@ -115,6 +116,12 @@ flowchart TD
 ```
 
 `reference_resolution: false` のときは Resolve フェーズ全体がスキップされ、採番も行われない点に注意。
+
+他章を指す参照(cross-chapter)の解決には対象章の索引表が要る。その表の供給は
+`ChapterRegistryProvider` が担い、`ReferenceResolver` は表を引くだけである(既定の供給方法は
+対象章を `reference_resolution: false` でコンパイルして索引化し、キャッシュする)。
+`compile_to_ast(registry_provider:)` で provider を渡せるので、book 全体を回す出力側は 1 つの
+provider を共有して各章の索引化を1回に抑えられる。
 
 ## 4. ノードモデル
 

@@ -120,9 +120,14 @@ module ReVIEW
       # wrapped in a CompileInput). The pure-data source/basename come off the
       # input; @chapter stays the environment service handle for the resolution
       # passes (nil for a source-only input).
-      def compile_to_ast(input, reference_resolution: true)
+      # @param registry_provider [ChapterRegistryProvider, nil] Source of other
+      #   chapters' index tables during reference resolution. Pass one provider
+      #   for a whole book build and each chapter is indexed at most once;
+      #   without it every chapter builds its own tables on demand.
+      def compile_to_ast(input, reference_resolution: true, registry_provider: nil)
         @input = input.is_a?(CompileInput) ? input : CompileInput.from_chapter(input)
         @chapter = @input.chapter
+        @registry_provider = registry_provider
         # Create AST root with appropriate location
         # For test compatibility, use a special calculation for line numbers
         f = LineInput.from_string(@input.source)
@@ -600,7 +605,8 @@ module ReVIEW
         return unless @input.book
 
         # Fail-fast: an unresolvable reference raises CompileError from here.
-        ReferenceResolver.new(@chapter).resolve_references(@ast_root)
+        provider = @registry_provider || ChapterRegistryProvider.new
+        ReferenceResolver.new(@chapter, registry_provider: provider).resolve_references(@ast_root)
       end
 
       # Stamp each image-bearing node with its resolved filesystem path

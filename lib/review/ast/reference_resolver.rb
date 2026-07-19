@@ -11,6 +11,7 @@ require_relative 'resolved_data'
 require_relative 'render_context'
 require_relative 'inline_node'
 require_relative 'indexer'
+require_relative 'chapter_registry_provider'
 require_relative 'visitor'
 require 'review/exception'
 
@@ -56,10 +57,16 @@ module ReVIEW
         column: ResolvedData::ColumnReference
       }.freeze
 
-      def initialize(chapter)
+      # @param chapter [Book::Chapter] The chapter whose references are resolved
+      # @param registry_provider [ChapterRegistryProvider] Source of the index
+      #   table for any chapter this one refers to. Pass a provider shared across
+      #   a book build to index each chapter once; the default indexes on demand
+      #   for this resolver alone.
+      def initialize(chapter, registry_provider: ChapterRegistryProvider.new)
         super()
         @chapter = chapter
         @book = chapter.book
+        @registry_provider = registry_provider
         @resolver_methods = DEFAULT_RESOLVER_METHODS.dup
       end
 
@@ -74,7 +81,9 @@ module ReVIEW
         # ChapterIndexRegistry the resolution reads from (doc/design-improvements
         # #7 -- instead of reading back the legacy Book::Index / Index::Item).
         @registry = build_indexes_from_ast(ast)
-        @chapter_registries = { chapter_key(@chapter) => @registry }
+        # This chapter is indexed right here, so hand that table to the provider
+        # rather than letting it compile the same chapter again.
+        @registry_provider.seed(@chapter, @registry)
 
         @resolve_count = 0
 
@@ -83,30 +92,9 @@ module ReVIEW
         @resolve_count
       end
 
-      # The AST index registry for a chapter. The current chapter's is built up
-      # front; another chapter's (a cross-chapter reference) is compiled and
-      # indexed on demand and cached, so no book-wide pre-pass or read-back
-      # through the gem's chapter objects is needed.
+      # The AST index registry for a chapter, from the provider.
       def registry_for(chapter)
-        return nil unless chapter
-
-        key = chapter_key(chapter)
-        return @chapter_registries[key] if @chapter_registries.key?(key)
-
-        @chapter_registries[key] = build_registry_for_chapter(chapter)
-      end
-
-      def build_registry_for_chapter(chapter)
-        # Fully qualified so the constant never resolves to ReVIEW::Compiler (the
-        # legacy gem compiler) when review/ast/compiler happens not to be loaded.
-        ast = ReVIEW::AST::Compiler.for_chapter(chapter).compile_to_ast(chapter, reference_resolution: false)
-        Indexer.new(chapter).build_indexes(ast).registry
-      rescue StandardError => e
-        # Warn unconditionally: swallowed silently, a chapter that fails to
-        # index surfaces later as "reference not found" for every reference into
-        # it, which points at the reference rather than at the real cause.
-        warn "Failed to index chapter #{chapter.id} for cross-reference: #{e.message}"
-        ChapterIndexRegistry.new
+        @registry_provider.registry_for(chapter)
       end
 
       # AST index registry of the book's bib file (bibpapers are book-wide and
@@ -116,14 +104,10 @@ module ReVIEW
         @bib_file_registry ||=
           if @book.bib_exist?
             bib = ReVIEW::Book::Bib.new(file_content: @book.bib_content, book: @book)
-            build_registry_for_chapter(bib)
+            registry_for(bib)
           else
             ChapterIndexRegistry.new
           end
-      end
-
-      def chapter_key(chapter)
-        chapter.id || chapter.object_id
       end
 
       # Register a new reference type resolver

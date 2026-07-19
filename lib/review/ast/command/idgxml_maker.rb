@@ -114,7 +114,7 @@ module ReVIEW
           end
 
           compiler = ReVIEW::AST::Compiler.for_chapter(chapter)
-          ast_root = compiler.compile_to_ast(chapter)
+          ast_root = compiler.compile_to_ast(chapter, registry_provider: registry_provider)
 
           renderer = ReVIEW::Renderer::IdgxmlRenderer.new(chapter)
           inject_shared_resources(renderer)
@@ -150,6 +150,13 @@ module ReVIEW
         def inject_shared_resources(renderer)
           renderer.img_math = @img_math if @img_math
           renderer.img_graph = @img_graph if @img_graph
+        end
+
+        # One provider for the whole book build, so a chapter referenced from
+        # several chapters is compiled and indexed once instead of once per
+        # referring chapter.
+        def registry_provider
+          @registry_provider ||= ReVIEW::AST::ChapterRegistryProvider.new
         end
 
         def find_chapter(filename)
