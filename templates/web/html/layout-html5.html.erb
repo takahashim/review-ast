@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="<%=h @language %>">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="generator" content="Re:VIEW (review-ast)" />
+  <title><%= @title %> | <%=h @book.config.name_of("booktitle") %></title>
+  <link rel="stylesheet" href="<%= ReVIEW::AST::WebAssets::STYLESHEET_NAME %>" />
+<% if @stylesheets.present? %>
+<%   @stylesheets.each do |style| %>
+  <link rel="stylesheet" href="<%=h style %>" />
+<%   end %>
+<% end %>
+<% if @next.present? %>  <link rel="next" title="<%= h(@next_title) %>" href="<%= h(@next.id.to_s + "." + @book.config['htmlext']) %>" />
+<% end %><% if @prev.present? %>  <link rel="prev" title="<%= h(@prev_title) %>" href="<%= h(@prev.id.to_s + "." + @book.config['htmlext']) %>" />
+<% end %><% if @javascripts.present? %>
+<%   @javascripts.each do |js| %>  <%= js %>
+<%   end %>
+<% end %>
+</head>
+<body<%= @body_ext %>>
+  <a class="skip-link" href="#book-main">本文へスキップ</a>
+  <div class="book">
+    <button class="toc-toggle" popovertarget="book-toc" aria-label="目次を開く">☰ 目次</button>
+    <aside class="side-content" id="book-toc" popover>
+      <h1 class="book-title"><a href="index.<%= @book.config['htmlext'] %>"><%=h @book.config.name_of("booktitle") %></a></h1>
+      <nav class="book-toc" aria-label="目次">
+        <%= @toc %>
+      </nav>
+      <p class="review-signature">powered by <a href="https://reviewml.org/">Re:VIEW</a></p>
+    </aside>
+    <main class="book-body" id="book-main">
+      <article class="book-page">
+        <%= @body %>
+      </article>
+      <nav class="book-navi" aria-label="章送り">
+        <% if @prev.present? %><a class="book-prev" rel="prev" href="<%= h(@prev.id.to_s + "." + @book.config['htmlext']) %>"><span class="cursor">◀</span><span class="navi-title"><%= @prev_title %></span></a><% end %>
+        <% if @next.present? %><a class="book-next" rel="next" href="<%= h(@next.id.to_s + "." + @book.config['htmlext']) %>"><span class="navi-title"><%= @next_title %></span><span class="cursor">▶</span></a><% end %>
+      </nav>
+    </main>
+  </div>
+  <footer class="book-footer">
+    <% if @book.config["copyright"].present? %><p class="copyright"><%=h @config["copyright"] %></p><% end %>
+  </footer>
+</body>
+</html>

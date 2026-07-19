@@ -16,6 +16,7 @@ require 'review/sec_counter'
 require 'review/i18n'
 require 'review/loggable'
 require 'review/webtocprinter'
+require 'review/ast/web_assets'
 require 'review/ast/indexer'
 require 'review/ast/compiler'
 require 'review/template'
@@ -530,14 +531,25 @@ module ReVIEW
           # Respect safe mode like HTMLBuilder
           if ENV['REVIEW_SAFE_MODE'].to_i & 4 > 0
             warn 'user\'s layout is prohibited in safe mode. ignored.'
-            layout_file = File.expand_path(htmlfilename, ReVIEW::Template::TEMPLATE_DIR)
+            layout_file = default_layout_file(htmlfilename)
           end
         else
           # Use default template
-          layout_file = File.expand_path(htmlfilename, ReVIEW::Template::TEMPLATE_DIR)
+          layout_file = default_layout_file(htmlfilename)
         end
 
         layout_file
+      end
+
+      # The built-in layout to fall back on when the book has no custom one. For
+      # the webmaker, review-ast ships its own modern default (semantic HTML5,
+      # responsive two-pane, dark mode); EPUB/plain HTML keep the gem's template.
+      def default_layout_file(htmlfilename)
+        if config.maker == 'webmaker'
+          ReVIEW::AST::WebAssets::LAYOUT_HTML5
+        else
+          File.expand_path(htmlfilename, ReVIEW::Template::TEMPLATE_DIR)
+        end
       end
 
       private

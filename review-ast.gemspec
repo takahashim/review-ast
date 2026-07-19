@@ -11,7 +11,7 @@ Gem::Specification.new do |gem|
                     'exposed via review-ast-dump / review-ast-dump2re / review-ast-compile.'
   gem.homepage    = 'https://github.com/takahashim/review-ast'
 
-  gem.files       = Dir['lib/**/*.rb', 'bin/*', 'README.md']
+  gem.files       = Dir['lib/**/*.rb', 'bin/*', 'templates/**/*', 'README.md']
   gem.executables = %w[review-ast-dump review-ast-dump2re review-ast-compile
                        review-ast-pdfmaker review-ast-idgxmlmaker review-ast-textmaker
                        review-ast-epubmaker review-ast-webmaker]
