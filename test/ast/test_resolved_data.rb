@@ -25,16 +25,6 @@ class ResolvedDataTest < Test::Unit::TestCase
     assert_false(data_same.cross_chapter?)
   end
 
-  def test_exists?
-    # With item_number, the reference exists
-    data_exists = ReVIEW::AST::ResolvedData.image(
-      chapter_number: 2, chapter_type: :chapter,
-      item_number: 1,
-      item_id: 'img01'
-    )
-    assert_true(data_exists.exists?)
-  end
-
   def test_equality
     data1 = ReVIEW::AST::ResolvedData.image(
       chapter_number: 1, chapter_type: :chapter,

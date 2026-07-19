@@ -21,7 +21,6 @@ class TestSourceLocation < Test::Unit::TestCase
     assert_equal 5, loc.column
     assert_equal 'ch.re:42', loc.string
     assert_equal 'ch.re:42', loc.to_s
-    assert_same(loc, loc.snapshot)
     assert loc.frozen?
   end
 
@@ -53,12 +52,10 @@ class TestSourceLocation < Test::Unit::TestCase
     assert_equal 1, [a, b].uniq.size
   end
 
-  def test_from_and_with_column
+  def test_from
     base = SourceLocation.new('ch.re', 42, 5)
     assert_equal 9, SourceLocation.from(base, column: 9).column
     assert_equal 5, SourceLocation.from(base).column
-    assert_equal 7, base.with_column(7).column
-    assert_equal 42, base.with_column(7).lineno
     assert_nil(SourceLocation.from(nil))
   end
 

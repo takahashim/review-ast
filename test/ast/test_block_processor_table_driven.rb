@@ -31,19 +31,9 @@ class TestBlockProcessorTableDriven < Test::Unit::TestCase
     end
   end
 
-  def test_registered_commands
-    registered = @processor.registered_commands
-
-    expected_commands = %i[list image table note embed texequation]
-    expected_commands.each do |cmd|
-      assert_include(registered, cmd, "Command #{cmd} should be registered by default")
-    end
-  end
-
   def test_dynamic_handler_registration
     @processor.register_block_handler(:custom_test, :build_complex_block_ast)
 
-    assert_include(@processor.registered_commands, :custom_test)
     assert_equal :build_complex_block_ast, @processor.instance_variable_get(:@dynamic_command_table)[:custom_test]
   end
 
@@ -168,8 +158,6 @@ class TestBlockProcessorTableDriven < Test::Unit::TestCase
 
   def test_extension_example
     @processor.register_block_handler(:callout, :build_complex_block_ast)
-
-    assert_include(@processor.registered_commands, :callout)
 
     assert_equal :build_complex_block_ast, @processor.instance_variable_get(:@dynamic_command_table)[:callout]
   end

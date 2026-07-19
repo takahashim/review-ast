@@ -23,21 +23,21 @@ class TestChapterIndexRegistry < Test::Unit::TestCase
     assert_equal :cap, entry.caption_node
     assert_nil(entry.footnote_node)
     assert r.key?(:table, 't1')
-    assert_equal ['t1'], r.ids(:table)
   end
 
   def test_lookup_absent
     r = Registry.new
     assert_nil(r.lookup(:table, 'missing'))
     assert_false(r.key?(:table, 'missing'))
-    assert_equal [], r.ids(:table)
   end
 
   def test_ignores_blank_id
     r = Registry.new
     r.add(:list, nil, number: 1)
     r.add(:list, '', number: 1)
-    assert_equal [], r.ids(:list)
+    assert_nil(r.lookup(:list, nil))
+    assert_nil(r.lookup(:list, ''))
+    assert_false(r.key?(:list, ''))
   end
 
   def test_last_definition_wins

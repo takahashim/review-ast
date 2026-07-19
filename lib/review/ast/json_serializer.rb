@@ -168,38 +168,6 @@ module ReVIEW
           raise StandardError, "invalid hash: `#{hash}`"
         end
       end
-
-      # JSON schema definition for validation
-      def json_schema
-        {
-          '$schema' => 'http://json-schema.org/draft-07/schema#',
-          'title' => 'ReVIEW AST JSON Schema',
-          'type' => 'object',
-          'required' => ['type'],
-          'properties' => {
-            'type' => {
-              'type' => 'string',
-              'enum' => %w[
-                DocumentNode HeadlineNode ParagraphNode InlineNode TextNode
-                CodeBlockNode ImageNode TableNode ListNode ListItemNode EmbedNode ColumnNode
-              ]
-            },
-            'location' => {
-              'type' => 'object',
-              'properties' => {
-                'filename' => { 'type' => ['string', 'null'] },
-                'lineno' => { 'type' => ['integer', 'null'] },
-                'column' => { 'type' => ['integer', 'null'] }
-              }
-            },
-            'children' => {
-              'type' => 'array',
-              'items' => { '$ref' => '#' }
-            }
-          },
-          'additionalProperties' => true
-        }
-      end
     end
   end
 end

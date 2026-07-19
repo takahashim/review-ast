@@ -43,21 +43,11 @@ module ReVIEW
         new(location.filename, location.lineno, column)
       end
 
-      # Return a copy at the same file/line with the given column.
-      def with_column(column)
-        self.class.new(@filename, @lineno, column)
-      end
-
       def string
         "#{@filename}:#{@lineno}"
       end
 
       alias_method :to_s, :string
-
-      # A location is its own snapshot (matches SnapshotLocation's contract).
-      def snapshot
-        self
-      end
 
       def to_h
         h = { filename: @filename, lineno: @lineno }

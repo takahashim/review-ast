@@ -111,11 +111,6 @@ module ReVIEW
         @dynamic_command_table[command_name] = handler_method
       end
 
-      # @return [Array<Symbol>] List of all registered command names
-      def registered_commands
-        @dynamic_command_table.keys
-      end
-
       # Register a custom code block type with its configuration
       #
       # @param command_name [Symbol] The code block command name (e.g., :python, :javascript)

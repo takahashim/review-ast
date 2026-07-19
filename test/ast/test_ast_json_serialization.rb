@@ -345,22 +345,6 @@ class TestASTJSONSerialization < Test::Unit::TestCase
     assert_equal 'HeadlineNode', parsed['type']
   end
 
-  def test_json_schema_structure
-    schema = AST::JSONSerializer.json_schema
-
-    assert_equal 'http://json-schema.org/draft-07/schema#', schema['$schema']
-    assert_equal 'ReVIEW AST JSON Schema', schema['title']
-    assert_equal 'object', schema['type']
-    assert_include(schema['required'], 'type')
-
-    # Check enum values for type
-    type_enum = schema['properties']['type']['enum']
-    assert_include(type_enum, 'DocumentNode')
-    assert_include(type_enum, 'HeadlineNode')
-    assert_include(type_enum, 'ParagraphNode')
-    assert_include(type_enum, 'InlineNode')
-  end
-
   def test_complex_nested_structure
     # Create a complex document structure
     doc = AST::DocumentNode.new(

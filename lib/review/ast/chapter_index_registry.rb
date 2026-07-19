@@ -50,11 +50,6 @@ module ReVIEW
       def key?(type, id)
         !lookup(type, id).nil?
       end
-
-      # All ids recorded for a type (mainly for tests/introspection).
-      def ids(type)
-        @table[type]&.keys || []
-      end
     end
   end
 end

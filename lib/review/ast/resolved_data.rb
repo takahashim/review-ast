@@ -29,13 +29,6 @@ module ReVIEW
         !@chapter_id.nil?
       end
 
-      # Check if the reference was successfully resolved
-      # @return [Boolean] true if the reference exists and was found
-      def exists?
-        # If item_number is set, the reference was found
-        !@item_number.nil?
-      end
-
       # Helper methods for chapter type checking
       # @return [Boolean] true if the referenced chapter is a regular chapter
       def chapter?
