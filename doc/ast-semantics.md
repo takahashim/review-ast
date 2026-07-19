@@ -337,7 +337,10 @@ exists, a `review_version`) when, stage by stage, it satisfies:
 3. **Rendering**:
    per format, it yields the same output at that format's strictness.
    LaTeX is DVI-identical, IDGXML is byte-identical, HTML is
-   rendered-equivalent, and plaintext and TOP are byte-identical.
+   rendered-equivalent. plaintext and TOP are not held to byte equality but to
+   semantic correctness: blank-line placement, table rule width and nested-list
+   indentation may differ from the builders (design-improvements item 9, "the
+   differences kept on purpose").
 
 Version handling follows this design intent.
 Semantics are version-independent by default; only triaged divergence points

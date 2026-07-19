@@ -61,13 +61,29 @@
 
 ## 5. スキーマとの関係
 
+スキーマの実体は `schema/ast-format-1.schema.json` である。
+これは手書きではなく、実ダンプ(`samples/syntax-book` と `samples/md-syntax-book` の全章)を
+introspect して `tools/generate_ast_schema.rb` が生成する。
+シリアライズの形が変われば `test/ast/test_ast_schema.rb` が失敗するので、
+スキーマが黙って古くなることはない(直し方は再生成するだけである)。
+
+```bash
+ruby tools/generate_ast_schema.rb
+```
+
 生成スキーマ(`additionalProperties: false`)は **gem リリースごとに再生成して同梱**する。
 省略可能フィールドの追加は版を上げないため、スキーマは同一 `ast_format` の中でもリリースごとに広がりうる。
 したがって検証の規則は次になる。
 
 - 検証は「**生成した gem と同じか、それより新しい**リリースのスキーマ」で行う。
 - 古いスキーマで新しいダンプが不合格になるのは想定内であり、形式の破壊ではない(スキーマを更新して再検証する)。
-- CI では、サンプルコーパスのダンプを**同一リリースのスキーマ**で検証する(これが「シリアライザとスキーマの同期」の検査を兼ねる)。
+- CI では、スキーマを再生成して同梱物と一致することを検査する(`test/ast/test_ast_schema.rb`)。
+  スキーマはコーパスから導出されるため「コーパスが妥当か」は構成上自明であり、
+  検査すべきは「同梱スキーマがシリアライザに追随しているか」である。
+- ノード定義はすべて閉じている(`additionalProperties: false`)。
+  未知のキーは、意図しないシリアライズ変更として検出される。
+- `ResolvedData` 系(`ImageReference` 等)はノードではないため `$defs/resolved_data` に分けてある。
+  ノードが来るべき位置に置けてはならない。
 
 ## 6. bare ノード JSON の地位
 

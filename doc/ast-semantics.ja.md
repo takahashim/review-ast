@@ -244,11 +244,14 @@ IDGXML はソースの数値 CSV を直接読み、LaTeX 列指定の形(`|l|c|r
    すなわち `DirectiveNode` が残っておらず、directive の効果は対象ノードのフィールドにあり、[2.3 節](#23-定義番号)の番号付けが済んでいる。
 3. **描画**:
    形式ごとに定められた厳密度で同じ出力を生む。
-   LaTeX は DVI 一致、IDGXML は byte 一致、HTML は rendered-equivalent、plaintext と TOP は byte 一致である。
+   LaTeX は DVI 一致、IDGXML は byte 一致、HTML は rendered-equivalent である。
+   plaintext と TOP は byte 一致を求めない(意味的な正しさで判定する)。
+   空行位置・表の罫線幅・入れ子リストのインデントはビルダーと異なってよい
+   (design-improvements 項目 9 の「意図的に許容している残差」)。
 
 版の扱いは次の設計意図に従う。
 セマンティクスは版に依存しないことを基本とし、トリアージ済みの乖離点だけが `review_version` の範囲を持つ(予定)。
 ノードのスキーマは版で分岐させず、分岐はコンパイラとレンダラの挙動にのみ置く。
 現状のダンプのエンベロープは `ast_format` と生成元を示す `generator` 文字列(例: `review 5.11.0`)のみを記録しており、専用の `review_version` フィールドや版ゲートは未実装である。
 
-実行可能な適合キットは、シリアライズ AST のスキーマ、samples と PBT のコーパス、差分比較器(DVI 用の `tools/compare_book.rb`、IDGXML と HTML のスイープ)であり、いずれも Ruby ソースを読まずに実行できる。
+実行可能な適合キットは、シリアライズ AST のスキーマ(`schema/ast-format-1.schema.json`)、samples と PBT のコーパス、差分比較器(DVI 用の `tools/compare_book.rb`、IDGXML と HTML のスイープ)であり、いずれも Ruby ソースを読まずに実行できる。
