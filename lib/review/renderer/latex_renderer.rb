@@ -559,15 +559,14 @@ module ReVIEW
         # imgtable is rendered as table with image inside (like LATEXBuilder)
         result = []
 
-        # Check if image is bound like LATEXBuilder does
-        unless node.id? && @chapter && @chapter.image_bound?(node.id)
+        # Path resolved at compile time and stamped on the node; nil = unbound.
+        unless node.id? && node.image_path
           # Not bound: emit the same dummy image as a regular //image (path
           # placeholder + label + caption), matching LATEXBuilder#image_dummy.
           return render_dummy_image(node, caption, double_escape_id: false, with_label: true)
         end
 
-        # Get image path - image is bound, so this should succeed
-        image_path = @chapter.image(node.id).path
+        image_path = node.image_path
 
         # Generate table structure with image like LATEXBuilder
         # Start table environment if caption exists (line 911)
@@ -1285,14 +1284,6 @@ module ReVIEW
       end
 
       private
-
-      # Get image path, returning nil if image doesn't exist
-      def find_image_path(id)
-        path = @chapter.image(id).path
-        path && !path.empty? ? path : nil
-      rescue StandardError
-        nil
-      end
 
       # Render existing image (for regular //image)
       def render_existing_image(node, image_path, caption, with_label:)

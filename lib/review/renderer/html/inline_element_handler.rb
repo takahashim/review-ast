@@ -310,14 +310,16 @@ module ReVIEW
         end
 
         def render_inline_icon(_type, content, node)
-          # Icon is an image reference
+          # Icon is an inline image; its path was resolved at compile time and
+          # stamped on the node (no chapter image index).
           id = node.args.first || content
-          begin
-            @ctx.build_icon_html(id)
-          rescue ReVIEW::KeyError, NoMethodError
+          unless node.image_path
             warn "image not bound: #{id}"
-            %Q(<pre>missing image: #{id}</pre>)
+            return %Q(<pre>missing image: #{id}</pre>)
           end
+
+          path = node.image_path.sub(%r{\A\./}, '')
+          %Q(<img src="#{path}" alt="[#{id}]" />)
         end
 
         def render_inline_bib(_type, _content, node)

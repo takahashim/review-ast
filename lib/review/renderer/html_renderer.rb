@@ -1151,21 +1151,13 @@ module ReVIEW
         end
       end
 
-      # Resolve [chapter_number, number] for an image caption. Prefer the number
-      # stamped on the node by the Indexer (definition_number). Fall back to the
-      # chapter image index only for the unbound //imgtable dummy path, whose
-      # node carries a *table* number and must be renumbered as an image.
+      # Resolve [chapter_number, number] for an image caption from the number the
+      # Indexer stamped on the node (definition_number, or the imgtable's
+      # image-context number for the unbound imgtable dummy).
       def image_caption_number(id, definition_number)
-        if definition_number
-          [definition_number.chapter_number, definition_number.number]
-        else
-          image_item = @chapter&.image(id)
-          unless image_item && image_item.number
-            raise ReVIEW::KeyError, "image '#{id}' not found"
-          end
+        raise ReVIEW::KeyError, "image '#{id}' not found" unless definition_number
 
-          [get_chap, image_item.number]
-        end
+        [definition_number.chapter_number, definition_number.number]
       end
 
       def image_header_html(id, caption_node, image_type = :image, definition_number = nil)
@@ -1214,11 +1206,11 @@ module ReVIEW
         id = node.id
         caption_node = node.caption_node
 
-        # Check if image is bound like HTMLBuilder does
-        unless @chapter&.image_bound?(id)
+        # Path resolved at compile time and stamped on the node; nil = unbound.
+        unless node.image_path
           warn "image not bound: #{id}"
           # For dummy images, use empty array for lines (no lines in TableNode)
-          return render_imgtable_dummy(id, caption_node, [])
+          return render_imgtable_dummy(node, caption_node, [])
         end
 
         id_attr = id ? %Q( id="#{normalize_id(id)}") : ''
@@ -1233,19 +1225,15 @@ module ReVIEW
                        end
 
         # Render image tag
-        begin
-          image_path = @chapter.image(id).path.sub(%r{\A\./}, '')
-          alt_text = escape(node.caption_text)
-          img_html = %Q(<img src="#{image_path}" alt="#{alt_text}"#{parse_metric('html', node.metric)} />\n)
+        image_path = node.image_path.sub(%r{\A\./}, '')
+        alt_text = escape(node.caption_text)
+        img_html = %Q(<img src="#{image_path}" alt="#{alt_text}"#{parse_metric('html', node.metric)} />\n)
 
-          # Check caption positioning like HTMLBuilder (uses 'table' type for imgtable)
-          if caption_top?('table') && !caption_content.empty?
-            %Q(<div#{id_attr} class="imgtable image">\n#{caption_html}#{img_html}</div>\n)
-          else
-            %Q(<div#{id_attr} class="imgtable image">\n#{img_html}#{caption_html}</div>\n)
-          end
-        rescue ReVIEW::KeyError
-          app_error "no such table: #{id}"
+        # Check caption positioning like HTMLBuilder (uses 'table' type for imgtable)
+        if caption_top?('table') && !caption_content.empty?
+          %Q(<div#{id_attr} class="imgtable image">\n#{caption_html}#{img_html}</div>\n)
+        else
+          %Q(<div#{id_attr} class="imgtable image">\n#{img_html}#{caption_html}</div>\n)
         end
       end
 
@@ -1253,9 +1241,13 @@ module ReVIEW
       # HTMLBuilder (imgtable calls image_dummy), i.e. class "image" with the
       # image (図) numbering and caption_top?('image') -- NOT the table style.
       # Delegate to the same image-dummy path so it matches exactly.
-      def render_imgtable_dummy(id, caption_node, lines)
+      def render_imgtable_dummy(node, caption_node, lines)
+        id = node.id
         id_attr = id ? %Q( id="#{normalize_id(id)}") : ''
-        image_dummy_html(id, caption_node, lines, id_attr, :image)
+        # Renumber as an image: pass the image-context DefinitionNumber the
+        # Indexer stamped on the imgtable node (its definition_number is a table
+        # number).
+        image_dummy_html(id, caption_node, lines, id_attr, :image, node.imgtable_image_number)
       end
 
       def render_caption_inline(caption_node)

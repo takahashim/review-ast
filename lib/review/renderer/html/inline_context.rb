@@ -67,20 +67,6 @@ module ReVIEW
           config['chapterlink']
         end
 
-        def footnote_number(fn_id)
-          chapter.footnote(fn_id).number
-        end
-
-        def build_icon_html(icon_id)
-          image_item = chapter.image(icon_id)
-          path = image_item.path.sub(%r{\A\./}, '')
-          %Q(<img src="#{path}" alt="[#{icon_id}]" />)
-        end
-
-        def bibpaper_number(bib_id)
-          chapter.bibpaper(bib_id).number
-        end
-
         def build_bib_reference_link(bib_id, number)
           bib_file = book.bib_file.gsub(/\.re\Z/, extname)
           %Q(<a href="#{bib_file}#bib-#{normalize_id(bib_id)}">[#{number}]</a>)

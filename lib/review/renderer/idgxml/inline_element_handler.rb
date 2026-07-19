@@ -431,14 +431,12 @@ module ReVIEW
           %Q(<pageref idref='#{escape(idref)}'>●●</pageref>)
         end
 
-        # Icon (inline image)
-        def render_inline_icon(_type, content, node)
-          id = node.args.first || content
-          begin
-            %Q(<Image href="file://#{@ctx.chapter.image(id).path.sub(%r{\A\./}, '')}" type="inline" />)
-          rescue StandardError
-            ''
-          end
+        # Icon (inline image). Path resolved at compile time and stamped on the
+        # inline node (no chapter image index).
+        def render_inline_icon(_type, _content, node)
+          return '' unless node.image_path
+
+          %Q(<Image href="file://#{node.image_path.sub(%r{\A\./}, '')}" type="inline" />)
         end
 
         # Balloon

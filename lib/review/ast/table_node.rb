@@ -4,6 +4,7 @@ require_relative 'node'
 require_relative 'caption_node'
 require_relative 'captionable'
 require_relative 'json_serializer'
+require_relative 'definition_number'
 require_relative 'table_column_width_parser'
 
 module ReVIEW
@@ -17,6 +18,13 @@ module ReVIEW
       # target-neutral: the LaTeX column spec is derived by the renderer, not
       # baked here. See doc/design-improvements #5.
       attr_accessor :tsize
+
+      # For //imgtable only: the DefinitionNumber the image would carry if it were
+      # rendered as an image. An imgtable is numbered as a table (definition_number)
+      # when bound, but an unbound one falls back to the image-dummy rendering,
+      # which numbers it as an image. Stamped by the Indexer so that path needs no
+      # chapter image index (doc/design-improvements #7).
+      attr_accessor :imgtable_image_number
 
       def initialize(location:, id: nil, caption_node: nil, table_type: :table, metric: nil, tsize: nil, **kwargs)
         super(location: location, id: id, **kwargs)
@@ -118,6 +126,7 @@ module ReVIEW
         hash[:body_rows] = body_rows.map { |row| row.serialize_to_hash(options) }
         hash[:metric] = metric if metric
         hash[:tsize] = tsize if tsize
+        hash[:imgtable_image_number] = @imgtable_image_number.to_h if @imgtable_image_number
 
         serialize_common_node_fields(hash)
       end
@@ -131,6 +140,11 @@ module ReVIEW
           metric: hash['metric'],
           tsize: hash['tsize']
         )
+        if (iin = hash['imgtable_image_number']).is_a?(Hash)
+          node.imgtable_image_number = ReVIEW::AST::DefinitionNumber.new(
+            number: iin['number'], chapter_number: iin['chapter_number']
+          )
+        end
         # Process header and body rows
         (hash['header_rows'] || []).each do |row_hash|
           row = ReVIEW::AST::JSONSerializer.deserialize_from_hash(row_hash)

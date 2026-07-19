@@ -36,6 +36,16 @@ module ReVIEW
       # node rather than an entry in an untyped attribute bag. Read via #noindent?.
       attr_writer :noindent
 
+      # Filesystem path of the image a node renders, resolved once at compile time
+      # by the Indexer via ReVIEW::Book::ImageFinder (nil when unbound). Set on the
+      # image-bearing nodes -- ImageNode, the //imgtable TableNode, and the
+      # @<icon> InlineNode. Like definition_number it is a source-derived fact
+      # stamped on the node, so renderers need no chapter image index and dumps
+      # are self-contained (doc/design-improvements #7). It is builder-specific
+      # (the finder searches <imagedir>/<builder>/...), matching the single
+      # builder a given compile targets.
+      attr_accessor :image_path
+
       def initialize(location:, type: nil, id: nil, original_text: nil, **_kwargs)
         # Prevent direct instantiation of abstract base class (except in tests)
         if self.instance_of?(ReVIEW::AST::Node)
@@ -49,6 +59,7 @@ module ReVIEW
         @id = id
         @original_text = original_text
         @noindent = false
+        @image_path = nil
       end
 
       def noindent?
@@ -186,6 +197,7 @@ module ReVIEW
       def serialize_common_node_fields(hash)
         hash[:definition_number] = @definition_number.to_h if @definition_number
         hash[:noindent] = true if @noindent
+        hash[:image_path] = @image_path if @image_path
         hash
       end
 

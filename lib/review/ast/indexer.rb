@@ -338,11 +338,16 @@ module ReVIEW
           register(:table, node.id, number: number, caption_node: node.caption_node)
           stamp_definition_number(node, number)
 
-          # For imgtable, also add to indepimage_index (like IndexBuilder does)
+          # For imgtable, also add to indepimage_index (like IndexBuilder does).
+          # The image path is stamped later by ImagePathProcessor; here we record
+          # the number an unbound imgtable would show if rendered as an image.
           if node.table_type == :imgtable
             image_item = ReVIEW::Book::Index::Item.new(node.id, @indepimage_index.size + 1)
             @indepimage_index.add_item(image_item)
             register(:indepimage, node.id, number: image_item.number)
+            node.imgtable_image_number = ReVIEW::AST::DefinitionNumber.new(
+              number: image_item.number, chapter_number: @chapter&.number
+            )
           end
 
           visit_caption_children(node)
@@ -354,11 +359,6 @@ module ReVIEW
       def visit_image(node)
         if node.id?
           check_id(node.id)
-          # Resolve the image file path once, at compile time, and stamp it on the
-          # node (a source-derived fact, like definition_number). The finder is
-          # filesystem- and builder-specific; doing it here means renderers read
-          # node.image_path and need no chapter image index (doc/design-improvements #7).
-          node.image_path = @image_index.find_path(node.id)
           caption_text = extract_caption_text(node.caption_node)
           # Only //image is numbered (@image_index). //indepimage and
           # //numberlessimage are unnumbered and go to @indepimage_index,

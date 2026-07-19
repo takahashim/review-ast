@@ -214,21 +214,13 @@ module ReVIEW
         # (「caption」 in ja). The caption is inserted raw, matching the builder.
         def render_inline_imgref(type, content, node)
           img = render_inline_img(type, content, node)
-          item_id = node.children.first.resolved_data.item_id
-          caption = image_caption_for(item_id)
-          if caption
-            "#{img}#{ReVIEW::I18n.t('image_quote', caption)}"
-          else
-            img
-          end
-        end
-
-        # Caption of the image bound to id in the current chapter, or nil if the
-        # image is unbound. Mirrors LATEXBuilder's @chapter.image(id).caption.
-        def image_caption_for(id)
-          @chapter.image(id).caption
-        rescue StandardError
-          nil
+          # The referenced image's caption comes from the resolved reference data
+          # (the caption node the resolver copied from the //image definition),
+          # matching LATEXBuilder's @chapter.image(id).caption without a chapter
+          # index lookup. Nil caption node -> "" (an unnumbered image still gets
+          # the empty quote), exactly like the legacy Index::Item#caption.
+          caption = node.children.first.resolved_data.caption_node&.to_inline_text || ''
+          "#{img}#{ReVIEW::I18n.t('image_quote', caption)}"
         end
 
         # Render equation reference
@@ -542,7 +534,8 @@ module ReVIEW
           return content unless node.args.first
 
           icon_id = node.args.first
-          image_path = find_image_path(icon_id)
+          # Path resolved at compile time and stamped on this inline node.
+          image_path = node.image_path
 
           if image_path
             command = 'reviewicon'
@@ -738,15 +731,6 @@ module ReVIEW
           else
             escape(title)
           end
-        end
-
-        private
-
-        # Find image path for icon
-        def find_image_path(icon_id)
-          @ctx.chapter&.image(icon_id)&.path
-        rescue StandardError
-          nil
         end
       end
     end

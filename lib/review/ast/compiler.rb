@@ -26,6 +26,7 @@ require_relative 'compiler/olnum_processor'
 require_relative 'compiler/list_structure_normalizer'
 require_relative 'compiler/list_item_numbering_processor'
 require_relative 'compiler/auto_id_processor'
+require_relative 'compiler/image_path_processor'
 require_relative 'headline_parser'
 
 module ReVIEW
@@ -108,7 +109,11 @@ module ReVIEW
           # Assign item numbers to ordered list items
           'ReVIEW::AST::Compiler::ListItemNumberingProcessor',
           # Generate auto_id for HeadlineNode (nonum/notoc/nodisp) and ColumnNode
-          'ReVIEW::AST::Compiler::AutoIdProcessor'
+          'ReVIEW::AST::Compiler::AutoIdProcessor',
+
+          # Resolve image file paths on image/imgtable/icon nodes (independent of
+          # stages A/B; walks the whole tree including captions).
+          'ReVIEW::AST::Compiler::ImagePathProcessor'
         ]
       end
 

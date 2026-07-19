@@ -1513,7 +1513,7 @@ module ReVIEW
       def visit_imgtable(node)
         caption_content = node.caption_node ? render_children(node.caption_node) : nil
 
-        if @chapter.image_bound?(node.id)
+        if node.image_path
           metrics = parse_metric('idgxml', node.metric)
 
           result = []
@@ -1523,7 +1523,7 @@ module ReVIEW
             result << generate_table_header(node.id, caption_content, node.definition_number)
           end
 
-          result << %Q(<imgtable><Image href="file://#{@chapter.image(node.id).path.sub(%r{\A./}, '')}"#{metrics} /></imgtable>)
+          result << %Q(<imgtable><Image href="file://#{node.image_path.sub(%r{\A./}, '')}"#{metrics} /></imgtable>)
 
           if !caption_top?('table') && caption_content
             result << generate_table_header(node.id, caption_content, node.definition_number)
@@ -1533,8 +1533,9 @@ module ReVIEW
 
           result.join("\n") + "\n"
         else
-          # Fall back to image dummy
-          visit_image_dummy(node.id, caption_content, [])
+          # Fall back to image dummy, renumbered as an image (the imgtable node's
+          # definition_number is a table number).
+          visit_image_dummy(node.id, caption_content, [], node.imgtable_image_number)
         end
       end
 
@@ -1621,16 +1622,12 @@ module ReVIEW
       # Generate image header
       def generate_image_header(id, caption, definition_number = nil)
         return '' unless caption && !caption.empty?
+        raise ReVIEW::KeyError, "image '#{id}' not found" unless definition_number
 
-        # Prefer the number stamped on the node (definition_number). Fall back to
-        # the chapter image index only for the unbound //imgtable dummy path,
-        # whose node carries a *table* number and must be renumbered as an image.
-        chap, number =
-          if definition_number
-            [definition_number.chapter_number, definition_number.number]
-          else
-            [get_chap, @chapter.image(id).number]
-          end
+        # The number is stamped on the node (definition_number, or the imgtable's
+        # image-context number for the unbound imgtable dummy).
+        chap = definition_number.chapter_number
+        number = definition_number.number
         %Q(<caption>#{text_formatter.format_caption_plain('image', chap, number, caption)}</caption>)
       end
 

@@ -117,6 +117,7 @@ module ReVIEW
         end
 
         node.noindent = true if hash['noindent']
+        node.image_path = hash['image_path'] if hash['image_path']
       end
 
       # Helper method to create location from hash or use a default
