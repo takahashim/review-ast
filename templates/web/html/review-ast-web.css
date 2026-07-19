@@ -3,35 +3,62 @@
  * A modern, JS-free book site: responsive two-pane layout, dark mode, and
  * readable Japanese typography. Features that are not Baseline everywhere are
  * written as progressive enhancement -- they degrade to a plain, working page.
+ *
+ * Body-content rules are scoped under .book-page so that a book's own
+ * stylesheet (often an EPUB-era sheet full of bare element selectors) loading
+ * after this one does not silently clobber the reading design; overriding is
+ * still easy because everything here is at most one class deep.
  */
+
+/* ---------------------------------------------------------------- tokens */
 
 :root {
   color-scheme: light dark;
   --bg: light-dark(#fdfdfc, #16181d);
-  --fg: light-dark(#1b1b1b, #e6e6e6);
+  --fg: light-dark(#1b1b1b, #e2e4e8);
   --muted: light-dark(#5a5f66, #9aa0a8);
   --accent: light-dark(#0b6bcb, #6cb2ff);
+  --green: light-dark(#1a7f37, #57c975);
+  --amber: light-dark(#9a6700, #d9a942);
+  --red: light-dark(#c0392b, #ee7b6d);
   --border: light-dark(#e3e4e6, #2c2f36);
   --sidebar-bg: light-dark(#f5f5f3, #1b1e24);
   --code-bg: light-dark(#f4f4f2, #232730);
-  --measure: 42rem;
-  --sidebar-w: 18rem;
+  --measure: 40rem;
+  --sidebar-w: 17.5rem;
+  --font-body: system-ui, "Hiragino Sans", "Hiragino Kaku Gothic ProN",
+               "Noto Sans JP", "Yu Gothic Medium", "Yu Gothic", sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas,
+               "BIZ UDGothic", monospace;
 }
 
 * { box-sizing: border-box; }
 
-html { -webkit-text-size-adjust: 100%; }
+html {
+  -webkit-text-size-adjust: 100%;
+  scrollbar-gutter: stable;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+}
 
 body {
   margin: 0;
   background: var(--bg);
   color: var(--fg);
-  font-family: system-ui, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+  font-family: var(--font-body);
   line-height: 1.8;
-  text-wrap: pretty; /* PE: ignored where unsupported */
 }
 
 a { color: var(--accent); }
+
+::selection { background: color-mix(in oklab, var(--accent) 25%, transparent); }
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 
 .skip-link {
   position: absolute;
@@ -47,6 +74,7 @@ a { color: var(--accent); }
 }
 
 /* --- Layout: mobile-first single column; the TOC is a popover drawer. --- */
+
 .toc-toggle {
   position: sticky;
   top: 0;
@@ -64,96 +92,445 @@ a { color: var(--accent); }
 
 .side-content {
   margin: 0;
-  padding: 1.5rem;
+  padding: 1.25rem 1.25rem 2rem;
   background: var(--sidebar-bg);
   border: none;
   border-right: 1px solid var(--border);
   max-width: min(90vw, 22rem);
   height: 100dvh;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
   color: var(--fg);
 }
 
 .book-title {
-  font-size: 1.1rem;
-  margin: 0 0 1rem;
+  font-size: 1.05rem;
+  line-height: 1.4;
+  margin: 0 0 1.25rem;
 }
 .book-title a { color: inherit; text-decoration: none; }
 
-.book-toc ul { list-style: none; padding-left: 1rem; margin: 0.3rem 0; }
-.book-toc > ul { padding-left: 0; }
-.book-toc a { text-decoration: none; }
-.book-toc a:hover { text-decoration: underline; }
+/* Sidebar TOC: chapters at the top level, muted section links below them,
+ * a thin guide line making the nesting scannable. The nav and its top <ul>
+ * share the book-toc class, hence the nav-qualified selectors. */
+nav.book-toc { font-size: 0.9rem; line-height: 1.6; }
+nav.book-toc ul { list-style: none; margin: 0; padding: 0; }
+nav.book-toc li { margin-block: 0.15rem; }
+nav.book-toc a {
+  display: block;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  text-decoration: none;
+  color: inherit;
+}
+nav.book-toc a:hover { background: color-mix(in oklab, var(--accent) 12%, transparent); }
+nav.book-toc ul ul {
+  margin-inline-start: 0.4rem;
+  padding-inline-start: 0.6rem;
+  border-inline-start: 1px solid var(--border);
+  font-size: 0.925em;
+}
+nav.book-toc ul ul a { color: var(--muted); }
+nav.book-toc ul ul a:hover { color: var(--fg); }
+/* Part rows are plain <li> text (no link): render them as group headings. */
+nav.book-toc li:not(:has(> a)) {
+  margin-top: 1rem;
+  padding: 0.15rem 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
 
-.review-signature { color: var(--muted); font-size: 0.85rem; margin-top: 2rem; }
+.review-signature { color: var(--muted); font-size: 0.8rem; margin-top: 2rem; }
 
 .book-body { min-width: 0; }
+
+/* ------------------------------------------------------------- article */
 
 .book-page {
   max-width: var(--measure);
   margin-inline: auto;
-  padding: 1.5rem 1.25rem 3rem;
+  padding: 2rem 1.25rem 4rem;
+  font-family: var(--font-body);
+  font-size: 1.0625rem;
+  line-height: 1.9;
 }
 
-.book-page :is(h1, h2, h3, h4, h5, h6) {
-  line-height: 1.35;
-  text-wrap: balance;
-  margin-top: 2.2rem;
+/* Anchor targets land below the sticky mobile TOC bar. */
+.book-page :is(h1, h2, h3, h4, h5, h6, [id]) { scroll-margin-block-start: 4rem; }
+
+.book-page p {
+  margin-block: 0 1.4em;
+  text-align: justify;
+  overflow-wrap: anywhere;
+  text-wrap: pretty; /* PE: ignored where unsupported */
 }
+
+.book-page a {
+  text-underline-offset: 0.2em;
+  text-decoration-thickness: 1px;
+  text-decoration-color: color-mix(in oklab, var(--accent) 45%, transparent);
+}
+.book-page a:hover { text-decoration-color: var(--accent); }
+
+/* Headings: the chapter/section number sits on its own quiet line for h1,
+ * and stays inline but recedes for the rest. */
+.book-page :is(h1, h2, h3, h4, h5, h6) {
+  line-height: 1.4;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+  font-feature-settings: "palt";
+  letter-spacing: 0.01em;
+  margin-block: 2.6em 0.8em;
+  /* EPUB-era book stylesheets often paint bare h1/h2; keep headings quiet
+   * unless the book targets .book-page explicitly. */
+  background: transparent;
+}
+.book-page h1 {
+  font-size: 1.8rem;
+  margin-block-start: 0.5em;
+  padding-block-end: 0.5em;
+  border-block-end: 1px solid var(--border);
+}
+.book-page h1 .secno {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  margin-block-end: 0.3em;
+}
+.book-page h2 { font-size: 1.4rem; }
+.book-page h3 { font-size: 1.15rem; }
+.book-page :is(h4, h5, h6) { font-size: 1rem; }
+.book-page :is(h2, h3, h4, h5, h6) .secno {
+  color: var(--muted);
+  font-weight: 600;
+  margin-inline-end: 0.2em;
+}
+
+.book-page .lead {
+  color: var(--muted);
+  padding-inline-start: 1em;
+  border-inline-start: 3px solid var(--border);
+  margin-block: 1.5rem;
+}
+
+.book-page :is(ul, ol) { padding-inline-start: 1.6em; margin-block: 0 1.4em; }
+.book-page li { margin-block: 0.25em; }
+.book-page li > :is(ul, ol) { margin-block-end: 0; }
+
+.book-page dl { margin-block: 0 1.4em; }
+.book-page dt { font-weight: 600; }
+.book-page dd { margin-inline-start: 1.5em; margin-block-end: 0.6em; }
+
+.book-page blockquote {
+  margin: 1.5rem 0;
+  padding: 0.2rem 1.2rem;
+  border-inline-start: 3px solid var(--border);
+  color: var(--muted);
+}
+
+.book-page hr {
+  border: none;
+  border-block-start: 1px solid var(--border);
+  margin-block: 2.5rem;
+}
+
+.book-page .flushright { text-align: end; }
 .book-page img { max-width: 100%; height: auto; }
 
-/* Code and preformatted blocks. */
-.book-page :is(pre, code) {
-  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-}
+/* ---------------------------------------------------------------- code */
+
+.book-page :is(pre, code) { font-family: var(--font-mono); }
+
 .book-page pre {
   background: var(--code-bg);
   padding: 1rem;
-  border-radius: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
   overflow-x: auto;
-  line-height: 1.5;
+  font-size: 0.85em;
+  line-height: 1.6;
+  tab-size: 4;
 }
-.book-page code.tt { background: var(--code-bg); padding: 0.1em 0.3em; border-radius: 4px; }
 
-/* Footnotes. */
-.footnote { color: var(--muted); font-size: 0.9rem; border-top: 1px solid var(--border); }
+.book-page code.tt {
+  background: var(--code-bg);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  font-size: 0.875em;
+}
 
-/* Prev/next navigation. */
+/* Every listing wrapper (div.code for //list, plus emlist-code, source-code,
+ * cmd-code, emlistnum-code, caption-code, ...) is a div whose class is "code"
+ * or ends in -code; a captioned listing renders as a titled card. */
+.book-page div:is(.code, [class*="-code"]) { margin-block: 1.6rem; }
+.book-page div:is(.code, [class*="-code"]) > pre { margin: 0; }
+.book-page div:is(.code, [class*="-code"]) > .caption {
+  margin: 0;
+  padding: 0.4rem 1rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-align: start;
+  background: color-mix(in oklab, var(--fg) 6%, var(--code-bg));
+  border: 1px solid var(--border);
+  border-block-end: none;
+  border-radius: 8px 8px 0 0;
+}
+.book-page div:is(.code, [class*="-code"]) > .caption + pre { border-radius: 0 0 8px 8px; }
+
+/* Callout arrows (//balloon) inside listings. */
+.book-page .balloon { color: var(--muted); font-family: var(--font-body); }
+
+/* Rouge token colors (Pygments-compatible classes), for highlight: rouge.
+ * One hue per token family, tuned for --code-bg in both schemes. */
+.book-page .highlight {
+  --hl-comment: light-dark(#697077, #8b949e);
+  --hl-keyword: light-dark(#0550ae, #82b3ff);
+  --hl-type: light-dark(#0e7490, #7cd0e0);
+  --hl-string: light-dark(#0a7227, #86d99c);
+  --hl-number: light-dark(#8a4600, #eab27a);
+  --hl-func: light-dark(#6639ba, #d2a8ff);
+}
+.book-page .highlight :is(.c, .c1, .cm, .cp, .cs) { color: var(--hl-comment); font-style: italic; }
+.book-page .highlight :is(.k, .kc, .kd, .kn, .kp, .kr, .kv, .ow) { color: var(--hl-keyword); }
+.book-page .highlight :is(.kt, .nb, .no, .nt) { color: var(--hl-type); }
+.book-page .highlight :is(.s, .s1, .s2, .sb, .sc, .sd, .se, .sh, .si, .sx, .sr, .ss, .dl) { color: var(--hl-string); }
+.book-page .highlight :is(.m, .mb, .mf, .mh, .mi, .mo, .il) { color: var(--hl-number); }
+.book-page .highlight :is(.nf, .nc, .nn, .nd, .ne, .fm) { color: var(--hl-func); }
+.book-page .highlight .err { color: var(--red); }
+.book-page .highlight .gd { color: var(--red); }
+.book-page .highlight .gi { color: var(--green); }
+
+/* Rouge line numbers render as nested <pre>s inside a two-cell table; undo
+ * the outer block styling they would otherwise inherit, and quiet the gutter. */
+.book-page pre pre {
+  background: none;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  margin: 0;
+  font-size: 1em;
+}
+.book-page .rouge-table { margin: 0; font-size: 1em; }
+.book-page .rouge-table td { border: none; padding: 0; background: none; }
+.book-page .rouge-table .rouge-gutter {
+  padding-inline-end: 1em;
+  text-align: end;
+  color: var(--muted);
+  user-select: none;
+}
+
+/* --------------------------------------------------------------- tables */
+
+.book-page .table { margin-block: 1.6rem; overflow-x: auto; }
+.book-page .table > .caption {
+  margin-block: 0 0.5em;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.book-page table {
+  border-collapse: collapse;
+  font-size: 0.95em;
+  line-height: 1.6;
+}
+.book-page :is(th, td) {
+  border: 1px solid var(--border);
+  padding: 0.35em 0.8em;
+  text-align: start;
+  vertical-align: top;
+}
+.book-page th { background: var(--sidebar-bg); font-weight: 600; }
+
+/* ------------------------------------------------------- figures, math */
+
+.book-page .image { margin-block: 1.6rem; text-align: center; }
+.book-page .image .caption {
+  margin-block: 0.6em 0;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.book-page .equation { margin-block: 1.6rem; overflow-x: auto; }
+
+/* -------------------------------------------------- admonitions, column */
+
+/* Minicolumn blocks share one card shape; the hue encodes severity. */
+.book-page :is(.note, .memo, .info, .tip, .important, .notice, .warning, .caution) {
+  --admonition-c: var(--accent);
+  margin-block: 1.6rem;
+  padding: 0.9rem 1.2rem;
+  border-inline-start: 3px solid var(--admonition-c);
+  border-radius: 0 8px 8px 0;
+  background: color-mix(in oklab, var(--admonition-c) 7%, var(--bg));
+}
+.book-page .tip { --admonition-c: var(--green); }
+.book-page :is(.important, .notice) { --admonition-c: var(--amber); }
+.book-page :is(.warning, .caution) { --admonition-c: var(--red); }
+.book-page :is(.note, .memo, .info, .tip, .important, .notice, .warning, .caution) > .caption {
+  margin-block: 0 0.4em;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--admonition-c);
+}
+.book-page :is(.note, .memo, .info, .tip, .important, .notice, .warning, .caution) > p:last-child {
+  margin-block-end: 0;
+}
+
+.book-page .column {
+  margin-block: 2.2rem;
+  padding: 1.2rem 1.4rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--sidebar-bg);
+}
+.book-page .column > :is(h1, h2, h3, h4, h5, h6) {
+  margin-block-start: 0;
+  font-size: 1.05rem;
+}
+.book-page .column > p:last-child { margin-block-end: 0; }
+
+/* ---------------------------------------------------- footnotes, refs */
+
+.book-page a.noteref {
+  font-size: 0.7em;
+  vertical-align: super;
+  line-height: 1;
+  text-decoration: none;
+  padding-inline: 0.1em;
+}
+
+.book-page div.footnote {
+  margin-block: 1.2rem;
+  padding-inline-start: 1em;
+  border-inline-start: 2px solid var(--border);
+  font-size: 0.875rem;
+  color: var(--muted);
+  line-height: 1.7;
+}
+.book-page div.footnote + div.footnote { margin-block-start: -0.6rem; }
+.book-page div.footnote p { margin-block: 0; text-align: start; }
+
+.book-page .endnotes { margin-block-start: 3rem; }
+.book-page .endnote {
+  font-size: 0.875rem;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+/* Landing on a footnote (or any anchor) briefly needs to stand out; a plain
+ * static tint keeps it JS- and animation-free. */
+.book-page :is(div.footnote, .endnote):target {
+  background: color-mix(in oklab, var(--accent) 12%, transparent);
+  border-inline-start-color: var(--accent);
+  color: var(--fg);
+}
+
+/* -------------------------------------------------------- inline marks */
+
+.book-page .kw { font-weight: 700; }
+.book-page .ami {
+  background: color-mix(in oklab, var(--accent) 16%, transparent);
+  padding-inline: 0.05em;
+}
+
+/* -------------------------------------------------------- page chrome */
+
 .book-navi {
   display: flex;
   justify-content: space-between;
   gap: 1rem;
   max-width: var(--measure);
   margin-inline: auto;
-  padding: 1.5rem 1.25rem;
-  border-top: 1px solid var(--border);
+  padding: 1.5rem 1.25rem 2.5rem;
 }
 .book-navi a {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.5rem;
+  max-width: 48%;
+  padding: 0.7rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
   text-decoration: none;
   color: var(--accent);
 }
+.book-navi a:hover { background: var(--sidebar-bg); }
 .book-next { margin-inline-start: auto; text-align: end; }
-.navi-title { color: var(--muted); }
+.navi-title { color: var(--muted); font-size: 0.9rem; line-height: 1.5; }
+.book-navi .cursor { flex: none; }
 
-.book-footer { padding: 1.5rem 1.25rem; border-top: 1px solid var(--border); color: var(--muted); }
+.book-footer {
+  padding: 1.5rem 1.25rem;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.85rem;
+}
 
 /* --- Desktop: a real two-pane grid; the TOC is always visible. --- */
+
 @media (min-width: 60rem) {
   .toc-toggle { display: none; }
   .book {
     display: grid;
     grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
   }
-  /* Author rule overrides the UA popover "display:none", pinning the aside. */
+  /* Author rules override the UA popover styles (display:none when closed,
+   * plus fixed positioning, inset and fit-content sizing when open), pinning
+   * the aside as a normal grid item that fills its track. */
   .side-content {
     display: block;
     position: sticky;
+    inset: auto;
     top: 0;
+    width: 100%;
+    max-width: none;
+    margin: 0;
   }
+  .book-page :is(h1, h2, h3, h4, h5, h6, [id]) { scroll-margin-block-start: 1.5rem; }
 }
+
+/* ------------------------------------------- progressive enhancements */
 
 /* PE: smooth same-origin page changes where supported. */
 @view-transition { navigation: auto; }
+
+/* PE: reading progress bar, CSS-only via a scroll-driven animation. */
+@supports (animation-timeline: scroll()) {
+  @media (prefers-reduced-motion: no-preference) {
+    body::before {
+      content: "";
+      position: fixed;
+      inset-block-start: 0;
+      inset-inline: 0;
+      height: 3px;
+      z-index: 20;
+      background: var(--accent);
+      transform-origin: 0 50%;
+      transform: scaleX(0);
+      animation: review-reading-progress linear;
+      animation-timeline: scroll(root);
+    }
+  }
+}
+@keyframes review-reading-progress {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @view-transition { navigation: none; }
+}
+
+/* ---------------------------------------------------------------- print */
+
+@media print {
+  .toc-toggle, .side-content, .book-navi, .skip-link { display: none; }
+  .book { display: block; }
+  body { background: #fff; color: #000; }
+  .book-page { max-width: none; padding: 0; }
+  .book-page pre { white-space: pre-wrap; }
+}
