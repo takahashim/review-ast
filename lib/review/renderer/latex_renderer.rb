@@ -824,27 +824,6 @@ module ReVIEW
         apply_noindent_if_needed(node, result)
       end
 
-      # Visit olnum block (set ordered list counter)
-      def visit_block_olnum(node)
-        # olnum is now handled as metadata in list processing
-        # If we encounter it here, it means there was no following ordered list
-        # In this case, we should still generate the setcounter command for compatibility
-        if node.args.first
-          num = node.args.first.to_i
-          "\\setcounter{enumi}{#{num - 1}}\n"
-        else
-          "\\setcounter{enumi}{0}\n"
-        end
-      end
-
-      # Visit tsize block (table size control)
-      def visit_block_tsize(_node)
-        # tsize is now processed by TsizeProcessor during AST compilation
-        # The tsize block nodes are removed from AST by TsizeProcessor,
-        # so this case should not be reached. Return empty string for safety.
-        ''
-      end
-
       # Visit texequation block (mathematical equation)
       def visit_block_texequation(node)
         content = render_children(node)
@@ -857,18 +836,6 @@ module ReVIEW
       def visit_block_comment(node)
         # Handle comment blocks - only output in draft mode
         visit_comment_block(node)
-      end
-
-      # Visit beginchild block (child nesting control)
-      def visit_block_beginchild(_node)
-        # Child nesting control commands - produce no output
-        ''
-      end
-
-      # Visit endchild block (child nesting control)
-      def visit_block_endchild(_node)
-        # Child nesting control commands - produce no output
-        ''
       end
 
       # Visit centering block (center alignment)
@@ -940,11 +907,6 @@ module ReVIEW
       # Visit blankline block (control command)
       def visit_block_blankline(_node)
         "\\par\\vspace{\\baselineskip}\\par\n\n"
-      end
-
-      # Visit noindent block (control command)
-      def visit_block_noindent(_node)
-        ''
       end
 
       # Visit pagebreak block (control command)

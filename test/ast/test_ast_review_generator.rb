@@ -2,7 +2,11 @@
 
 require_relative '../test_helper'
 require 'review/ast'
+require 'review/ast/compiler'
 require 'review/ast/review_generator'
+require 'review/book'
+require 'review/book/chapter'
+require 'review/i18n'
 require 'review/ast/code_line_node'
 require 'review/ast/table_row_node'
 require 'review/ast/table_cell_node'
@@ -603,5 +607,52 @@ class TestASTReVIEWGenerator < Test::Unit::TestCase
 
     result = @generator.generate(doc)
     assert_equal "==[column] Column Title\n\nColumn content.\n\n==[/column]\n\n", result
+  end
+
+  # dump2re re-emits the //noindent, //olnum, //firstlinenum and //tsize markers
+  # that the post-process passes fold onto nodes as attributes, so a
+  # compile -> generate -> recompile round-trip preserves them
+  # (doc/design-improvements #3). Before this, only //tsize survived; the others
+  # were silently dropped because their re-emission lived in dead
+  # visit_block_<marker> handlers that never fire on the lowered core tree.
+  def test_directive_attributes_survive_dump2re_round_trip
+    cases = {
+      'noindent' => ["= C\n\nPara zero.\n\n//noindent\n\nTarget para.\n",
+                     ->(root) { collect(root, ReVIEW::AST::ParagraphNode).any?(&:noindent?) }],
+      'olnum' => ["= C\n\n//olnum[10]\n\n 1. a\n 2. b\n",
+                  ->(root) { collect(root, ReVIEW::AST::ListNode).any? { |n| n.olnum_start.to_s == '10' } }],
+      'firstlinenum' => ["= C\n\n//firstlinenum[100]\n\n//listnum[c][Cap]{\nx\n//}\n",
+                         ->(root) { collect(root, ReVIEW::AST::CodeBlockNode).any? { |n| n.first_line_num.to_s == '100' } }],
+      'tsize' => ["= C\n\n//tsize[|latex|10,18]\n\n//table[t][Cap]{\nA\tB\n//}\n",
+                  ->(root) { collect(root, ReVIEW::AST::TableNode).any? { |n| !n.tsize.nil? } }]
+    }
+
+    cases.each do |name, (source, present)|
+      root1 = compile_source(source)
+      assert(present.call(root1), "#{name}: attribute missing even before round-trip")
+
+      regenerated = @generator.generate(root1)
+      root2 = compile_source(regenerated)
+      assert(present.call(root2),
+             "#{name}: attribute lost through dump2re round-trip. Regenerated source:\n#{regenerated}")
+    end
+  end
+
+  private
+
+  def compile_source(source)
+    config = ReVIEW::Configure.values
+    config['builder'] ||= 'latex'
+    ReVIEW::I18n.setup(config['language'] || 'ja')
+    book = ReVIEW::Book::Base.new('.', config: config)
+    ReVIEW.logger = ReVIEW::Logger.new(StringIO.new)
+    chapter = ReVIEW::Book::Chapter.new(book, 1, 'test', 'test.re', StringIO.new(source))
+    ReVIEW::AST::Compiler.for_chapter(chapter).compile_to_ast(chapter, reference_resolution: false)
+  end
+
+  def collect(node, klass, acc = [])
+    acc << node if node.is_a?(klass)
+    node.children.each { |c| collect(c, klass, acc) }
+    acc
   end
 end

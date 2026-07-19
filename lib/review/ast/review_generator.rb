@@ -80,7 +80,15 @@ module ReVIEW
         content = visit_children(node)
         return '' if content.strip.empty?
 
-        content + "\n\n"
+        noindent_prefix(node) + content + "\n\n"
+      end
+
+      # Re-emit the //noindent the NoindentProcessor folded onto this node as the
+      # `noindent` attribute (a source fact). NoindentProcessor targets paragraphs
+      # and the quote/lead/flushright/flushleft blocks, so the prefix is applied
+      # from visit_paragraph and visit_block.
+      def noindent_prefix(node)
+        node.noindent? ? "//noindent\n" : ''
       end
 
       def visit_text(node)
@@ -184,8 +192,12 @@ module ReVIEW
                        node.line_numbers ? 'emlistnum' : 'emlist'
                      end
 
+        # Re-emit the //firstlinenum the FirstLineNumProcessor folded onto this
+        # code block as the `first_line_num` attribute (a source fact).
+        text = node.first_line_num ? "//firstlinenum[#{node.first_line_num}]\n\n" : +''
+
         # Build opening tag
-        text = '//' + block_type
+        text += '//' + block_type
         text += "[#{node.id}]" if node.id?
 
         caption_text = caption_to_review_markup(node.caption_node)
@@ -322,12 +334,13 @@ module ReVIEW
         #    - Use caption_to_review_markup(node.caption_node)
         #    - Check node.id? for ID availability
         method_name = "visit_block_#{node.block_type}"
-        if respond_to?(method_name, true)
-          send(method_name, node)
-        else
-          # Default: just render children for unknown block types
-          visit_children(node)
-        end
+        result = if respond_to?(method_name, true)
+                   send(method_name, node)
+                 else
+                   # Default: just render children for unknown block types
+                   visit_children(node)
+                 end
+        noindent_prefix(node) + result
       end
 
       # Simple wrapper block helper
@@ -391,11 +404,6 @@ module ReVIEW
         "//blankline\n\n"
       end
 
-      # Block: //noindent
-      def visit_block_noindent(node)
-        "//noindent\n" + visit_children(node)
-      end
-
       # Block: //pagebreak
       def visit_block_pagebreak(_node)
         "//pagebreak\n\n"
@@ -419,31 +427,6 @@ module ReVIEW
       # Block: //printendnotes
       def visit_block_printendnotes(_node)
         "//printendnotes\n\n"
-      end
-
-      # Block: //beginchild
-      def visit_block_beginchild(_node)
-        "//beginchild\n\n"
-      end
-
-      # Block: //endchild
-      def visit_block_endchild(_node)
-        "//endchild\n\n"
-      end
-
-      # Block: //olnum[num]
-      def visit_block_olnum(node)
-        "//olnum[#{node.args.join(', ')}]\n\n"
-      end
-
-      # Block: //firstlinenum[num]
-      def visit_block_firstlinenum(node)
-        "//firstlinenum[#{node.args.join(', ')}]\n\n"
-      end
-
-      # Block: //tsize[...]
-      def visit_block_tsize(node)
-        "//tsize[#{node.args.join(', ')}]\n\n"
       end
 
       # Block: //label[id]
@@ -573,7 +556,8 @@ module ReVIEW
       end
 
       def visit_ordered_list(node)
-        text = ''
+        # Re-emit the //olnum the OlnumProcessor folded onto this list.
+        text = node.olnum_start ? "//olnum[#{node.olnum_start}]\n\n" : +''
         node.children.each_with_index do |item, index|
           next unless item.is_a?(ReVIEW::AST::ListItemNode)
 

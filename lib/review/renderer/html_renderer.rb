@@ -372,10 +372,6 @@ module ReVIEW
         render_comment_block(node)
       end
 
-      def visit_block_firstlinenum(node)
-        render_firstlinenum_block(node)
-      end
-
       def visit_block_blankline(_node)
         '<p><br /></p>'
       end
@@ -409,10 +405,6 @@ module ReVIEW
 
       def visit_block_label(node)
         render_label_block(node)
-      end
-
-      def visit_block_tsize(node)
-        render_tsize_block(node)
       end
 
       def visit_block_printendnotes(node)
@@ -973,12 +965,6 @@ module ReVIEW
         return '' unless label
 
         %Q(<a id="#{normalize_id(label)}"></a>)
-      end
-
-      def render_tsize_block(_node)
-        # Table size control - HTMLBuilder outputs nothing for HTML
-        # tsize is only used for LaTeX/PDF output
-        ''
       end
 
       def render_printendnotes_block(_node)

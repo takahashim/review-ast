@@ -82,23 +82,31 @@ module ReVIEW
         # Commands that preserve content as-is (matching ReVIEW::Compiler behavior)
         @non_parsed_commands = %i[embed texequation graph]
 
+        # Post-process passes, decomposed nanopass-style into two stages
+        # (doc/design-improvements #3):
+        #
+        # Stage B -- directive micro-passes. Each lowers one //directive onto the
+        # single following node of a distinct type (tsize->table,
+        # firstlinenum->code, noindent->paragraph/quote, olnum->ordered list).
+        # Their targets are disjoint, so they are mutually independent and
+        # commute; test/ast/test_directive_lowering.rb asserts every shuffle order
+        # yields the same core tree. Keep them grouped and ahead of stage A.
+        #
+        # Stage A -- structural passes. These rewrite tree shape (child nesting
+        # via //beginchild///endchild, ordered-list numbering, auto ids) and are
+        # order-dependent, so they run in a fixed sequence after stage B.
         @post_processors = [
-          # Post-process AST for tsize commands (must be before other processors)
+          # -- Stage B: commutative directive micro-passes --
           'ReVIEW::AST::Compiler::TsizeProcessor',
-
-          # Post-process AST for firstlinenum commands
           'ReVIEW::AST::Compiler::FirstLineNumProcessor',
-
-          # Post-process AST for noindent and olnum commands
           'ReVIEW::AST::Compiler::NoindentProcessor',
           'ReVIEW::AST::Compiler::OlnumProcessor',
 
+          # -- Stage A: order-dependent structural passes --
           # Normalize list structures (process //beginchild and //endchild)
           'ReVIEW::AST::Compiler::ListStructureNormalizer',
-
           # Assign item numbers to ordered list items
           'ReVIEW::AST::Compiler::ListItemNumberingProcessor',
-
           # Generate auto_id for HeadlineNode (nonum/notoc/nodisp) and ColumnNode
           'ReVIEW::AST::Compiler::AutoIdProcessor'
         ]

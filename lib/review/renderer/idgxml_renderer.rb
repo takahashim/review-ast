@@ -544,10 +544,6 @@ module ReVIEW
         visit_comment_block(node)
       end
 
-      def visit_block_noindent(_node)
-        ''
-      end
-
       def visit_block_blankline(_node)
         "<p/>\n"
       end
@@ -583,33 +579,8 @@ module ReVIEW
         visit_bibpaper(node)
       end
 
-      def visit_block_olnum(_node)
-        ''
-      end
-
-      def visit_block_tsize(_node)
-        # tsize is now processed by TsizeProcessor during AST compilation
-        ''
-      end
-
       def visit_block_graph(node)
         visit_graph(node)
-      end
-
-      def visit_block_beginchild(node)
-        visit_beginchild(node)
-      end
-
-      def visit_block_endchild(node)
-        visit_endchild(node)
-      end
-
-      def visit_beginchild(_node)
-        ''
-      end
-
-      def visit_endchild(_node)
-        ''
       end
 
       def visit_graph(node)

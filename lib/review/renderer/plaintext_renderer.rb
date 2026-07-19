@@ -328,11 +328,6 @@ module ReVIEW
         result
       end
 
-      def visit_block_tsize(_node)
-        # Table size control is not meaningful in plaintext
-        ''
-      end
-
       def visit_block_lead(node)
         result = +"\n"
         result += render_children(node)

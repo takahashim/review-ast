@@ -56,7 +56,72 @@ class TestDirectiveLowering < Test::Unit::TestCase
     assert_equal ['10'], restored.args
   end
 
+  # The stage-B micro-passes (tsize, firstlinenum, noindent, olnum) each attach
+  # their directive to a different following node type, so they are mutually
+  # independent and must commute: running them in any order yields the same core
+  # tree (doc/design-improvements #3, nanopass decomposition). This is the
+  # shuffle-order commutativity property.
+  STAGE_B_COUNT = 4
+
+  COMMUTATIVITY_SOURCE = <<~EOS
+    = Chapter
+
+    //noindent
+
+    This is a noindent paragraph.
+
+    //olnum[10]
+
+     1. first
+     2. second
+
+    //tsize[|latex|10,18,50]
+
+    //table[t][Cap]{
+    A\tB\tC
+    1\t2\t3
+    //}
+
+    //firstlinenum[100]
+
+    //listnum[c][Code]{
+    x
+    y
+    //}
+  EOS
+
+  def test_stage_b_micro_passes_are_commutative
+    baseline = compile_with_stage_b_order(COMMUTATIVITY_SOURCE, [0, 1, 2, 3])
+
+    (0...STAGE_B_COUNT).to_a.permutation.each do |perm|
+      result = compile_with_stage_b_order(COMMUTATIVITY_SOURCE, perm)
+      assert_equal(baseline, result,
+                   "stage-B micro-pass order #{perm.inspect} produced a different core tree")
+    end
+  end
+
   private
+
+  # Compile with the first STAGE_B_COUNT post-processors (the commutative
+  # micro-passes) reordered per +order+, keeping the structural passes after
+  # them fixed. Returns the serialized core tree.
+  def compile_with_stage_b_order(source, order)
+    config = ReVIEW::Configure.values
+    config['builder'] ||= 'latex'
+    ReVIEW::I18n.setup(config['language'] || 'ja')
+    book = ReVIEW::Book::Base.new('.', config: config)
+    ReVIEW.logger = ReVIEW::Logger.new(StringIO.new)
+    chapter = ReVIEW::Book::Chapter.new(book, 1, 'test', 'test.re', StringIO.new(source))
+    compiler = ReVIEW::AST::Compiler.for_chapter(chapter)
+
+    procs = compiler.instance_variable_get(:@post_processors)
+    stage_b = procs[0, STAGE_B_COUNT]
+    rest = procs[STAGE_B_COUNT..]
+    compiler.instance_variable_set(:@post_processors, order.map { |i| stage_b[i] } + rest)
+
+    ast = compiler.compile_to_ast(chapter)
+    ReVIEW::AST::JSONSerializer.serialize(ast)
+  end
 
   def loc(lineno)
     ReVIEW::AST::SourceLocation.new('t.re', lineno, 1)
