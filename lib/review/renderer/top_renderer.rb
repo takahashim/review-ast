@@ -606,21 +606,21 @@ module ReVIEW
         # Similar to TOPBuilder's headline_prefix method
         secnolevel = config['secnolevel'] || 2
 
-        if level > secnolevel || @chapter.nil?
+        if level > secnolevel || !render_context.chapter_present?
           return ''
         end
 
         case level
         when 1
           # Chapter level: just the chapter number
-          if @chapter.number
-            "#{@chapter.number}　"
+          if render_context.chapter_number
+            "#{render_context.chapter_number}　"
           else
             ''
           end
         when 2, 3, 4, 5, 6
           # Section levels: use counter from chapter
-          if @chapter.number
+          if render_context.chapter_number
             # Get section counter from chapter if available
             # For now, return empty string as section counter needs proper implementation
             # This matches the behavior of TOPBuilder which uses @sec_counter
@@ -653,7 +653,7 @@ module ReVIEW
 
       # Format list caption using I18n (matches TOPBuilder)
       def format_list_caption(id, caption_text, definition_number)
-        return "■#{caption_text}\n" unless @chapter
+        return "■#{caption_text}\n" unless render_context.chapter_present?
         return "■#{id}■#{caption_text}\n" unless definition_number
 
         formatted = text_formatter.format_caption_plain('list', definition_number.chapter_number, definition_number.number, caption_text)
@@ -662,7 +662,7 @@ module ReVIEW
 
       # Format table caption using I18n (matches TOPBuilder)
       def format_table_caption(id, caption_text, definition_number)
-        return "■#{caption_text}\n" unless @chapter
+        return "■#{caption_text}\n" unless render_context.chapter_present?
         return "■#{id}■#{caption_text}\n" unless definition_number
 
         formatted = text_formatter.format_caption_plain('table', definition_number.chapter_number, definition_number.number, caption_text)
@@ -671,7 +671,7 @@ module ReVIEW
 
       # Format image caption using I18n (matches TOPBuilder)
       def format_image_caption(id, caption_text, definition_number)
-        return "■#{caption_text}\n" unless @chapter
+        return "■#{caption_text}\n" unless render_context.chapter_present?
         return "■#{id}■#{caption_text}\n" unless definition_number
 
         formatted = text_formatter.format_caption_plain('image', definition_number.chapter_number, definition_number.number, caption_text)
@@ -791,7 +791,7 @@ module ReVIEW
         caption_text = node.args[1]
 
         result = +''
-        if id && @chapter
+        if id && render_context.chapter_present?
           bibpaper_number = node.definition_number&.number
           result += bibpaper_number ? "[#{bibpaper_number}]" : "[#{id}]"
         end

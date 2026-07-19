@@ -619,14 +619,14 @@ module ReVIEW
       end
 
       def headline_prefix(level)
-        return '' unless @chapter
+        return '' unless render_context.chapter_present?
         return '' unless config['secnolevel'] && config['secnolevel'] > 0
 
         # Generate headline prefix like PLAINTEXTBuilder
         case level
         when 1
-          if @chapter.number
-            "第#{@chapter.number}章　"
+          if render_context.chapter_number
+            "第#{render_context.chapter_number}章　"
           else
             ''
           end
@@ -664,7 +664,7 @@ module ReVIEW
         result
       end
 
-      def over_secnolevel?(n, _chapter = @chapter)
+      def over_secnolevel?(n, _chapter = nil)
         secnolevel = config['secnolevel'] || 0
         secnolevel >= n.to_s.split('.').size
       end
