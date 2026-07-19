@@ -106,14 +106,15 @@ module ReVIEW
       # footnote_type == :endnote), ordered by their stamped number.
       def collect_endnotes(root)
         acc = []
-        gather = lambda do |node|
-          if node.is_a?(ReVIEW::AST::FootnoteNode) && node.footnote_type == :endnote
-            acc << node
-          end
-          node.children.each { |child| gather.call(child) }
-        end
-        gather.call(root)
+        gather_endnotes(root, acc)
         acc.sort_by { |n| n.definition_number&.number || 0 }
+      end
+
+      def gather_endnotes(node, acc)
+        if node.is_a?(ReVIEW::AST::FootnoteNode) && node.footnote_type == :endnote
+          acc << node
+        end
+        node.each_subnode { |child| gather_endnotes(child, acc) }
       end
 
       # Appendix/secnolevel-aware chapter number for caption headers and
