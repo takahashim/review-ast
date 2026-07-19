@@ -25,10 +25,6 @@ module ReVIEW
         )
       end
 
-      def cross_chapter_reference?
-        !target_chapter_id.nil?
-      end
-
       # Convert inline node to inline text representation (text without markup).
       # InlineNode recursively processes all child nodes and joins their text.
       #

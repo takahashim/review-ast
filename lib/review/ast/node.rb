@@ -99,11 +99,6 @@ module ReVIEW
         @children << child
       end
 
-      def remove_child(child)
-        child.parent = nil
-        @children.delete(child)
-      end
-
       # Replace a child node with a new node
       def replace_child(old_child, new_child)
         index = @children.index(old_child)

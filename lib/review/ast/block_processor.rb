@@ -91,12 +91,6 @@ module ReVIEW
         def configuration_blocks
           @configuration_blocks.dup
         end
-
-        # Clear all registered configuration blocks (for testing)
-        # @return [void]
-        def clear_configuration!
-          @configuration_blocks = []
-        end
       end
 
       def initialize(ast_compiler)
@@ -173,11 +167,6 @@ module ReVIEW
       #   register_code_block_config(:python, { id_index: 0, caption_index: 1, lang_index: 2 })
       def register_code_block_config(command_name, config)
         @dynamic_code_block_configs[command_name] = config
-      end
-
-      # @return [Hash] Hash of all registered code block configs
-      def registered_code_block_configs
-        @dynamic_code_block_configs.dup
       end
 
       # Unified entry point - table-driven block processing

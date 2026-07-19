@@ -109,11 +109,6 @@ module ReVIEW
         @inline_handlers[command.to_sym] = handler_method
       end
 
-      # @return [Array<Symbol>] List of all registered inline commands
-      def registered_inline_commands
-        @inline_handlers.keys
-      end
-
       private
 
       # Create inline AST node from parsed token

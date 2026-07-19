@@ -45,10 +45,6 @@ module ReVIEW
           config['draft']
         end
 
-        def nolf_mode?
-          config.key?('nolf') ? config['nolf'] : true
-        end
-
         def math_format
           config['math_format']
         end

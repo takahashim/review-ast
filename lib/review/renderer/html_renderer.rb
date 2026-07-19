@@ -539,19 +539,6 @@ module ReVIEW
         layout_file
       end
 
-      # Helper methods for references
-      def get_chap(chapter = @chapter)
-        if config['secnolevel'] && config['secnolevel'] > 0 &&
-           !chapter.number.nil? && !chapter.number.to_s.empty?
-          if chapter.is_a?(ReVIEW::Book::Part)
-            return text_formatter.format_part_short(chapter)
-          else
-            return chapter.format_number(nil)
-          end
-        end
-        nil
-      end
-
       private
 
       # Generate a complete HTML document with template.

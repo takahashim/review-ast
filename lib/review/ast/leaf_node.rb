@@ -50,11 +50,6 @@ module ReVIEW
         raise ArgumentError, "Cannot add children to leaf node #{self.class}"
       end
 
-      # Prevent removing children from leaf nodes (no-op since there are no children)
-      def remove_child(_child)
-        raise ArgumentError, "Cannot remove children from leaf node #{self.class}"
-      end
-
       # Convert leaf node to inline text representation.
       # Leaf nodes return their content as inline text.
       #

@@ -43,32 +43,10 @@ module ReVIEW
         @html_type == :tag
       end
 
-      # Extract content from HTML comment
-      # For comments like "<!-- column: Title -->" returns "column: Title"
-      #
-      # @return [String, nil] Comment content or nil if not a comment
-      def comment_content
-        return nil unless comment?
-
-        # Remove HTML comment markers
-        content = @html_content.strip
-        if content.start_with?('<!--') && content.end_with?('-->')
-          content[4..-4].strip
-        else
-          content
-        end
-      end
-
       # Check if this is a column end comment
       # Matches patterns like "<!-- /column -->"
       #
       # @return [Boolean] True if this is a column end comment
-      def column_end?
-        return false unless comment?
-
-        content = comment_content
-        content&.match?(%r{\A\s*/column\s*\z})
-      end
     end
   end
 end

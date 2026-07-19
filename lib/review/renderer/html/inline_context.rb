@@ -59,10 +59,6 @@ module ReVIEW
           book.chapter_index.title(chapter_id)
         end
 
-        def chapter_display_string(chapter_id)
-          book.chapter_index.display_string(chapter_id)
-        end
-
         def chapter_link_enabled?
           config['chapterlink']
         end

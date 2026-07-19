@@ -664,18 +664,6 @@ module ReVIEW
         result
       end
 
-      def get_chap(chapter = @chapter)
-        return nil unless chapter
-        return nil unless config['secnolevel'] && config['secnolevel'] > 0
-        return nil if chapter.number.nil? || chapter.number.to_s.empty?
-
-        if chapter.is_a?(ReVIEW::Book::Part)
-          text_formatter.format_part_short(chapter)
-        else
-          chapter.format_number(nil)
-        end
-      end
-
       def over_secnolevel?(n, _chapter = @chapter)
         secnolevel = config['secnolevel'] || 0
         secnolevel >= n.to_s.split('.').size

@@ -117,23 +117,6 @@ module ReVIEW
         node.each_subnode { |child| gather_endnotes(child, acc) }
       end
 
-      # Appendix/secnolevel-aware chapter number for caption headers and
-      # reference numbers, mirroring ReVIEW::Builder#get_chap. Returns nil when
-      # the chapter number should be omitted (secnolevel == 0, or the chapter
-      # has no number); otherwise the formatted number (e.g. "1", or "A" for an
-      # appendix chapter). Callers must handle the nil (no-chapter) case.
-      def get_chap(chapter = @chapter)
-        return nil unless chapter
-        return nil unless config['secnolevel'].to_i > 0
-        return nil if chapter.number.nil? || chapter.number.to_s.empty?
-
-        if chapter.is_a?(ReVIEW::Book::Part)
-          I18n.t('part_short', chapter.number)
-        else
-          chapter.format_number(nil)
-        end
-      end
-
       # Post-process the rendered result.
       # Subclasses can override this to perform final formatting,
       # cleanup, or validation.

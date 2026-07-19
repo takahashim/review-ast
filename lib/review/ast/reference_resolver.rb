@@ -117,11 +117,6 @@ module ReVIEW
         @resolver_methods[ref_type.to_sym] = resolver_method
       end
 
-      # @return [Array<Symbol>] List of all registered reference types
-      def registered_reference_types
-        @resolver_methods.keys
-      end
-
       private
 
       def visit_all_with_caption(node)
