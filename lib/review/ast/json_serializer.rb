@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'json'
+require 'review/version'
 require_relative 'definition_number'
 
 module ReVIEW
