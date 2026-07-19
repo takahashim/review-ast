@@ -40,8 +40,8 @@ class TestNoindentProcessor < Test::Unit::TestCase
 
     # First paragraph should have noindent attribute
     assert_equal 2, paragraphs.length
-    assert_true(paragraphs[0].attribute?(:noindent))
-    assert_false(paragraphs[1].attribute?(:noindent))
+    assert_true(paragraphs[0].noindent?)
+    assert_false(paragraphs[1].noindent?)
   end
 
   def test_noindent_with_quote_block
@@ -67,11 +67,11 @@ class TestNoindentProcessor < Test::Unit::TestCase
 
     # Quote block should have noindent attribute
     assert_equal 1, quote_blocks.length
-    assert_true(quote_blocks[0].attribute?(:noindent))
+    assert_true(quote_blocks[0].noindent?)
 
     # Paragraph should not have noindent attribute
     assert_equal 2, paragraphs.length
-    assert_false(paragraphs[0].attribute?(:noindent))
+    assert_false(paragraphs[0].noindent?)
   end
 
   def test_multiple_noindent_commands
@@ -98,9 +98,9 @@ class TestNoindentProcessor < Test::Unit::TestCase
 
     # First two paragraphs should have noindent attribute
     assert_equal 3, paragraphs.length
-    assert_true(paragraphs[0].attribute?(:noindent))
-    assert_true(paragraphs[1].attribute?(:noindent))
-    assert_false(paragraphs[2].attribute?(:noindent))
+    assert_true(paragraphs[0].noindent?)
+    assert_true(paragraphs[1].noindent?)
+    assert_false(paragraphs[2].noindent?)
   end
 
   def test_noindent_blocks_are_removed

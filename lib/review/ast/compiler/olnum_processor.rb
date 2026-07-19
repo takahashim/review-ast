@@ -8,6 +8,7 @@
 
 require 'review/ast/node'
 require 'review/ast/block_node'
+require 'review/ast/directive_node'
 require 'review/ast/list_node'
 require_relative 'post_processor'
 
@@ -79,7 +80,7 @@ module ReVIEW
         end
 
         def olnum_command?(node)
-          node.is_a?(BlockNode) && node.block_type == :olnum
+          node.is_a?(DirectiveNode) && node.directive_type == :olnum
         end
 
         def find_next_ordered_list(children, start_index)

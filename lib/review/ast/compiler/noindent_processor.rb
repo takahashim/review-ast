@@ -8,6 +8,7 @@
 
 require 'review/ast/node'
 require 'review/ast/block_node'
+require 'review/ast/directive_node'
 require 'review/ast/paragraph_node'
 require_relative 'post_processor'
 
@@ -34,9 +35,7 @@ module ReVIEW
             if noindent_command?(child)
               # Find the next target node for noindent attribute
               target_node = find_next_target_node(node.children, idx + 1)
-              if target_node
-                target_node.add_attribute(:noindent, true)
-              end
+              target_node.noindent = true if target_node
 
               # Remove the noindent block node from AST
               node.children.delete_at(idx)
@@ -48,7 +47,7 @@ module ReVIEW
         end
 
         def noindent_command?(node)
-          node.is_a?(BlockNode) && node.block_type == :noindent
+          node.is_a?(DirectiveNode) && node.directive_type == :noindent
         end
 
         def find_next_target_node(children, start_index)

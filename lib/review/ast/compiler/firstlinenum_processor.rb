@@ -8,6 +8,7 @@
 
 require 'review/ast/node'
 require 'review/ast/block_node'
+require 'review/ast/directive_node'
 require 'review/ast/code_block_node'
 require_relative 'post_processor'
 
@@ -56,7 +57,7 @@ module ReVIEW
         end
 
         def firstlinenum_command?(node)
-          node.is_a?(BlockNode) && node.block_type == :firstlinenum
+          node.is_a?(DirectiveNode) && node.directive_type == :firstlinenum
         end
 
         # Extract firstlinenum value from firstlinenum node
