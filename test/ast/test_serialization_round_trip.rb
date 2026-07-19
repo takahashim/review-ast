@@ -37,7 +37,11 @@ class TestSerializationRoundTrip < Test::Unit::TestCase
     'numbered_list' => "//list[l1][A caption]{\ncode\n//}\n\nSee it.\n",
     # A list item split across source lines records source_line_breaks, which the
     # LaTeX renderer reinserts as "\n"; it must survive a round trip.
-    'list_continuation' => " * first line@<br>{}\n   second continuation line\n"
+    'list_continuation' => " * first line@<br>{}\n   second continuation line\n",
+    # A minicolumn's type and a code block's type are Symbols the renderers
+    # dispatch on; they must come back as Symbols, not the JSON String.
+    'minicolumn' => "//note[Heads up]{\nBe careful.\n//}\n",
+    'emlist_block' => "//emlist[][ruby]{\nputs 1\n//}\n"
   }.freeze
 
   RENDERERS = {

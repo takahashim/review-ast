@@ -30,7 +30,9 @@ module ReVIEW
       def self.deserialize_from_hash(hash)
         node = new(
           location: ReVIEW::AST::JSONSerializer.restore_location(hash),
-          minicolumn_type: hash['minicolumn_type'] || hash['column_type'],
+          # The compiler makes minicolumn_type a Symbol (e.g. :note); restore it
+          # from the JSON String so renderers dispatching on the bare symbol match.
+          minicolumn_type: (hash['minicolumn_type'] || hash['column_type'])&.to_sym,
           caption_node: deserialize_caption_from_hash(hash)
         )
         if hash['children']

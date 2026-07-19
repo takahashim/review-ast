@@ -96,7 +96,9 @@ module ReVIEW
           caption_node: deserialize_caption_from_hash(hash),
           lang: hash['lang'],
           line_numbers: hash['numbered'] || hash['line_numbers'] || false,
-          code_type: hash['code_type'],
+          # The compiler makes code_type a Symbol (e.g. :list); restore it from
+          # the JSON String so renderers dispatching on the bare symbol match.
+          code_type: hash['code_type']&.to_sym,
           first_line_num: hash['first_line_num'],
           original_text: hash['original_text']
         )
