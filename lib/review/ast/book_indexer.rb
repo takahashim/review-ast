@@ -12,18 +12,15 @@ require_relative 'compiler'
 
 module ReVIEW
   module AST
-    # BookIndexer - Book-wide index management for AST-based processing
+    # BookIndexer - Book-wide index management for AST-based processing.
     #
-    # This class provides centralized index management for entire books,
-    # using AST::Indexer to build indexes for each chapter and coordinating
-    # them into book-wide indexes for cross-chapter references.
-    #
-    # Responsibilities:
-    # - Use AST::Indexer to build indexes for each chapter
-    # - Coordinate index collection across multiple chapters
-    # - Provide book-wide index access for cross-chapter references
-    # - Maintain compatibility with existing index structures
-    # - Support AST-based processing pipelines
+    # NOTE: largely vestigial since the AST became self-contained
+    # (doc/design-improvements #7). The Indexer no longer writes its indexes back
+    # onto the chapter (ast_indexes= is gone) and cross-chapter references resolve
+    # on demand via ReferenceResolver#registry_for, so building indexes here has
+    # no lasting effect beyond lazily initializing @book.chapter_index. Kept as a
+    # harmless no-op for external callers (makers, comparators) until they drop
+    # the call.
     class BookIndexer
       attr_reader :book, :chapter_indexers
 
@@ -85,8 +82,8 @@ module ReVIEW
           # Compile bib file to AST
           ast = compile_chapter_to_ast(bib)
 
-          # Create indexer and build indexes
-          # The bibpaper_index will be set on @book via ast_indexes= in BookUnit
+          # Build the bib indexes (no longer written back to @book; the resolver
+          # reads the bib file itself via ReferenceResolver#bib_file_registry).
           indexer = AST::Indexer.new(bib)
           indexer.build_indexes(ast)
         rescue StandardError => e

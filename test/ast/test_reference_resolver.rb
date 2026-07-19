@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative '../test_helper'
+require 'review/ast/compiler'
 require 'review/ast/reference_resolver'
 require 'review/ast/reference_node'
 require 'review/ast/inline_node'
@@ -19,35 +20,10 @@ class ReferenceResolverTest < Test::Unit::TestCase
     @chapter.instance_variable_set(:@number, 1)
     @chapter.instance_variable_set(:@title, 'Chapter 1')
 
-    # Setup image index
-    image_index = ReVIEW::Book::Index.new
-    image_index.add_item(ReVIEW::Book::Index::Item.new('img01', 1))
-    image_index.add_item(ReVIEW::Book::Index::Item.new('img02', 2))
-
-    # Setup table index
-    table_index = ReVIEW::Book::Index.new
-    table_index.add_item(ReVIEW::Book::Index::Item.new('tbl01', 1))
-
-    # Setup list index
-    list_index = ReVIEW::Book::Index.new
-    list_index.add_item(ReVIEW::Book::Index::Item.new('list01', 1))
-
-    # Setup footnote index
-    footnote_index = ReVIEW::Book::Index.new
-    footnote_index.add_item(ReVIEW::Book::Index::Item.new('fn01', 1))
-
-    # Setup equation index
-    equation_index = ReVIEW::Book::Index.new
-    equation_index.add_item(ReVIEW::Book::Index::Item.new('eq01', 1))
-
-    @chapter.ast_indexes = {
-      image_index: image_index,
-      table_index: table_index,
-      list_index: list_index,
-      footnote_index: footnote_index,
-      equation_index: equation_index
-    }
-
+    # The resolver builds its index table from the definition nodes in the AST
+    # under test (doc/design-improvements #7), so no legacy index injection is
+    # needed here -- each test adds the defining node (ImageNode, TableNode, ...)
+    # alongside the reference.
     @resolver = ReVIEW::AST::ReferenceResolver.new(@chapter)
   end
 

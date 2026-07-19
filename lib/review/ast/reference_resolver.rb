@@ -82,7 +82,9 @@ module ReVIEW
       end
 
       def build_registry_for_chapter(chapter)
-        ast = Compiler.for_chapter(chapter).compile_to_ast(chapter, reference_resolution: false)
+        # Fully qualified so the constant never resolves to ReVIEW::Compiler (the
+        # legacy gem compiler) when review/ast/compiler happens not to be loaded.
+        ast = ReVIEW::AST::Compiler.for_chapter(chapter).compile_to_ast(chapter, reference_resolution: false)
         Indexer.new(chapter).build_indexes(ast).registry
       rescue StandardError => e
         warn "Failed to index chapter #{chapter.id} for cross-reference: #{e.message}" if $DEBUG

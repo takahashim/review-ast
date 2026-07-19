@@ -1,24 +1,15 @@
 # frozen_string_literal: true
 
-# Monkey patches applied to the released `review` gem so that the AST
-# subsystem can run without modifying Re:VIEW itself.
+# Compatibility shims for running the AST subsystem against the released
+# `review` gem.
 #
-# One purely-additive hook remains, existing only so the AST can install its
-# own computed indexes onto legacy Re:VIEW objects (see doc/design-improvements
-# #7):
-#   - ReVIEW::Book::BookUnit#ast_indexes=
-#
-# The former Index::Item#caption_node patch was retired: caption nodes now live
-# in the AST-owned ChapterIndexRegistry (chapter_index_registry.rb) that the
-# reference resolver reads, so the legacy index items no longer need to carry
-# them. The former SnapshotLocation#to_h / #format_for_error patch was likewise
-# retired once the AST gained its own location type (ReVIEW::AST::SourceLocation).
-#
-# If/when these hooks are upstreamed into Re:VIEW, this file can be made
-# conditional (e.g. skip patching when the methods already exist).
-
-require 'review/book/index'
-require 'review/book/book_unit'
+# No monkey patches on Re:VIEW classes remain. The AST now owns every piece of
+# state it used to smuggle through the gem's objects (doc/design-improvements
+# #7): reference data lives in the AST-owned ChapterIndexRegistry, definition
+# numbers and image paths are stamped on the nodes, and endnotes are collected
+# from the tree -- so the former Index::Item#caption_node prepend,
+# BookUnit#ast_indexes= adapter, and SnapshotLocation#to_h/#format_for_error
+# patch have all been retired. Only a soft optional-dependency require is left.
 
 # Re:VIEW's TextUtils references Unicode::Eaw for join_lines_by_lang but does
 # not require it itself; ensure it is loaded when available. Mirrors Re:VIEW's
@@ -27,35 +18,4 @@ begin
   require 'unicode/eaw'
 rescue LoadError
   # join_lines_by_lang feature will be unavailable
-end
-
-module ReVIEW
-  module Book
-    class BookUnit
-      unless method_defined?(:ast_indexes=)
-        # Write-only one-way adapter: install AST-built legacy indexes onto the
-        # BookUnit/Book (doc/design-improvements #7, step 4). The AST never reads
-        # these back -- reference resolution uses the AST-owned
-        # ChapterIndexRegistry and definition numbers come from stamped
-        # DefinitionNumbers. They exist only for non-AST consumers (the IDGXML
-        # image_finder, and downstream epub/TOC makers). Assigning ivars directly
-        # is the compatibility shim; at merge-time (step 5) this becomes ordinary
-        # Re:VIEW code with a proper public setter.
-        def ast_indexes=(indexes)
-          @footnote_index = indexes[:footnote_index] if indexes[:footnote_index]
-          @endnote_index = indexes[:endnote_index] if indexes[:endnote_index]
-          @list_index = indexes[:list_index] if indexes[:list_index]
-          @table_index = indexes[:table_index] if indexes[:table_index]
-          @equation_index = indexes[:equation_index] if indexes[:equation_index]
-          @image_index = indexes[:image_index] if indexes[:image_index]
-          @icon_index = indexes[:icon_index] if indexes[:icon_index]
-          @numberless_image_index = indexes[:numberless_image_index] if indexes[:numberless_image_index]
-          @indepimage_index = indexes[:indepimage_index] if indexes[:indepimage_index]
-          @headline_index = indexes[:headline_index] if indexes[:headline_index]
-          @column_index = indexes[:column_index] if indexes[:column_index]
-          @book.bibpaper_index = indexes[:bibpaper_index] if @book.present? && indexes[:bibpaper_index]
-        end
-      end
-    end
-  end
 end
