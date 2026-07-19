@@ -94,16 +94,6 @@ module ReVIEW
 
         @entries.values.map(&block)
       end
-
-      # Convert to traditional Book::FootnoteIndex for compatibility
-      def to_book_index
-        book_index = ReVIEW::Book::FootnoteIndex.new
-        @entries.each_value do |entry|
-          # Add Entry directly - it has all necessary methods (id, number, content, footnote_node, footnote_node?)
-          book_index.add_item(entry)
-        end
-        book_index
-      end
     end
   end
 end
