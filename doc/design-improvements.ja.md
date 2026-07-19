@@ -477,7 +477,8 @@ end
   - フィールド宣言 DSL(`serialize_fields`)。乖離防止目的ではなく、スキーマ自動導出・未使用ノードの構造的カバレッジ・boilerplate 削減が正当化理由。設計の見直しどおり優先度は低い(乖離防止は round-trip / render-identity とクラス設計で達成済み)。
   - 別名キーの非推奨化(版更新で落とす)。
   - スキーマ生成・`additionalProperties: false`・CI でのコーパス検証(現状の `json_schema` は装飾品のまま)。DSL のフィールド宣言からの導出が前提。
-  - 実装済み(render-identity を samples コーパスへ): `test/ast/test_corpus_render_identity.rb` が `samples/syntax-book` の全章を compile→serialize→deserialize し、5レンダラ全てで fresh と reloaded の描画一致を検査(実コンテンツでの round-trip 忠実性ガード)。PBT コーパスへの拡張は残件。
+  - 実装済み(render-identity を samples コーパスへ): `test/ast/test_corpus_render_identity.rb` が `samples/syntax-book` の全章を compile→serialize→deserialize し、5レンダラ全てで fresh と reloaded の描画一致を検査(実コンテンツでの round-trip 忠実性ガード)。
+  - 実装済み(render-identity を PBT コーパスへ = 検証 CI 化): `test/ast/test_pbt_round_trip_identity.rb` が `tools/pbt` の生成器で固定 seed(1..30)のランダム Re:VIEW 文書を作り、round-trip byte 一致 + 5レンダラの fresh/reloaded 描画一致を検査。builder オラクル不要の自己整合性プロパティで、`rake test` に載るため恒常実行(≈0.3s)。「稀な構文の組み合わせでだけ出るシリアライズ欠落」を通常のテスト実行で捕捉する。
   - 実装済み(render-identity に plaintext / TOP を追加): `test_serialization_round_trip.rb` の RENDERERS に plaintext/TOP を追加。これが `InlineNode#inline_type` の Symbol→String 復元バグを検出(JSON では両方 `"br"` で byte 一致するため round-trip 検査では不可視、TopRenderer の `case ... when :br` が String で外れて `@<br>` の改行が消えていた)。deserialize で `.to_sym` 復元して修正。「シリアライズには現れないが描画に効く差」を捕捉する render-identity の狙いどおりの検出。
   - 実装済み(deserialize フィールド忠実性の系統ガード): `test/ast/test_deserialize_field_fidelity.rb` が包括フィクスチャの fresh と reloaded を並行走査し、全スカラーフィールドの値・クラス一致を検査(既知の良性省略 `ListNode#start_number`/`ListItemNode#item_number` のみ allowlist)。これで新ノード/フィールド追加時の Symbol/String・型変化バグを網羅的に捕捉。同ガードで `CodeBlockNode#code_type`・`MinicolumnNode#minicolumn_type` の同種バグも検出・修正済み。
   - 実装済み(round-trip 完全性テスト): `test/ast/test_serialization_completeness.rb`。(A) 全具象 Node サブクラスが `deserialize_from_hash` を実装している契約テスト(抽象は `LeafNode` のみと固定。新ノード型追加で deserialize を忘れると失敗)。(B) 21 のソース到達ノード型を1フィクスチャで実体化して byte 往復一致 + 型カバレッジ検証。
