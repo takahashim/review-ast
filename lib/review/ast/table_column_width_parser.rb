@@ -21,6 +21,25 @@ module ReVIEW
         cellwidth && cellwidth.include?('{')
       end
 
+      # Resolve a raw //tsize argument for a given output format, returning the
+      # applicable spec string or nil. A `|latex,html|value` prefix restricts the
+      # spec to those builders (parallel to EmbedNode#target_builders); anything
+      # else (including a LaTeX column spec like `|l|c|r|`) is generic and applies
+      # to every format. The filtering happens at render time so the shared tree
+      # stays target-neutral. See doc/design-improvements #5.
+      def self.value_for_target(raw, format)
+        return nil unless raw
+
+        # Target names are multi-character words (latex, html, idgxml, ...); a
+        # LaTeX column spec like |l|c|r| is NOT a target spec (single-char parts).
+        if (matched = raw.match(/\A\|([a-z]{2,}(?:\s*,\s*[a-z]{2,})*)\|(.*)/m))
+          targets = matched[1].split(',').map(&:strip)
+          targets.include?(format.to_s) ? matched[2] : nil
+        else
+          raw
+        end
+      end
+
       # Initialize parser with tsize specification and column count
       # @param tsize [String] tsize specification (e.g., "10,18,50" or "p{10mm}p{18mm}|p{50mm}")
       # @param col_count [Integer] number of columns

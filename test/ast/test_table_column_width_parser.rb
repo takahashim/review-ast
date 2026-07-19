@@ -92,4 +92,31 @@ class TestTableColumnWidthParser < Test::Unit::TestCase
     result2 = parser.parse
     assert_equal result1, result2
   end
+
+  # value_for_target resolves the |builder| prefix at render time.
+  def test_value_for_target_generic_applies_to_all
+    assert_equal '10,20,30', ReVIEW::AST::TableColumnWidthParser.value_for_target('10,20,30', 'latex')
+    assert_equal '10,20,30', ReVIEW::AST::TableColumnWidthParser.value_for_target('10,20,30', 'idgxml')
+  end
+
+  def test_value_for_target_matching_builder
+    raw = '|latex,idgxml|10,20,30'
+    assert_equal '10,20,30', ReVIEW::AST::TableColumnWidthParser.value_for_target(raw, 'latex')
+    assert_equal '10,20,30', ReVIEW::AST::TableColumnWidthParser.value_for_target(raw, 'idgxml')
+  end
+
+  def test_value_for_target_non_matching_builder
+    assert_nil(ReVIEW::AST::TableColumnWidthParser.value_for_target('|html|10,20,30', 'latex'))
+  end
+
+  # A LaTeX column spec like |l|c|r| has single-char parts, so it is generic, not
+  # a builder target.
+  def test_value_for_target_latex_colspec_is_generic
+    assert_equal '|l|c|r|', ReVIEW::AST::TableColumnWidthParser.value_for_target('|l|c|r|', 'latex')
+    assert_equal '|l|c|r|', ReVIEW::AST::TableColumnWidthParser.value_for_target('|l|c|r|', 'idgxml')
+  end
+
+  def test_value_for_target_nil
+    assert_nil(ReVIEW::AST::TableColumnWidthParser.value_for_target(nil, 'latex'))
+  end
 end
