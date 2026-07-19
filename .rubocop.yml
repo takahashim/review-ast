@@ -1,4 +1,8 @@
 AllCops:
+  # keep RuboCop's default excludes (vendor/**/*, node_modules, etc.) in addition to ours
+  inherit_mode:
+    merge:
+      - Exclude
   Exclude:
     - lib/uuid.rb
     - test/syntax-book/*
