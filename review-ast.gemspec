@@ -20,6 +20,7 @@ Gem::Specification.new do |gem|
 
   gem.add_dependency('diff-lcs')
   gem.add_dependency('nokogiri')
+  gem.add_dependency('red_quilt', '>= 0.9')
   gem.add_dependency('review', '~> 5.11')
   gem.add_dependency('unicode-eaw')
 

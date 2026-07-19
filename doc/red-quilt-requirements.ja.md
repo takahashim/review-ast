@@ -245,3 +245,190 @@ Markdown 対応を入れる時点で review-ast の下限を引き上げる判�
 private メソッドへの到達で書くことになり、どちらも避けたい。
 
 2.3 と 2.4 は無くても書けるが、あると素直になる。
+
+---
+
+## 6. 対応結果(red_quilt 0.9.0, 2026-07-20)
+
+| 項目 | 結果 |
+|---|---|
+| 1. 多バイトでの位置ズレ | 対応済み |
+| 2.1 ノード属性のアクセサ公開 | 対応済み(`info` の nil 化を含む。破壊的変更) |
+| 2.2 `literal` と `text` の分離 | 先送り(6.6) |
+| 2.3 `start_line` 等の直読み | 先送り(6.6) |
+| 2.3 座標基準の明記 | 対応済み |
+| 2.3 列を 1-based に | 対応済み(破壊的変更) |
+| 2.3 heading span のマーカー込み | 対応済み(想定より広範囲。破壊的変更) |
+| 2.4 パースオプション | 対応不要(既に全て存在) |
+| 4. Ruby バージョン | 前提が変わった(下記) |
+
+### 6.1 バグ修正(項目 1)
+
+指摘のとおりであった。`build_line_starts` が `String#index` の文字インデックスを保存し、
+`line_column` がそれをバイトとして引いていた。
+
+修正は提案の `each_line` 版ではなく、`source.b` を走査する形とした。結果は同一で、
+差分が 1 行に収まり、lexer / builder が既に持つ「バイト走査には `.b` ビューを使う」
+という既存イディオムと揃うためである。提案書の期待値と一致することを確認した。
+
+なお、多バイトの位置情報テストは red_quilt 側に既に存在していたが、
+単一行の文書だったため行頭テーブルのズレが発現していなかった。
+複数行のフィクスチャを追加してある。
+
+### 6.2 位置情報の正規化(項目 2.3)
+
+調査の結果、これは好みの問題ではなく仕様準拠の問題であることが分かったため、
+提案書の「揃えない場合でも基準を明記」ではなく、1-based に揃える方を採用した。
+
+根拠は Markdown 領域の慣行が一致していることである。
+
+| 実装 | line | column | offset |
+|---|---|---|---|
+| cmark / cmark-gfm(markly の中身) | 1-based | 1-based | — |
+| unist / mdast / remark | 1-based | 1-based | 0-based **文字** |
+| red_quilt 0.8.0 | 1-based | 0-based | 0-based **バイト** |
+
+0-based 列は Ruby 自身のパーサ(Ripper・Prism)や LSP の流儀であり、
+Markdown の隣人はいずれも 1-based である。
+
+あわせて、red_quilt の mdast レンダラが unist 仕様に違反していたことが判明した。
+`column: 0` は unist の「1-indexed integer」の範囲外であり、
+`offset` はバイトオフセットを入れていたが unist の定義は「0-indexed の**文字**」である。
+後者は項目 1 と同種の取り違えが別の場所に残っていたものである。両方修正した。
+
+### 6.3 ブロック span(項目 2.3 後半)
+
+提案書は heading のみを挙げていたが、参照実装(commonmark.js と
+mdast-util-from-markdown)を実際に動かして突き合わせたところ、
+同じ欠陥が広範囲に及んでいた。以下を修正した。
+
+- ATX 見出しが `#` を含まない
+- setext 見出しが `===` / `---` 下線を含まない
+- blockquote が `>` を含まない
+- フェンスコードブロックが両フェンスを含まない
+  — これは列ではなく**行番号が誤っていた**(開始フェンスの 1 行下を指していた)
+- 段落・setext 見出し・リスト・水平線が先頭インデントを含んでいる
+- `list_item` がマーカーではなく本文から始まる
+
+結果として、検証した 18 ケース全てで mdast と一致する。
+唯一の相違は未閉じフェンスで、ここは mdast と cmark 自体が食い違っており cmark 側を採用した。
+
+エラー表示の指し先という観点では、フェンスコードブロックの行ずれが実害として最も大きい。
+Re:VIEW の文書でコードブロックは頻出するため、項目 10 の SourceLocation 化には
+この修正が効くはずである。
+
+### 6.4 取り込み側で必要な追随
+
+破壊的変更であるため、review-ast 側で以下の対応が要る。
+
+- 列に +1 する処理を入れていた場合は削除する(red_quilt が 1-based になった)
+- heading の span が `# ` を含まない前提のコードがあれば見直す
+- ブロックの span が本文のみを指す前提のコードがあれば見直す
+
+`NodeRef#text` の挙動は変えていない。見出しのテキストは従来どおり本文のみで、
+マーカーは含まない。
+
+### 6.5 ノード属性のアクセサ(項目 2.1)
+
+対応済みである。`NodeRef` に以下を追加した。いずれも型が合わないときは nil を返す。
+
+```ruby
+node.heading_level     # HEADING: 1..6
+node.list_ordered?     # LIST
+node.list_start        # LIST
+node.list_tight?       # LIST
+node.list_delimiter    # LIST: "-" / "." など
+node.link_destination  # LINK / IMAGE
+node.link_title        # LINK / IMAGE
+node.footnote_label    # FOOTNOTE_DEFINITION / FOOTNOTE_REFERENCE
+node.footnote_number   # FOOTNOTE_DEFINITION / FOOTNOTE_REFERENCE
+node.header?           # TABLE_ROW / TABLE_CELL
+```
+
+提案書の案からの相違点は 2 つある。
+
+`footnote_number` は FOOTNOTE_REFERENCE 専用にする案だったが、実測すると
+FOOTNOTE_DEFINITION も解決済みの番号を持っていたため、両方で読めるようにした。
+
+`header?` は提案書の案どおり TABLE_ROW / TABLE_CELL を 1 つのメソッドで扱う。
+表の外では false ではなく nil を返す。段落は「ヘッダでない行」ではなく
+ヘッダ性を持たないためで、どちらも偽値なので `if node.header?` の書き味は変わらない。
+
+`info` は CODE_BLOCK 以外で nil を返すようにした(0.8.0 では `""`)。
+情報文字列なしで書かれたコードブロックは従来どおり `""` を返すため、
+「型が違う」と「info が空」が区別できる。**これは 0.8.0 に対する破壊的変更である。**
+
+実装上の注意として、これらは Arena への単純委譲ではない。
+「必要な属性は Arena に既に存在するので公開するだけ」という前提は正確ではなかった。
+Arena のアクセサは型を検証せず、生カラムを共有しているため、
+型が合わないときに nil や 0 ではなく**別フィールドの実データ**が返る。実測値を示す。
+
+```
+list       | text="-"             link_dest="-"            list_delim="-"
+paragraph  | text="item"          link_dest="item"         list_delim="item"
+link       | text="http://ex.com" link_dest="http://ex.com"
+code_block | text="code\n"                                 link_title="rb"
+```
+
+`link_destination` を段落に呼ぶと本文が、`link_title` をコードブロックに呼ぶと
+info 文字列が返る。誤用が静かに通るため、追加したアクセサは全て
+`NodeType` 判定を挟んでいる。提案書の「型が合わないときは nil を返す方針」が
+まさに正しく、それが `NodeRef` ラッパを設ける価値であった。
+
+Arena 側の挙動は変えていない。従来どおり生の層であり、型検査を行わない。
+アダプタからは `NodeRef` のアクセサを使うこと。
+
+`to_h` が重いという指摘も裏付けが取れた。257 ノードのリストに対し `to_h` は
+5391 オブジェクトを確保する。追加したアクセサは 10,000 回呼んでも
+ベースラインと同じ、すなわち呼び出しごとの確保はゼロである。
+
+### 6.6 先送りとした項目(2.2 / 2.3 の直読みアクセサ)
+
+いずれも red_quilt 側で対応せず先送りとした。アダプタは `to_h` や private
+メソッドに頼らずに書けるため、着手の前提条件にはならない。
+必要になった時点で改めて判断する。
+
+#### 2.2 `literal` と `text` の分離
+
+`literal` を素朴に arena の str1 に対応させると、**LIST は delimiter(`"-"`)、
+LINK / IMAGE は destination(URL)、FOOTNOTE_DEFINITION は label** を返す。
+`node.literal` がリンクで URL を返すのは、提案書が防ごうとしている
+「生 HTML を子孫連結と取り違える事故」と同種の事故である。
+実装するなら `{CODE_BLOCK, HTML_BLOCK, TEXT, CODE_SPAN, HTML_INLINE}` の
+allowlist が必須で、それ以外は nil を返す形になる。
+
+先送りの理由は、現状 `html_block` も `code_block` も葉ノードであるため
+`NodeRef#text` が既に生の内容を返しており、この事故が今日は起きていないことである。
+`literal` が新たに取れるようにするものは実質ない。価値は契約の明文化にあり、
+`text` の契約(葉なら自身の内容、そうでなければ子孫連結)が将来変わったときに
+初めて効く。アダプタを実際に書いて困った時点で入れるのが妥当と判断した。
+
+なお `text` の現在の契約は「`html_block` が生 HTML を返すことを保証する」ものでは
+ない点に注意されたい。今それが成り立つのは葉ノードだからである。
+
+#### 2.3 `start_line` / `start_column` の直読み
+
+`source_location` は 1 回あたり約 6 オブジェクトを確保する(`source_span` は 1)。
+実在するコストだが、6919 ノードの文書で 4 万個程度であり、劇的ではない。
+座標基準の明記(項目 2.3 の後半)は対応済みなので、
+残るのは純粋な最適化であり、先送りとした。
+
+### 6.7 項目 4 の前提変更
+
+red_quilt の `required_ruby_version` を **`>= 3.1.0` に引き下げた**(0.8.0 では `>= 3.3.0`)。
+3.1 での唯一の非互換は `String#byteindex`(3.2 以降)で、
+2 箇所ともバイナリビュー上の呼び出しだったため `String#index` で置換できた。
+3.1 / 3.2 / 3.3 / 3.4 / 4.0 でテストが通ることを確認しており、CI も 5 バージョンで回している。
+
+したがって、red_quilt のために review-ast の下限を引き上げる必要はない。
+`review-math_ml` の 3.2 要求は別途残るため、判断材料としては弱まるのみである。
+
+なお red_quilt は複数 Ruby 対応にあたり `Gemfile.lock` を git 管理から外した。
+ある Ruby で解決した lockfile は他のバージョンに存在しない gem を pin するためである。
+
+### 6.8 補足: インライン要素の位置情報
+
+リスト項目や blockquote の内部など、ブロック変換を経たコンテンツのインライン要素は
+`source_location` が nil を返す(`track_source: false` のため)。
+アダプタがインラインレベルの位置情報を必要とする場合、これは別途の課題となる。
+今回の対応範囲には含めていない。

@@ -85,6 +85,15 @@ module ReVIEW
         all_rows.first&.children&.length || 1
       end
 
+      # Update table attributes after creation
+      # This is used by MarkdownAdapter to set id and caption from attribute blocks
+      # @param id [String, nil] Table ID
+      # @param caption_node [CaptionNode, nil] Caption node
+      def update_attributes(id: nil, caption_node: nil)
+        @id = id if id
+        @caption_node = caption_node if caption_node
+      end
+
       # Rows are grouped as header_rows/body_rows in serialize_properties, so the
       # generic "children" key is suppressed. The base skeleton still runs
       # serialize_common_node_fields, so no field is dropped.
