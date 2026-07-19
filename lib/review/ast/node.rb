@@ -90,8 +90,15 @@ module ReVIEW
         return enum_for(:each_subnode) unless block
 
         @children.each(&block)
-        yield(caption_node) if respond_to?(:caption_node) && caption_node
-        term_children.each(&block) if respond_to?(:term_children) && term_children&.any?
+        extra_subnodes.each(&block)
+      end
+
+      # Nodes a full-tree walk must visit that live outside #children (a caption,
+      # definition-list terms). The base has none; the mixin/nodes that carry such
+      # side collections override this and prepend via super, so the base does not
+      # need to know which subclasses have captions or terms.
+      def extra_subnodes
+        []
       end
 
       def add_child(child)

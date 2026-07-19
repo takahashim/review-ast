@@ -25,6 +25,11 @@ module ReVIEW
         !caption_node.nil?
       end
 
+      # Include the caption in a full-tree walk (see Node#each_subnode).
+      def extra_subnodes
+        caption_node ? super + [caption_node] : super
+      end
+
       # Helper method to serialize caption_node to hash
       # @param hash [Hash] hash to add caption_node to
       # @param options [JSONSerializer::Options] serialization options

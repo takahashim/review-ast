@@ -47,6 +47,11 @@ module ReVIEW
         result
       end
 
+      # Include definition-list term nodes in a full-tree walk (Node#each_subnode).
+      def extra_subnodes
+        super + Array(term_children)
+      end
+
       # Convenience methods for type checking
       def definition_term?
         item_type == :dt
