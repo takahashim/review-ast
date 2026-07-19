@@ -76,6 +76,41 @@ class TestSerializationRoundTrip < Test::Unit::TestCase
                  code.definition_number.number
   end
 
+  # The versioned dump envelope (serialize_document) carries the format version
+  # and generator, wraps the same node tree, and round-trips byte-identically.
+  def test_document_envelope_round_trips_and_carries_version
+    _chapter, root = compile(SOURCES['numbered_list'])
+
+    d1 = ReVIEW::AST::JSONSerializer.serialize_document(root)
+    parsed = JSON.parse(d1)
+    assert_equal ReVIEW::AST::JSONSerializer::AST_FORMAT_VERSION, parsed['ast_format']
+    assert_match(/\Areview /, parsed['generator'])
+    assert_equal 'DocumentNode', parsed['root']['type']
+
+    # deserialize transparently unwraps the envelope, so re-dumping is identical.
+    d2 = ReVIEW::AST::JSONSerializer.serialize_document(ReVIEW::AST::JSONSerializer.deserialize(d1))
+    assert_equal d1, d2
+  end
+
+  # A bare node dump (serialize) still deserializes, so both forms are accepted.
+  def test_deserialize_accepts_both_bare_and_enveloped
+    _chapter, root = compile(SOURCES['nonum_headline'])
+    bare = ReVIEW::AST::JSONSerializer.serialize(root)
+    enveloped = ReVIEW::AST::JSONSerializer.serialize_document(root)
+    assert_equal ReVIEW::AST::JSONSerializer.serialize(ReVIEW::AST::JSONSerializer.deserialize(bare)),
+                 ReVIEW::AST::JSONSerializer.serialize(ReVIEW::AST::JSONSerializer.deserialize(enveloped))
+  end
+
+  # An unknown format version is refused rather than silently mis-read.
+  def test_deserialize_refuses_unknown_format_version
+    _chapter, root = compile(SOURCES['noindent'])
+    hash = JSON.parse(ReVIEW::AST::JSONSerializer.serialize_document(root))
+    hash['ast_format'] = 999
+    assert_raise(StandardError) do
+      ReVIEW::AST::JSONSerializer.deserialize(JSON.generate(hash))
+    end
+  end
+
   private
 
   def compile(source)

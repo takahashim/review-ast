@@ -17,11 +17,35 @@ module ReVIEW
         end
       end
 
+      # Wire-format version of a dumped document (the enveloped form produced by
+      # serialize_document). Bump when the on-disk AST JSON contract changes in a
+      # way older readers cannot handle; deserialize refuses versions it does not
+      # know (doc/design-improvements #4).
+      AST_FORMAT_VERSION = 1
+
       module_function
 
       # Serialize AST node to JSON
       def serialize(node, options = Options.new)
         hash = serialize_to_hash(node, options)
+        if options.pretty
+          JSON.pretty_generate(hash, indent: options.indent)
+        else
+          JSON.generate(hash)
+        end
+      end
+
+      # Serialize a document root to the versioned dump envelope. This is the form
+      # written by review-ast-dump: a self-describing artifact that external
+      # renderers can check before trusting the tree. The node tree itself is
+      # unchanged (serialize_to_hash), so per-node serialization stays bare; only
+      # the dump boundary carries the header. deserialize accepts both forms.
+      def serialize_document(node, options = Options.new)
+        hash = {
+          'ast_format' => AST_FORMAT_VERSION,
+          'generator' => "review #{ReVIEW::VERSION}",
+          'root' => serialize_to_hash(node, options)
+        }
         if options.pretty
           JSON.pretty_generate(hash, indent: options.indent)
         else
@@ -44,10 +68,24 @@ module ReVIEW
         end
       end
 
-      # Deserialize JSON string to AST nodes
+      # Deserialize JSON string to AST nodes. Accepts both the bare node form
+      # (serialize) and the versioned dump envelope (serialize_document).
       def deserialize(json_string)
-        hash = JSON.parse(json_string)
+        hash = unwrap_document(JSON.parse(json_string))
         deserialize_from_hash(hash)
+      end
+
+      # If the hash is a versioned dump envelope, verify the format version and
+      # return the inner root; otherwise return it unchanged (a bare node hash).
+      def unwrap_document(hash)
+        return hash unless hash.is_a?(Hash) && hash.key?('ast_format') && hash.key?('root')
+
+        version = hash['ast_format']
+        unless version == AST_FORMAT_VERSION
+          raise StandardError, "Unsupported ast_format version: #{version.inspect} (this build reads #{AST_FORMAT_VERSION})"
+        end
+
+        hash['root']
       end
 
       def deserialize_caption_fields(hash)

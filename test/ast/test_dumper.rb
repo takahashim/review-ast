@@ -36,7 +36,12 @@ class TestDumper < Test::Unit::TestCase
     dumper = ReVIEW::AST::Dumper.new
     result = dumper.dump_file(path)
 
-    json = JSON.parse(result)
+    envelope = JSON.parse(result)
+    # Versioned dump envelope (doc/design-improvements #4)
+    assert_equal ReVIEW::AST::JSONSerializer::AST_FORMAT_VERSION, envelope['ast_format']
+    assert_match(/\Areview /, envelope['generator'])
+
+    json = envelope['root']
     assert_equal 'DocumentNode', json['type']
     assert_equal 3, json['children'].size
 
@@ -90,7 +95,7 @@ class TestDumper < Test::Unit::TestCase
     # Should be compact JSON
     assert_not_include(result, "\n")
 
-    json = JSON.parse(result)
+    json = JSON.parse(result)['root']
     # Should not have location
     assert_nil(json['location'])
   end
@@ -109,8 +114,8 @@ class TestDumper < Test::Unit::TestCase
     assert_include(results, path1)
     assert_include(results, path2)
 
-    json1 = JSON.parse(results[path1])
-    json2 = JSON.parse(results[path2])
+    json1 = JSON.parse(results[path1])['root']
+    json2 = JSON.parse(results[path2])['root']
 
     # Check that both documents have headline children
     assert_equal 'HeadlineNode', json1['children'][0]['type']

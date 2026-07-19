@@ -59,9 +59,9 @@ module ReVIEW
 
         ast_root = compiler.compile_to_ast(chap)
 
-        # Serialize AST to JSON
+        # Serialize AST to the versioned dump envelope (ast_format + generator)
         if ast_root
-          ReVIEW::AST::JSONSerializer.serialize(ast_root, @serializer_options)
+          ReVIEW::AST::JSONSerializer.serialize_document(ast_root, @serializer_options)
         else
           raise "Failed to generate AST for #{path}"
         end
