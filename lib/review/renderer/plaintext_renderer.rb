@@ -16,11 +16,18 @@ module ReVIEW
       include ReVIEW::TextUtils
       include ReVIEW::Loggable
 
+      # Configure's default, used when the book config does not set one.
+      DEFAULT_SECNOLEVEL = 2
+
       def initialize(chapter)
         super
         @blank_seen = true
         @ol_num = nil
         @logger = ReVIEW.logger
+        # Section numbering, as in the legacy builders (LaTeX/HTML/IDGXML
+        # renderers already do this; text did not, so section numbers were
+        # missing from its output entirely).
+        @sec_counter = SecCounter.new(5, @chapter) if @chapter
       end
 
       # Format type for this renderer
@@ -38,12 +45,17 @@ module ReVIEW
       end
 
       def visit_headline(node)
-        level = node.level
+        # PLAINTEXTBuilder#nodisp_begin prints nothing at all.
+        return '' if node.nodisp?
+
         caption = render_caption_inline(node.caption_node)
 
-        # Get headline prefix like PLAINTEXTBuilder
-        prefix = headline_prefix(level)
-        "#{prefix}#{caption}\n"
+        # [nonum]/[notoc] headings print the bare title: PLAINTEXTBuilder routes
+        # them to nonum_begin/notoc_begin, which never call headline_prefix, so
+        # they are unnumbered *and* leave the section counter untouched.
+        return "#{caption}\n" if node.nonum? || node.notoc?
+
+        "#{headline_prefix(node.level)}#{caption}\n"
       end
 
       def visit_paragraph(node)
@@ -120,8 +132,18 @@ module ReVIEW
 
         first_line_number = node.first_line_num || 1
 
+        # PLAINTEXTBuilder#listnum runs its caption through list_header, so it
+        # is numbered ("リスト1.1　..."), while #emlistnum prints the caption as
+        # written. Both used the bare caption here, which dropped the list
+        # number from every //listnum.
+        header = if node.code_type.to_sym == :listnum && !caption.empty?
+                   generate_list_header(node.id, caption, node.definition_number)
+                 else
+                   caption
+                 end
+
         result += "\n" if caption_top?('list') && !caption.empty?
-        result += "#{caption}\n" if caption_top?('list') && !caption.empty?
+        result += "#{header}\n" if caption_top?('list') && !caption.empty?
         result += "\n" if caption_top?('list') && !caption.empty?
 
         lines.each_with_index do |line, i|
@@ -129,7 +151,7 @@ module ReVIEW
         end
 
         result += "\n" unless caption_top?('list')
-        result += "#{caption}\n" unless caption_top?('list') || caption.empty?
+        result += "#{header}\n" unless caption_top?('list') || caption.empty?
         result += "\n"
 
         result
@@ -618,24 +640,16 @@ module ReVIEW
         lines.join
       end
 
+      # The numbering prefix for a headline, as Builder#headline_prefix produces
+      # it: advance the section counter for every headline (so later numbers stay
+      # right even where nothing is printed), then let SecCounter decide what to
+      # show for this level and secnolevel. It returns nil beyond secnolevel and
+      # for a chapter with no number, which prints as the empty string.
       def headline_prefix(level)
-        return '' unless render_context.chapter_present?
-        return '' unless config['secnolevel'] && config['secnolevel'] > 0
+        return '' unless @sec_counter
 
-        # Generate headline prefix like PLAINTEXTBuilder
-        case level
-        when 1
-          if render_context.chapter_number
-            "第#{render_context.chapter_number}章　"
-          else
-            ''
-          end
-        when 2, 3, 4, 5
-          # For subsections, use section counter if available
-          ''
-        else # rubocop:disable Lint/DuplicateBranch
-          ''
-        end
+        @sec_counter.inc(level)
+        @sec_counter.prefix(level, config['secnolevel'] || DEFAULT_SECNOLEVEL).to_s
       end
 
       def generate_list_header(id, caption, definition_number)

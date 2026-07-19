@@ -20,9 +20,12 @@ module ReVIEW
       # Japanese titles for different block types (matching TOPBuilder)
       TITLES = {
         list: 'リスト',
-        listnum: '連番付きリスト',
+        # TOPBuilder has no separate titles for the numbered variants: listnum
+        # reuses @titles['list'] and emlistnum reuses @titles['emlist'], so the
+        # block markers read the same whether or not lines are numbered.
+        listnum: 'リスト',
         emlist: 'インラインリスト',
-        emlistnum: '連番付きインラインリスト',
+        emlistnum: 'インラインリスト',
         cmd: 'コマンド',
         quote: '引用',
         source: 'ソースコード',
@@ -45,15 +48,25 @@ module ReVIEW
         read: 'リード',
         flushright: '右寄せ',
         centering: '中央揃え',
-        texequation: 'TeX式'
+        texequation: 'TeX式',
+        column: 'コラム'
       }.freeze
+
+      # Configure's default, used when the book config does not set one.
+      DEFAULT_SECNOLEVEL = 2
 
       def initialize(chapter)
         super
         @minicolumn_stack = []
         @table_row_separator_count = 0
-        @first_line_number = 1
         @rendering_context = nil
+        # Loggable#warn goes through this; without it, warning about an unbound
+        # image would raise instead of reporting.
+        @logger = ReVIEW.logger
+        # Section numbering, as in the legacy builders (LaTeX/HTML/IDGXML
+        # renderers already do this; text did not, so section numbers were
+        # missing from its output entirely).
+        @sec_counter = SecCounter.new(5, @chapter) if @chapter
 
         # Ensure locale strings are available
         I18n.setup(config['language'] || 'ja')
@@ -74,12 +87,23 @@ module ReVIEW
       end
 
       def visit_headline(node)
+        # TOPBuilder has no nodisp_begin, so it inherits PLAINTEXTBuilder's,
+        # which prints nothing at all.
+        return '' if node.nodisp?
+
         level = node.level
         caption = render_caption_inline(node.caption_node)
 
-        # Use headline prefix if available
-        prefix = generate_headline_prefix(level)
-        "■H#{level}■#{prefix}#{caption}\n"
+        # [nonum]/[notoc] headings print the bare title: TOPBuilder routes them
+        # to nonum_begin/notoc_begin, which never call headline_prefix, so they
+        # are unnumbered *and* leave the section counter untouched. notoc also
+        # carries a note for the DTP operator.
+        if node.notoc?
+          return "■H#{level}■#{caption}◆→DTP連絡:目次に掲載しない←◆\n"
+        end
+        return "■H#{level}■#{caption}\n" if node.nonum?
+
+        "■H#{level}■#{generate_headline_prefix(level)}#{caption}\n"
       end
 
       def visit_paragraph(node)
@@ -185,7 +209,9 @@ module ReVIEW
                        node.children.map { |child| visit(child) }.join
                      end
 
-        result = "#{term}☆\n"
+        # TOPBuilder#dt brackets the term on both sides ("★#{line}☆"); the
+        # opening marker was missing here.
+        result = "★#{term}☆\n"
         result += "\t#{definition}\n" if definition
 
         result
@@ -219,8 +245,11 @@ module ReVIEW
         if node.line_numbers
           code_content = render_children(node).chomp
           lines = code_content.split("\n")
+          # //firstlinenum sets where the numbering starts (Builder#line_num);
+          # this used to be hardcoded to 1, so TOP silently ignored the directive.
+          first_line_number = node.first_line_num || 1
           lines.each_with_index do |line, i|
-            line_num = (@first_line_number + i).to_s.rjust(2)
+            line_num = (first_line_number + i).to_s.rjust(2)
             result += "#{line_num}: #{line}\n"
           end
         else
@@ -337,27 +366,34 @@ module ReVIEW
         result += "\n"
         result += "◆→開始:#{TITLES[:image]}←◆\n"
 
-        # Add caption if present
-        caption = render_caption_inline(node.caption_node)
-        unless caption.empty?
-          result += if node.id
-                      # Use I18n formatting to match TOPBuilder
-                      format_image_caption(node.id, caption, node.definition_number)
-                    else
-                      "■#{caption}\n"
-                    end
-          result += "\n"
-        end
+        # caption_position decides whether the caption goes above or below the
+        # figure; TOPBuilder branches on it and the default for images is
+        # 'bottom'. This renderer used to always emit the caption first, so the
+        # setting had no effect on TOP output.
+        caption = image_caption(node)
+        result += "#{caption}\n" if caption_top?('image') && !caption.empty?
 
-        # Add image path with metrics
-        image_path = node.id
-        metrics = format_image_metrics(node)
-        result += "◆→#{image_path}#{metrics}←◆\n"
+        result += image_marker(node)
+
+        result += caption unless caption_top?('image') || caption.empty?
 
         result += "◆→終了:#{TITLES[:image]}←◆\n"
         result += "\n"
 
         result
+      end
+
+      # The caption line for an image block, empty when there is no caption.
+      def image_caption(node)
+        caption = render_caption_inline(node.caption_node)
+        return '' if caption.empty?
+
+        if node.id
+          # Use I18n formatting to match TOPBuilder
+          format_image_caption(node.id, caption, node.definition_number)
+        else
+          "■#{caption}\n"
+        end
       end
 
       def visit_minicolumn(node)
@@ -386,13 +422,19 @@ module ReVIEW
         result
       end
 
+      # TOPBuilder wraps a column in the same begin/end markers as its other
+      # blocks and prefixes the title with "■" (common_column_begin/end). This
+      # emitted the bare title and body, so a column was indistinguishable from
+      # surrounding text in TOP output.
       def visit_column(node)
         result = +''
         caption = render_caption_inline(node.caption_node)
 
         result += "\n"
-        result += "#{caption}\n" unless caption.empty?
+        result += "◆→開始:#{TITLES[:column]}←◆\n"
+        result += "■#{caption}\n" unless caption.empty?
         result += render_children(node)
+        result += "◆→終了:#{TITLES[:column]}←◆\n"
         result += "\n"
 
         result
@@ -507,10 +549,7 @@ module ReVIEW
           result += "\n"
         end
 
-        # Add image path with metrics
-        image_path = node.id
-        metrics = format_image_metrics(node)
-        result += "◆→#{image_path}#{metrics}←◆\n"
+        result += image_marker(node)
 
         result += "◆→終了:#{TITLES[:table]}←◆\n"
         result += "\n"
@@ -601,34 +640,16 @@ module ReVIEW
 
       private
 
+      # The numbering prefix for a headline, as Builder#headline_prefix produces
+      # it: advance the section counter for every headline (so later numbers stay
+      # right even where nothing is printed), then let SecCounter decide what to
+      # show for this level and secnolevel. It returns nil beyond secnolevel and
+      # for a chapter with no number, which prints as the empty string.
       def generate_headline_prefix(level)
-        # Generate headline prefix based on chapter structure
-        # Similar to TOPBuilder's headline_prefix method
-        secnolevel = config['secnolevel'] || 2
+        return '' unless @sec_counter
 
-        if level > secnolevel || !render_context.chapter_present?
-          return ''
-        end
-
-        case level
-        when 1
-          # Chapter level: just the chapter number
-          if render_context.chapter_number
-            "#{render_context.chapter_number}　"
-          else
-            ''
-          end
-        when 2, 3, 4, 5, 6
-          # Section levels: use counter from chapter
-          if render_context.chapter_number
-            # Get section counter from chapter if available
-            # For now, return empty string as section counter needs proper implementation
-            # This matches the behavior of TOPBuilder which uses @sec_counter
-          end
-          ''
-        else
-          ''
-        end
+        @sec_counter.inc(level)
+        @sec_counter.prefix(level, config['secnolevel'] || DEFAULT_SECNOLEVEL).to_s
       end
 
       def should_add_table_separator?
@@ -642,13 +663,27 @@ module ReVIEW
         config&.dig('textmaker', 'th_bold') || false
       end
 
-      def format_image_metrics(node)
-        # Format image metrics if present
-        metrics = +''
-        if node.metric
-          metrics = "、#{node.metric}"
+      # The "◆→<path>←◆" line naming the image file, as TOPBuilder emits it.
+      # An unbound image warns and falls back to the block's raw body, so a
+      # missing file is visible in the output instead of silently naming an id.
+      def image_marker(node)
+        unless node.image_path
+          warn "image not bound: #{node.id}"
+          body = render_children(node)
+          return body if body.empty? || body.end_with?("\n")
+
+          return "#{body}\n"
         end
-        metrics
+
+        "◆→#{node.image_path}#{format_image_metrics(node)}←◆\n"
+      end
+
+      # Metrics targeted at this format, space-separated as TOPBuilder writes
+      # them. Taking node.metric raw would leak another target's metric (e.g.
+      # "latex::width=80mm") into the text output.
+      def format_image_metrics(node)
+        metrics = parse_metric('top', node.metric)
+        metrics.present? ? " #{metrics}" : ''
       end
 
       # Format list caption using I18n (matches TOPBuilder)
@@ -670,9 +705,16 @@ module ReVIEW
       end
 
       # Format image caption using I18n (matches TOPBuilder)
-      def format_image_caption(id, caption_text, definition_number)
+      def format_image_caption(_id, caption_text, definition_number)
         return "■#{caption_text}\n" unless render_context.chapter_present?
-        return "■#{id}■#{caption_text}\n" unless definition_number
+
+        # No number means //indepimage or //numberlessimage, which TOPBuilder
+        # renders through indepimage_header: the figure label and the caption,
+        # with no number. It used to fall back to "■<id>■", naming the id
+        # instead of labelling the figure.
+        unless definition_number
+          return "#{I18n.t('image')}#{I18n.t('caption_prefix_idgxml')}#{caption_text}\n"
+        end
 
         formatted = text_formatter.format_caption_plain('image', definition_number.chapter_number, definition_number.number, caption_text)
         "#{formatted}\n"
