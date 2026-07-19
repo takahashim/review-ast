@@ -80,7 +80,8 @@ class TestCodeBlockDebug < Test::Unit::TestCase
                   "content": "Chapter Title"
                 }
               ]
-            }
+            },
+            "raw_caption": "Chapter Title"
           },
           {
             "type": "CodeBlockNode",

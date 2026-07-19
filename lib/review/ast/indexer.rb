@@ -72,19 +72,18 @@ module ReVIEW
         self
       end
 
-      # Extract and set chapter title from first level-1 headline
-      # This is particularly important for Markdown files where chapter.title is empty
+      # Set the chapter title from the AST, making the AST the single authority
+      # for it rather than deferring to ReVIEW::Book::BookUnit#title (whose parser
+      # only understands Re:VIEW "=" headlines). The title is the first headline's
+      # raw_caption -- the source-faithful caption of the chapter's first heading,
+      # in document order, at any level. For Re:VIEW this reproduces BookUnit#title
+      # byte-for-byte (both take the first "=+" line's caption, markers stripped,
+      # markup kept raw); pinned by test/ast/test_chapter_title.rb.
       def extract_and_set_chapter_title(ast_root)
-        # Skip if chapter already has a title (from Re:VIEW format parsing)
-        return if @chapter.title && !@chapter.title.empty?
+        headline = find_first_headline(ast_root)
+        return unless headline&.raw_caption
 
-        # Find first level-1 headline
-        headline = find_first_headline(ast_root, level: 1)
-        return unless headline
-
-        # Extract text from caption node
-        title = extract_text_from_caption(headline.caption_node)
-        @chapter.instance_variable_set(:@title, title) if title && !title.empty?
+        @chapter.instance_variable_set(:@title, headline.raw_caption)
       end
 
       private
@@ -407,17 +406,18 @@ module ReVIEW
         visit_all(node.children)
       end
 
-      # Find first headline node with specified level
+      # Find the first headline node in document order (pre-order), at any level.
+      # This mirrors BookUnit#title, which takes the first "=+" line regardless of
+      # level. Columns are ColumnNode, not HeadlineNode, so they are skipped.
       # @param node [Node] The node to search
-      # @param level [Integer] The headline level to find
       # @return [HeadlineNode, nil] The found headline or nil
-      def find_first_headline(node, level:)
-        return node if node.is_a?(HeadlineNode) && node.level == level
+      def find_first_headline(node)
+        return node if node.is_a?(HeadlineNode)
 
         return nil unless node.respond_to?(:children)
 
         node.children.each do |child|
-          result = find_first_headline(child, level: level)
+          result = find_first_headline(child)
           return result if result
         end
 
@@ -425,35 +425,8 @@ module ReVIEW
       end
 
       # Extract plain text from caption node
-      # @param caption_node [CaptionNode, nil] The caption node
-      # @return [String] The extracted text
-      def extract_text_from_caption(caption_node)
-        return '' unless caption_node
-
-        result = +''
-        extract_text_recursive(caption_node, result)
-        result
-      end
-
-      # Recursively extract text from node and its children
-      # @param node [Node] The node to extract text from
-      # @param result [String] The accumulator string
-      def extract_text_recursive(node, result)
-        if node.is_a?(TextNode)
-          result << node.content
-        elsif node.respond_to?(:children)
-          node.children.each { |child| extract_text_recursive(child, result) }
-        end
-      end
-
-      # Extract plain text from caption node
       def extract_caption_text(caption_node)
         caption_node&.to_inline_text || ''
-      end
-
-      # Extract text content from inline nodes
-      def extract_inline_text(inline_node)
-        inline_node.children.map { |child| child.leaf_node? ? child.content : child.to_s }.join
       end
 
       # ID validation (same as IndexBuilder)

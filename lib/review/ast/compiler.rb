@@ -462,7 +462,8 @@ module ReVIEW
           level: parse_result.level,
           label: parse_result.label,
           caption_node: caption_node,
-          tag: parse_result.tag
+          tag: parse_result.tag,
+          raw_caption: parse_result.caption
         )
         current_node.add_child(node)
         # Normally headlines flatten the current position back to the document

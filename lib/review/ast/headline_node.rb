@@ -10,15 +10,23 @@ module ReVIEW
       include Captionable
 
       attr_accessor :auto_id
-      attr_reader :level, :label, :tag
+      attr_reader :level, :label, :tag, :raw_caption
 
-      def initialize(location:, level: nil, label: nil, caption_node: nil, tag: nil, auto_id: nil, **kwargs)
+      # +raw_caption+ is the caption exactly as it appears in the source, after
+      # removing the level markers and an optional leading tag/label but before
+      # inline parsing (e.g. "@<b>{Foo}" stays raw). It is the source-faithful
+      # chapter-title datum: the first headline's raw_caption is what the chapter
+      # title is, matching ReVIEW::Book::BookUnit#title (set by Indexer, pinned by
+      # test/ast/test_chapter_title.rb). caption_node holds the parsed form for
+      # rendering.
+      def initialize(location:, level: nil, label: nil, caption_node: nil, tag: nil, auto_id: nil, raw_caption: nil, **kwargs)
         super(location: location, **kwargs)
         @level = level
         @label = label
         @caption_node = caption_node
         @tag = tag
         @auto_id = auto_id
+        @raw_caption = raw_caption
       end
 
       # Check if headline has specific tag option
@@ -47,6 +55,7 @@ module ReVIEW
           tag: tag
         )
         result[:auto_id] = auto_id if auto_id
+        result[:raw_caption] = raw_caption if raw_caption
         result
       end
 
@@ -57,7 +66,8 @@ module ReVIEW
           label: hash['label'],
           caption_node: deserialize_caption_from_hash(hash),
           tag: hash['tag'],
-          auto_id: hash['auto_id']
+          auto_id: hash['auto_id'],
+          raw_caption: hash['raw_caption']
         )
       end
 
@@ -69,6 +79,7 @@ module ReVIEW
         serialize_caption_to_hash(hash, options)
         hash[:tag] = tag if tag
         hash[:auto_id] = auto_id if auto_id
+        hash[:raw_caption] = raw_caption if raw_caption
         hash
       end
     end
