@@ -423,6 +423,9 @@ end
 フォーマット版(`"ast_format": 1`)と、生成した gem のバージョンである。
 別名キーは 1 リリースの間だけ非推奨警告付きで受理し、フォーマット版の更新で落とす。
 スキーマはフィールド宣言から生成する。
+
+> 実装は上記三点(宣言 DSL、別名の非推奨期間、宣言からのスキーマ生成)を採らなかった。
+> 実際に採った形と理由は「実装状況」を参照。
 全ノード型を覆い、`additionalProperties: false` とし、gem と一緒に配布し、サンプルコーパスのダンプに対する検証を CI で行う。
 特殊な形のノード(`TableNode` の `header_rows`/`body_rows` 導出、`ListItemNode` の並行する `term_children`)は、宣言 DSL でその形を表現するか、文書化された例外として理由を残す。
 今日それらは、すべての消費者が知っていなければならない無文書の特例である。
@@ -473,18 +476,28 @@ end
   - `deserialize` はエンベロープを自動判別(`unwrap_document`): `ast_format`+`root` があれば版を検証して中身を取り出し、無ければ従来どおり bare ノードとして読む。未知の版は黙って誤読せず `StandardError`。`review-ast-dump2re` は `deserialize` 経由なので新旧両形式を読める。
   - コアの `serialize()` は据え置き(ノード単体のシリアライズは bare のまま)なので、既存テスト(`parsed['type']` を最上位で見る 31 箇所)への波及なし。境界テスト `test_dumper.rb` のみエンベロープに更新し、ヘッダ検証を追加。
   - テスト: `test_serialization_round_trip.rb` にエンベロープの round-trip バイト同一・版/generator の存在・bare/enveloped 両受理・未知版の拒否を追加。dump→dump2re の実フローも確認。フル `rake` 緑(1075 tests)、rubocop クリーン。
-- 見送り(2026-07 判断): フィールド宣言 DSL(`serialize_fields`)・スキーマ生成・別名キー非推奨化。以下の理由で、具体的な駆動要因が現れるまで実装しない。
+- 見送り(2026-07 判断): フィールド宣言 DSL(`serialize_fields`)。以下の理由で、具体的な駆動要因が現れるまで実装しない(同時に見送っていたスキーマ生成と別名キー非推奨化は、後日それぞれ別の形で決着した。本項末尾を参照)。
   - 乖離防止という当初の主目的は別手段で達成済み: 型判別子のコンストラクタ正規化統一(Symbol/String バグの根治)、全ノード型 deserialize 契約テスト、スカラーフィールド忠実性テスト、samples/PBT の render-identity、drift の温床だった `to_h` の撤去(表現を1系統化)。DSL で防ぐ必要がない。
   - boilerplate 削減は残るが効果は限定的。不規則シリアライズ(TableNode の header/body、CaptionNode の空→`''`、ReferenceNode の resolved_data、`if id?`/`start_number != 1`/`footnote_type.to_s` 等の条件付き)を素朴な DSL では表現できず、escape hatch を足すほど旨みが薄れる。規則的な一部だけ DSL 化し不規則な残りは手書き、という中途半端になりやすい。
   - スキーマ生成は今スキーマを消費する相手がいない(配布構想は近い具体ユースケースでない)。必要になった時点で、既に生成できる実ダンプ(samples/PBT)を introspect して起こす方が DSL 前提より素直。未使用ノードの構造的カバレッジも完全性テストが既に担う。
   - 将来 boilerplate を減らす場合も、全ノードに DSL を強いず「規則的なスカラー群だけを宣言する軽いヘルパを合う所にだけ」適用する方が現実的。
   - 駆動要因の例: 外部の AST 消費者がスキーマ(`additionalProperties: false` 含む)を要求する / 一度に多ノードを触るシリアライズ変更が必要になる。
-  - 運用規則は先行して文書化済み: [ast-format.ja.md](ast-format.ja.md)(草案)が、別名キーの非推奨手順、`ast_format` の版更新判断基準、読み手への適合条件、スキーマとの関係、版更新チェックリストを定める。駆動要因が現れたときはこの規則に従って実装する。
+  - 運用規則は先行して文書化済み: [ast-format.ja.md](ast-format.ja.md)(草案)が、キー命名の規則、`ast_format` の版更新判断基準、読み手への適合条件、スキーマとの関係、版更新チェックリストを定める。駆動要因が現れたときはこの規則に従って実装する。
   - 実装済み(render-identity を samples コーパスへ): `test/ast/test_corpus_render_identity.rb` が `samples/syntax-book` の全章を compile→serialize→deserialize し、5レンダラ全てで fresh と reloaded の描画一致を検査(実コンテンツでの round-trip 忠実性ガード)。
   - 実装済み(render-identity を PBT コーパスへ = 検証 CI 化): `test/ast/test_pbt_round_trip_identity.rb` が `tools/pbt` の生成器で固定 seed(1..30)のランダム Re:VIEW 文書を作り、round-trip byte 一致 + 5レンダラの fresh/reloaded 描画一致を検査。builder オラクル不要の自己整合性プロパティで、`rake test` に載るため恒常実行(≈0.3s)。「稀な構文の組み合わせでだけ出るシリアライズ欠落」を通常のテスト実行で捕捉する。
   - 実装済み(render-identity に plaintext / TOP を追加): `test_serialization_round_trip.rb` の RENDERERS に plaintext/TOP を追加。これが `InlineNode#inline_type` の Symbol→String 復元バグを検出(JSON では両方 `"br"` で byte 一致するため round-trip 検査では不可視、TopRenderer の `case ... when :br` が String で外れて `@<br>` の改行が消えていた)。deserialize で `.to_sym` 復元して修正。「シリアライズには現れないが描画に効く差」を捕捉する render-identity の狙いどおりの検出。
   - 実装済み(deserialize フィールド忠実性の系統ガード): `test/ast/test_deserialize_field_fidelity.rb` が包括フィクスチャの fresh と reloaded を並行走査し、全スカラーフィールドの値・クラス一致を検査(既知の良性省略 `ListNode#start_number`/`ListItemNode#item_number` のみ allowlist)。これで新ノード/フィールド追加時の Symbol/String・型変化バグを網羅的に捕捉。同ガードで `CodeBlockNode#code_type`・`MinicolumnNode#minicolumn_type` の同種バグも検出・修正済み。
   - 実装済み(round-trip 完全性テスト): `test/ast/test_serialization_completeness.rb`。(A) 全具象 Node サブクラスが `deserialize_from_hash` を実装している契約テスト(抽象は `LeafNode` のみと固定。新ノード型追加で deserialize を忘れると失敗)。(B) 21 のソース到達ノード型を1フィクスチャで実体化して byte 往復一致 + 型カバレッジ検証。
+  - 決着(スキーマ生成、2026-07): 駆動要因(ast-semantics 5 章が適合キットとしてスキーマを挙げているのに実体が無い)が現れたため実装した。
+    ただし当初設計の「フィールド宣言から生成する」は採らず、見送り時に記した代替どおり**実ダンプの introspect** で起こした。
+    `tools/generate_ast_schema.rb` が samples の 2 コーパス(`syntax-book`、`md-syntax-book`)の全章をコンパイルしてダンプを走査し、`schema/ast-format-1.schema.json` を生成する(ノード 21 型 + ResolvedData 10 型、全定義 `additionalProperties: false`)。
+    DSL は不要だった。不規則シリアライズを表現する必要がそもそも生じないためで、見送り理由 3 点目の想定どおりである。
+    `test/ast/test_ast_schema.rb` が再生成して同梱物と比較し、シリアライズの形が変われば「schema is stale」で失敗する(`ParagraphNode` にキーを足して発火を実測)。JSON Schema バリデータ gem は不要: スキーマはコーパスから導出されるため妥当性は構成上自明で、検査すべきは同梱物の追随だけである。
+    副産物として、`DirectiveNode` がスキーマに現れないことを lowering への表明としてテストに固定した(現れたら lowering に穴がある)。また `ResolvedData` 系はノードと同じく `type` を持つため初回生成でノード型に混入しており、`$defs/resolved_data` に分離した(ノードが来る位置に `ImageReference` を置けてはならない)。
+  - 決着(別名キー、2026-07): 非推奨期間は設けず**削除**した。
+    調査の結果、`element`/`numbered` を書き出すシリアライザは review-ast にも抽出元 upstream にも履歴上存在せず、受理コードだけが gem 抽出時から読み取り専用で入っていた。
+    つまり互換コードではなく対応する生成側のない受理であり、該当するダンプは存在しない。削除しても観測可能な変化がなく、`ast_format` は 1 のままである。
+    ポリシー文書([ast-format.ja.md](ast-format.ja.md))には規則(キーは正準名ひとつ、別名は作らない)だけを残し、別名が存在した経緯は書いていない。読み手に「そのキーを含むダンプがあるのか、対応が要るのか」という無用の問いを起こさせないためである(経緯はコミットに残した)。
 
 ---
 
