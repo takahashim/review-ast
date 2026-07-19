@@ -6,8 +6,14 @@
 # You can distribute or modify this program under the terms of
 # the GNU LGPL, Lesser General Public License version 2.1.
 
-# Patch the released Re:VIEW gem with the hooks the AST subsystem needs.
-require 'review/ast/core_ext'
+# Re:VIEW's TextUtils references Unicode::Eaw for join_lines_by_lang but does
+# not require it itself; ensure it is loaded when available. Mirrors Re:VIEW's
+# own soft handling (join_lines_by_lang is disabled when the gem is absent).
+begin
+  require 'unicode/eaw'
+rescue LoadError
+  # join_lines_by_lang feature will be unavailable
+end
 
 # AST Node classes
 require 'review/ast/node'
