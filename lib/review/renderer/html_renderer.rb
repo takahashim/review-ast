@@ -302,22 +302,15 @@ module ReVIEW
 
         caption_node = node.caption_node
 
-        # Process image with caption context management
+        # Process image with caption context management. The image helpers fall
+        # back to the dummy image when node.image_path is nil (unbound), resolved
+        # at compile time, so no chapter image index lookup is needed here.
         if caption_node
           @rendering_context.with_child_context(:caption) do |caption_context|
-            # Check if image is bound like HTMLBuilder does
-            if @chapter&.image_bound?(node.id)
-              image_image_html_with_context(node.id, caption_node, id_attr, caption_context, node.image_type, node.definition_number, node.metric)
-            else
-              # For dummy images, ImageNode doesn't have lines, so use empty array
-              image_dummy_html_with_context(node.id, caption_node, [], id_attr, caption_context, node.image_type, node.definition_number)
-            end
+            image_image_html_with_context(node.id, caption_node, id_attr, caption_context, node.image_type, node.definition_number, node.metric, image_path: node.image_path)
           end
-        elsif @chapter&.image_bound?(node.id)
-          # No caption, no special context needed
-          image_image_html(node.id, caption_node, id_attr, node.image_type, node.definition_number, node.metric)
         else
-          image_dummy_html(node.id, caption_node, [], id_attr, node.image_type, node.definition_number)
+          image_image_html(node.id, caption_node, id_attr, node.image_type, node.definition_number, node.metric, image_path: node.image_path)
         end
       end
 
@@ -1078,45 +1071,44 @@ module ReVIEW
         [prefix, anchor]
       end
 
-      def image_image_html(id, caption_node, id_attr, image_type = :image, definition_number = nil, metric = nil)
+      def image_image_html(id, caption_node, id_attr, image_type = :image, definition_number = nil, metric = nil, image_path: nil)
         caption_html = image_header_html(id, caption_node, image_type, definition_number)
         caption_present = !caption_html.empty?
 
-        begin
-          image_path = @chapter.image(id).path.sub(%r{\A\./}, '')
-          alt_text = escape(render_caption_inline(caption_node))
+        # image_path was resolved at compile time and stamped on the node; nil
+        # means unbound, so fall back to the dummy image.
+        return image_dummy_html(id, caption_node, [], id_attr, image_type, definition_number) unless image_path
 
-          img_html = %Q(<img src="#{image_path}" alt="#{alt_text}"#{parse_metric('html', metric)} />)
+        src = image_path.sub(%r{\A\./}, '')
+        alt_text = escape(render_caption_inline(caption_node))
+        img_html = %Q(<img src="#{src}" alt="#{alt_text}"#{parse_metric('html', metric)} />)
 
-          # Check caption positioning like HTMLBuilder
-          if caption_top?('image') && caption_present
-            %Q(<div#{id_attr} class="image">\n#{caption_html}#{img_html}\n</div>\n)
-          else
-            %Q(<div#{id_attr} class="image">\n#{img_html}\n#{caption_html}</div>\n)
-          end
-        rescue StandardError
-          # If image loading fails, fall back to dummy
-          image_dummy_html(id, caption_node, [], id_attr, image_type, definition_number)
+        # Check caption positioning like HTMLBuilder
+        if caption_top?('image') && caption_present
+          %Q(<div#{id_attr} class="image">\n#{caption_html}#{img_html}\n</div>\n)
+        else
+          %Q(<div#{id_attr} class="image">\n#{img_html}\n#{caption_html}</div>\n)
         end
       end
 
-      def image_image_html_with_context(id, caption_node, id_attr, caption_context, image_type = :image, definition_number = nil, metric = nil)
+      def image_image_html_with_context(id, caption_node, id_attr, caption_context, image_type = :image, definition_number = nil, metric = nil, image_path: nil)
         caption_html = image_header_html_with_context(id, caption_node, caption_context, image_type, definition_number)
         caption_present = !caption_html.empty?
 
-        begin
-          image_path = @chapter.image(id).path.sub(%r{\A\./}, '')
-          img_html = %Q(<img src="#{image_path}" alt="#{escape(render_caption_inline(caption_node))}"#{parse_metric('html', metric)} />)
+        # image_path was resolved at compile time and stamped on the node; nil
+        # means unbound, so fall back to the dummy image.
+        unless image_path
+          return image_dummy_html_with_context(id, caption_node, [], id_attr, caption_context, image_type, definition_number)
+        end
 
-          # Check caption positioning like HTMLBuilder
-          if caption_top?('image') && caption_present
-            %Q(<div#{id_attr} class="image">\n#{caption_html}#{img_html}\n</div>\n)
-          else
-            %Q(<div#{id_attr} class="image">\n#{img_html}\n#{caption_html}</div>\n)
-          end
-        rescue StandardError
-          # If image loading fails, fall back to dummy
-          image_dummy_html_with_context(id, caption_node, [], id_attr, caption_context, image_type, definition_number)
+        src = image_path.sub(%r{\A\./}, '')
+        img_html = %Q(<img src="#{src}" alt="#{escape(render_caption_inline(caption_node))}"#{parse_metric('html', metric)} />)
+
+        # Check caption positioning like HTMLBuilder
+        if caption_top?('image') && caption_present
+          %Q(<div#{id_attr} class="image">\n#{caption_html}#{img_html}\n</div>\n)
+        else
+          %Q(<div#{id_attr} class="image">\n#{img_html}\n#{caption_html}</div>\n)
         end
       end
 

@@ -24,16 +24,28 @@ class IdgxmlRendererTest < Test::Unit::TestCase
     I18n.setup('ja')
   end
 
-  def compile_block(src, reference_resolution: true)
+  # image_paths stamps node.image_path on image/imgtable nodes by id after
+  # compilation, standing in for the ImageFinder's filesystem resolution (which
+  # finds nothing under a bare test book). This mirrors how a real compile
+  # resolves and stamps image paths on the AST (doc/design-improvements #7).
+  def compile_block(src, reference_resolution: true, image_paths: nil)
     @chapter.content = src
     compiler = ReVIEW::AST::Compiler.for_chapter(@chapter)
     ast = compiler.compile_to_ast(@chapter, reference_resolution: reference_resolution)
+    stamp_image_paths(ast, image_paths) if image_paths
     renderer = ReVIEW::Renderer::IdgxmlRenderer.new(@chapter)
     result = renderer.render(ast)
     # Strip XML declaration and root doc tags to match expected output format
     # Remove leading/trailing newlines but preserve spaces (for //raw blocks)
     result = result.sub(/\A<\?xml[^>]+\?>\s*<doc[^>]*>/, '').sub(%r{</doc>\s*\z}, '')
     result.gsub(/\A\n+/, '').gsub(/\n+\z/, '')
+  end
+
+  def stamp_image_paths(node, mapping)
+    if node.respond_to?(:image_path=) && node.respond_to?(:id) && mapping.key?(node.id)
+      node.image_path = mapping[node.id]
+    end
+    node.children.each { |child| stamp_image_paths(child, mapping) }
   end
 
   def compile_inline(src, reference_resolution: true)
@@ -304,55 +316,33 @@ EOS
     assert_equal %Q(<p/><p>foo</p>), actual
   end
 
-  def test_image
-    def @chapter.image(_id)
-      item = Book::Index::Item.new('sampleimg', 1)
-      item.instance_eval { @path = './images/chap1-sampleimg.png' }
-      item
-    end
+  IMG_PATHS = { 'sampleimg' => './images/chap1-sampleimg.png' }.freeze
 
-    actual = compile_block("//image[sampleimg][sample photo]{\n//}\n")
+  def test_image
+    actual = compile_block("//image[sampleimg][sample photo]{\n//}\n", image_paths: IMG_PATHS)
     assert_equal %Q(<img><Image href="file://images/chap1-sampleimg.png" /><caption>図1.1　sample photo</caption></img>), actual
 
     @config['caption_position']['image'] = 'top'
-    actual = compile_block("//image[sampleimg][sample photo]{\n//}\n")
+    actual = compile_block("//image[sampleimg][sample photo]{\n//}\n", image_paths: IMG_PATHS)
     assert_equal %Q(<img><caption>図1.1　sample photo</caption><Image href="file://images/chap1-sampleimg.png" /></img>), actual
   end
 
   def test_image_with_metric
-    def @chapter.image(_id)
-      item = Book::Index::Item.new('sampleimg', 1)
-      item.instance_eval { @path = './images/chap1-sampleimg.png' }
-      item
-    end
-
-    actual = compile_block("//image[sampleimg][sample photo][scale=1.2]{\n//}\n")
+    actual = compile_block("//image[sampleimg][sample photo][scale=1.2]{\n//}\n", image_paths: IMG_PATHS)
     assert_equal %Q(<img><Image href="file://images/chap1-sampleimg.png" scale="1.2" /><caption>図1.1　sample photo</caption></img>), actual
   end
 
   def test_indepimage
-    def @chapter.image(_id)
-      item = Book::Index::Item.new('sampleimg', 1)
-      item.instance_eval { @path = './images/chap1-sampleimg.png' }
-      item
-    end
-
-    actual = compile_block("//indepimage[sampleimg][sample photo]\n")
+    actual = compile_block("//indepimage[sampleimg][sample photo]\n", image_paths: IMG_PATHS)
     assert_equal %Q(<img><Image href="file://images/chap1-sampleimg.png" /><caption>sample photo</caption></img>), actual
 
     @config['caption_position']['image'] = 'top'
-    actual = compile_block("//indepimage[sampleimg][sample photo]\n")
+    actual = compile_block("//indepimage[sampleimg][sample photo]\n", image_paths: IMG_PATHS)
     assert_equal %Q(<img><caption>sample photo</caption><Image href="file://images/chap1-sampleimg.png" /></img>), actual
   end
 
   def test_indepimage_without_caption
-    def @chapter.image(_id)
-      item = Book::Index::Item.new('sampleimg', 1)
-      item.instance_eval { @path = './images/chap1-sampleimg.png' }
-      item
-    end
-
-    actual = compile_block("//indepimage[sampleimg]\n")
+    actual = compile_block("//indepimage[sampleimg]\n", image_paths: IMG_PATHS)
     assert_equal %Q(<img><Image href="file://images/chap1-sampleimg.png" /></img>), actual
   end
 
@@ -1040,46 +1030,22 @@ EOS
   end
 
   def test_image_with_metric2
-    def @chapter.image(_id)
-      item = Book::Index::Item.new('sampleimg', 1)
-      item.instance_eval { @path = './images/chap1-sampleimg.png' }
-      item
-    end
-
-    actual = compile_block("//image[sampleimg][sample photo][scale=1.2, html::class=sample, latex::ignore=params, idgxml::ostyle=object]{\n//}\n")
+    actual = compile_block("//image[sampleimg][sample photo][scale=1.2, html::class=sample, latex::ignore=params, idgxml::ostyle=object]{\n//}\n", image_paths: IMG_PATHS)
     assert_equal %Q(<img><Image href="file://images/chap1-sampleimg.png" scale="1.2" ostyle="object" /><caption>図1.1　sample photo</caption></img>), actual
   end
 
   def test_indepimage_with_metric
-    def @chapter.image(_id)
-      item = Book::Index::Item.new('sampleimg', 1)
-      item.instance_eval { @path = './images/chap1-sampleimg.png' }
-      item
-    end
-
-    actual = compile_block("//indepimage[sampleimg][sample photo][scale=1.2]\n")
+    actual = compile_block("//indepimage[sampleimg][sample photo][scale=1.2]\n", image_paths: IMG_PATHS)
     assert_equal %Q(<img><Image href="file://images/chap1-sampleimg.png" scale="1.2" /><caption>sample photo</caption></img>), actual
   end
 
   def test_indepimage_with_metric2
-    def @chapter.image(_id)
-      item = Book::Index::Item.new('sampleimg', 1)
-      item.instance_eval { @path = './images/chap1-sampleimg.png' }
-      item
-    end
-
-    actual = compile_block(%Q(//indepimage[sampleimg][sample photo][scale=1.2, html::class="sample", latex::ignore=params, idgxml::ostyle="object"]\n))
+    actual = compile_block(%Q(//indepimage[sampleimg][sample photo][scale=1.2, html::class="sample", latex::ignore=params, idgxml::ostyle="object"]\n), image_paths: IMG_PATHS)
     assert_equal %Q(<img><Image href="file://images/chap1-sampleimg.png" scale="1.2" ostyle="object" /><caption>sample photo</caption></img>), actual
   end
 
   def test_indepimage_without_caption_but_with_metric
-    def @chapter.image(_id)
-      item = Book::Index::Item.new('sampleimg', 1)
-      item.instance_eval { @path = './images/chap1-sampleimg.png' }
-      item
-    end
-
-    actual = compile_block("//indepimage[sampleimg][][scale=1.2]\n")
+    actual = compile_block("//indepimage[sampleimg][][scale=1.2]\n", image_paths: IMG_PATHS)
     assert_equal %Q(<img><Image href="file://images/chap1-sampleimg.png" scale="1.2" /></img>), actual
   end
 

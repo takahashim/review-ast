@@ -1542,7 +1542,7 @@ module ReVIEW
       def visit_regular_image(node)
         caption_content = node.caption_node ? render_children(node.caption_node) : nil
 
-        if @chapter.image_bound?(node.id)
+        if node.image_path
           metrics = parse_metric('idgxml', node.metric)
 
           result = []
@@ -1552,7 +1552,7 @@ module ReVIEW
             result << generate_image_header(node.id, caption_content, node.definition_number)
           end
 
-          result << %Q(<Image href="file://#{@chapter.image(node.id).path.sub(%r{\A./}, '')}"#{metrics} />)
+          result << %Q(<Image href="file://#{node.image_path.sub(%r{\A./}, '')}"#{metrics} />)
 
           if !caption_top?('image') && caption_content
             result << generate_image_header(node.id, caption_content, node.definition_number)
@@ -1580,10 +1580,8 @@ module ReVIEW
           result << %Q(<caption>#{caption_content}</caption>)
         end
 
-        begin
-          result << %Q(<Image href="file://#{@chapter.image(node.id).path.sub(%r{\A\./}, '')}"#{metrics} />)
-        rescue StandardError
-          # Image not found, but continue
+        if node.image_path
+          result << %Q(<Image href="file://#{node.image_path.sub(%r{\A\./}, '')}"#{metrics} />)
         end
 
         if !caption_top?('image') && caption_content
