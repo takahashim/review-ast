@@ -7,6 +7,7 @@
 # the GNU LGPL, Lesser General Public License version 2.1.
 
 require 'review/i18n'
+require 'review/ast/chapter_number_formatter'
 
 module ReVIEW
   module Renderer
@@ -166,18 +167,7 @@ module ReVIEW
       # @param chapter_type [Symbol, nil] Chapter type (:chapter, :appendix, :part, :predef)
       # @return [String] Formatted chapter number
       def format_chapter_number_full(raw_number, chapter_type)
-        return '' unless raw_number
-
-        case chapter_type
-        when :chapter
-          I18n.t('chapter', raw_number)
-        when :appendix
-          I18n.t('appendix', raw_number)
-        when :part
-          I18n.t('part', raw_number)
-        else # :predef and others
-          raw_number.to_s
-        end
+        ReVIEW::AST::ChapterNumberFormatter.full(raw_number, chapter_type)
       end
 
       # Format chapter number without heading (short form, e.g., "1", "A", "I")
@@ -187,22 +177,7 @@ module ReVIEW
       # @param chapter_type [Symbol, nil] Chapter type (:chapter, :appendix, :part, :predef)
       # @return [String] Short form chapter number
       def format_chapter_number_short(raw_number, chapter_type)
-        return '' unless raw_number
-
-        case chapter_type
-        when :chapter, :part, :predef
-          # For chapters, parts, and predef: just return the number as-is
-          raw_number.to_s
-        when :appendix
-          # For appendix: extract format from 'appendix' I18n key and create 'appendix_without_heading'
-          # This replicates the logic from Chapter#format_number(false)
-          i18n_appendix = I18n.get('appendix')
-          fmt = i18n_appendix.scan(/%\w{1,3}/).first || '%s'
-          I18n.update('appendix_without_heading' => fmt)
-          I18n.t('appendix_without_heading', raw_number)
-        else # rubocop:disable Lint/DuplicateBranch
-          raw_number.to_s
-        end
+        ReVIEW::AST::ChapterNumberFormatter.short(raw_number, chapter_type)
       end
 
       # Prefix/postfix wrapping a ruby reading in HTML output.

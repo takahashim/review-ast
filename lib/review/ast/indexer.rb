@@ -10,6 +10,8 @@ require 'review/i18n'
 require 'review/exception'
 require 'review/sec_counter'
 require_relative 'definition_number'
+require_relative 'chapter_number_formatter'
+require_relative 'render_context'
 require_relative 'chapter_index_registry'
 require_relative 'footnote_node'
 require_relative 'footnote_index'
@@ -212,18 +214,18 @@ module ReVIEW
       end
 
       # Formatted chapter-number prefix for definition captions, or nil when none
-      # applies (secnolevel 0, or a chapter without a number). Same rule as
-      # Renderer::Base#get_chap.
+      # applies (secnolevel 0, or a chapter without a number). Classification and
+      # formatting are shared with the renderers (RenderContext.chapter_type and
+      # ChapterNumberFormatter), so the compile side no longer re-derives Part-ness
+      # or calls Chapter#format_number.
       def definition_chapter_number
         return @definition_chapter_number if defined?(@definition_chapter_number)
 
         @definition_chapter_number =
           if @book.config['secnolevel'].to_i > 0 && @chapter.number && !@chapter.number.to_s.empty?
-            if @chapter.is_a?(ReVIEW::Book::Part)
-              ReVIEW::I18n.t('part_short', @chapter.number)
-            else
-              @chapter.format_number(nil)
-            end
+            ChapterNumberFormatter.definition_prefix(
+              @chapter.number, RenderContext.chapter_type(@chapter)
+            )
           end
       end
 
