@@ -12,10 +12,10 @@ holds: the AST reproduces the builders' output (DVI-identical for LaTeX,
 byte-identical for IDGXML, rendered-equivalent for HTML) except where the
 [divergence registry](#4-divergence-registry) says otherwise.
 
-Status: living document. It is kept fresh by
-`test/ast/test_semantics_coverage.rb`, which fails if the compiler learns a
-block or special-inline command that this file does not mention. A Japanese
-companion (`doc/ast-semantics.ja.md`) is not yet written.
+Status: living document, with a Japanese companion `doc/ast-semantics.ja.md`
+kept in sync. Both are kept fresh by `test/ast/test_semantics_coverage.rb`, which
+fails if the compiler learns a block or special-inline command, or a node type,
+that either file does not mention.
 
 ## 1. Node inventory
 
