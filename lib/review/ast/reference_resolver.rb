@@ -53,9 +53,12 @@ module ReVIEW
       end
 
       def resolve_references(ast)
-        # Build indexes for current chapter from AST
-        # This also sets chapter title for Markdown files
-        build_indexes_from_ast(ast)
+        # Build indexes for current chapter from AST. This also stamps the AST
+        # nodes, sets chapter title for Markdown files, and yields the AST-owned
+        # ChapterIndexRegistry the resolution reads from (doc/design-improvements
+        # #7 -- instead of reading back the legacy Book::Index / Index::Item).
+        @registry = build_indexes_from_ast(ast)
+        @chapter_registries = { chapter_key(@chapter) => @registry }
 
         @resolve_count = 0
         @error_count = 0
@@ -63,6 +66,44 @@ module ReVIEW
         visit(ast)
 
         { resolved: @resolve_count, failed: @error_count }
+      end
+
+      # The AST index registry for a chapter. The current chapter's is built up
+      # front; another chapter's (a cross-chapter reference) is compiled and
+      # indexed on demand and cached, so no book-wide pre-pass or read-back
+      # through the gem's chapter objects is needed.
+      def registry_for(chapter)
+        return nil unless chapter
+
+        key = chapter_key(chapter)
+        return @chapter_registries[key] if @chapter_registries.key?(key)
+
+        @chapter_registries[key] = build_registry_for_chapter(chapter)
+      end
+
+      def build_registry_for_chapter(chapter)
+        ast = Compiler.for_chapter(chapter).compile_to_ast(chapter, reference_resolution: false)
+        Indexer.new(chapter).build_indexes(ast).registry
+      rescue StandardError => e
+        warn "Failed to index chapter #{chapter.id} for cross-reference: #{e.message}" if $DEBUG
+        ChapterIndexRegistry.new
+      end
+
+      # AST index registry of the book's bib file (bibpapers are book-wide and
+      # usually live there), built on demand. Bibpapers defined inside a chapter
+      # are found via that chapter's registry instead (see resolve_bib_ref).
+      def bib_file_registry
+        @bib_file_registry ||=
+          if @book.bib_exist?
+            bib = ReVIEW::Book::Bib.new(file_content: @book.bib_content, book: @book)
+            build_registry_for_chapter(bib)
+          else
+            ChapterIndexRegistry.new
+          end
+      end
+
+      def chapter_key(chapter)
+        chapter.id || chapter.object_id
       end
 
       # Register a new reference type resolver
@@ -89,6 +130,7 @@ module ReVIEW
       def build_indexes_from_ast(ast)
         indexer = Indexer.new(@chapter)
         indexer.build_indexes(ast)
+        indexer.registry
       end
 
       # Resolve ReferenceNode (ref_type taken from parent InlineNode)
@@ -212,24 +254,19 @@ module ReVIEW
       # @param item_type_label [Symbol] Label for index method, factory method, and error messages (e.g., :image, ]:table, :list)
       # @return [ResolvedData] The resolved reference data
       def resolve_indexed_item_ref(node, item_type_label)
-        index_method = :"#{item_type_label}_index"
-
         target_chapter = target_chapter_for(node)
         raise CompileError, "Chapter not found for #{item_type_label} reference: #{node.context_id}" unless target_chapter
 
-        index = target_chapter.send(index_method)
-        item = find_index_item(index, node.ref_id)
-        raise CompileError, "#{item_type_label.to_s.capitalize} reference not found: #{node.full_ref_id}" unless item
+        entry = registry_for(target_chapter).lookup(item_type_label, node.ref_id)
+        raise CompileError, "#{item_type_label.to_s.capitalize} reference not found: #{node.full_ref_id}" unless entry
 
         ResolvedData.send(item_type_label,
                           chapter_number: target_chapter.number,
-                          item_number: index_item_number(item),
+                          item_number: entry_number(entry),
                           chapter_id: node.context_id,
                           item_id: node.ref_id,
                           chapter_type: chapter_type(target_chapter),
-                          caption_node: item.caption_node)
-      rescue ReVIEW::KeyError
-        raise CompileError, "#{item_type_label.to_s.capitalize} reference not found: #{node.full_ref_id}"
+                          caption_node: entry.caption_node)
       end
 
       def resolve_image_ref(node)
@@ -245,57 +282,46 @@ module ReVIEW
       end
 
       def resolve_equation_ref(node)
-        item = find_index_item(@chapter.equation_index, node.ref_id)
-        unless item
+        entry = registry_for(@chapter).lookup(:equation, node.ref_id)
+        unless entry
           raise CompileError, "Equation reference not found: #{node.ref_id}"
         end
 
         ResolvedData.equation(
           chapter_number: @chapter.number,
-          item_number: index_item_number(item),
+          item_number: entry_number(entry),
           item_id: node.ref_id,
           chapter_type: chapter_type(@chapter),
-          caption_node: item.caption_node
+          caption_node: entry.caption_node
         )
       rescue ReVIEW::KeyError
         raise CompileError, "Equation reference not found: #{node.ref_id}"
       end
 
       def resolve_footnote_ref(node)
-        item = find_index_item(@chapter.footnote_index, node.ref_id)
-        unless item
+        entry = registry_for(@chapter).lookup(:footnote, node.ref_id)
+        unless entry
           raise CompileError, "Footnote reference not found: #{node.ref_id}"
         end
 
-        if item.respond_to?(:footnote_node?) && !item.footnote_node?
-          raise CompileError, "Footnote reference not found: #{node.ref_id}"
-        end
-
-        item_number = item.respond_to?(:number) ? item.number : nil
-        caption_node = item.respond_to?(:footnote_node) ? item.footnote_node : nil
+        # The footnote's definition node is the "caption" the renderers render.
         ResolvedData.footnote(
-          item_number: item_number,
+          item_number: entry.number,
           item_id: node.ref_id,
-          caption_node: caption_node
+          caption_node: entry.footnote_node
         )
       end
 
       def resolve_endnote_ref(node)
-        item = find_index_item(@chapter.endnote_index, node.ref_id)
-        unless item
+        entry = registry_for(@chapter).lookup(:endnote, node.ref_id)
+        unless entry
           raise CompileError, "Endnote reference not found: #{node.ref_id}"
         end
 
-        if item.respond_to?(:footnote_node?) && !item.footnote_node?
-          raise CompileError, "Endnote reference not found: #{node.ref_id}"
-        end
-
-        item_number = item.respond_to?(:number) ? item.number : nil
-        caption_node = item.respond_to?(:caption_node) ? item.caption_node : nil
         ResolvedData.endnote(
-          item_number: item_number,
+          item_number: entry.number,
           item_id: node.ref_id,
-          caption_node: caption_node
+          caption_node: entry.footnote_node
         )
       end
 
@@ -303,14 +329,16 @@ module ReVIEW
         target_chapter = target_chapter_for(node)
         raise CompileError, "Chapter not found for column reference: #{node.context_id}" unless target_chapter
 
-        item = safe_column_fetch(target_chapter, node.ref_id)
+        entry = registry_for(target_chapter).lookup(:column, node.ref_id)
+        raise CompileError, "Column reference not found: #{node.ref_id}" unless entry
+
         ResolvedData.column(
           chapter_number: target_chapter.number,
-          item_number: index_item_number(item),
+          item_number: entry_number(entry),
           chapter_id: node.context_id,
           item_id: node.ref_id,
           chapter_type: chapter_type(target_chapter),
-          caption_node: item.caption_node
+          caption_node: entry.caption_node
         )
       end
 
@@ -346,16 +374,16 @@ module ReVIEW
         target_chapter = target_chapter_for(node)
         raise CompileError, "Chapter not found for headline reference: #{node.context_id}" if node.cross_chapter? && !target_chapter
 
-        headline = find_index_item(target_chapter&.headline_index, node.ref_id)
-        raise CompileError, "Headline not found: #{node.full_ref_id}" unless headline
+        entry = registry_for(target_chapter)&.lookup(:headline, node.ref_id)
+        raise CompileError, "Headline not found: #{node.full_ref_id}" unless entry
 
         ResolvedData.headline(
-          headline_number: headline.number,
+          headline_number: entry.number,
           chapter_number: target_chapter&.number,
           chapter_id: node.context_id,
           item_id: node.ref_id,
           chapter_type: chapter_type(target_chapter),
-          caption_node: headline.caption_node
+          caption_node: entry.caption_node
         )
       end
 
@@ -368,82 +396,29 @@ module ReVIEW
       # Label references search multiple indexes (by priority order)
       # Try to find the label in various indexes and return appropriate ResolvedData
       def resolve_label_ref(node)
-        if @chapter.image_index
-          item = find_index_item(@chapter.image_index, node.ref_id)
-          if item
-            return ResolvedData.image(
-              chapter_number: @chapter.number,
-              item_number: index_item_number(item),
-              item_id: node.ref_id,
-              chapter_type: chapter_type(@chapter),
-              caption_node: item.caption_node
-            )
-          end
+        registry = registry_for(@chapter)
+        common = { chapter_number: @chapter.number, item_id: node.ref_id, chapter_type: chapter_type(@chapter) }
+
+        if (entry = registry.lookup(:image, node.ref_id))
+          return ResolvedData.image(**common, item_number: entry_number(entry), caption_node: entry.caption_node)
+        end
+        if (entry = registry.lookup(:table, node.ref_id))
+          return ResolvedData.table(**common, item_number: entry_number(entry), caption_node: entry.caption_node)
+        end
+        if (entry = registry.lookup(:list, node.ref_id))
+          return ResolvedData.list(**common, item_number: entry_number(entry), caption_node: entry.caption_node)
+        end
+        if (entry = registry.lookup(:equation, node.ref_id))
+          return ResolvedData.equation(**common, item_number: entry_number(entry), caption_node: entry.caption_node)
         end
 
-        if @chapter.table_index
-          item = find_index_item(@chapter.table_index, node.ref_id)
-          if item
-            return ResolvedData.table(
-              chapter_number: @chapter.number,
-              item_number: index_item_number(item),
-              item_id: node.ref_id,
-              chapter_type: chapter_type(@chapter),
-              caption_node: item.caption_node
-            )
-          end
+        if (entry = registry.lookup(:headline, node.ref_id))
+          return ResolvedData.headline(chapter_number: @chapter.number, item_id: node.ref_id,
+                                       chapter_type: chapter_type(@chapter),
+                                       headline_number: entry.number, caption_node: entry.caption_node)
         end
-
-        if @chapter.list_index
-          item = find_index_item(@chapter.list_index, node.ref_id)
-          if item
-            return ResolvedData.list(
-              chapter_number: @chapter.number,
-              item_number: index_item_number(item),
-              item_id: node.ref_id,
-              chapter_type: chapter_type(@chapter),
-              caption_node: item.caption_node
-            )
-          end
-        end
-
-        if @chapter.equation_index
-          item = find_index_item(@chapter.equation_index, node.ref_id)
-          if item
-            return ResolvedData.equation(
-              chapter_number: @chapter.number,
-              item_number: index_item_number(item),
-              item_id: node.ref_id,
-              chapter_type: chapter_type(@chapter),
-              caption_node: item.caption_node
-            )
-          end
-        end
-
-        if @chapter.headline_index
-          item = find_index_item(@chapter.headline_index, node.ref_id)
-          if item
-            return ResolvedData.headline(
-              headline_number: item.number,
-              chapter_number: @chapter.number,
-              item_id: node.ref_id,
-              chapter_type: chapter_type(@chapter),
-              caption_node: item.caption_node
-            )
-          end
-        end
-
-        if @chapter.column_index
-          item = find_index_item(@chapter.column_index, node.ref_id)
-          if item
-            return ResolvedData.column(
-              chapter_number: @chapter.number,
-              item_number: index_item_number(item),
-              item_id: node.ref_id,
-              chapter_type: chapter_type(@chapter),
-              caption_node: item.caption_node
-            )
-          end
+        if (entry = registry.lookup(:column, node.ref_id))
+          return ResolvedData.column(**common, item_number: entry_number(entry), caption_node: entry.caption_node)
         end
 
         # TODO: Support for other labeled elements (note, memo, tip, etc.)
@@ -453,29 +428,12 @@ module ReVIEW
         raise CompileError, "Label not found: #{node.ref_id}"
       end
 
-      def index_item_number(item)
-        return unless item
+      # Stringified item number from a registry Entry (matching the legacy
+      # index-item number formatting), or nil.
+      def entry_number(entry)
+        return unless entry
 
-        number = item.respond_to?(:number) ? item.number : nil
-        number.nil? ? nil : number.to_s
-      end
-
-      def find_index_item(index, id)
-        return nil unless index
-
-        begin
-          index[id]
-        rescue ReVIEW::KeyError
-          nil
-        end
-      end
-
-      def safe_column_fetch(chapter, column_id)
-        raise CompileError, "Column reference not found: #{column_id}" unless chapter
-
-        chapter.column(column_id)
-      rescue ReVIEW::KeyError
-        raise CompileError, "Column reference not found: #{column_id}"
+        entry.number.nil? ? nil : entry.number.to_s
       end
 
       def resolve_word_ref(node)
@@ -490,18 +448,19 @@ module ReVIEW
         )
       end
 
-      # Bibpapers are book-wide, so use @book.bibpaper_index instead of chapter index
+      # Bibpapers are book-wide. They usually live in the book's bib file, but can
+      # also be defined inside a chapter, so look in the current chapter's registry
+      # first and fall back to the bib file's.
       def resolve_bib_ref(node)
-        item = find_index_item(@book.bibpaper_index, node.ref_id)
-        raise CompileError, "unknown bib: #{node.ref_id}" unless item
+        entry = registry_for(@chapter).lookup(:bibpaper, node.ref_id) ||
+                bib_file_registry.lookup(:bibpaper, node.ref_id)
+        raise CompileError, "unknown bib: #{node.ref_id}" unless entry
 
         ResolvedData.bibpaper(
-          item_number: index_item_number(item),
+          item_number: entry_number(entry),
           item_id: node.ref_id,
-          caption_node: item.caption_node
+          caption_node: entry.caption_node
         )
-      rescue ReVIEW::KeyError
-        raise CompileError, "unknown bib: #{node.ref_id}"
       end
 
       # Get target chapter for a reference node

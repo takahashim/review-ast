@@ -70,14 +70,14 @@ class TestASTIndexer < Test::Unit::TestCase
     assert_not_nil(table_item)
     assert_equal 1, table_item.number
     assert_equal 'sample-table', table_item.id
-    assert_equal 'Sample Table Caption', table_item.caption_node&.to_inline_text
+    assert_equal 'Sample Table Caption', indexer.registry.lookup(:table, table_item.id).caption_node&.to_inline_text
 
     assert_equal 1, indexer.image_index.size
     image_item = indexer.image_index['sample-image']
     assert_not_nil(image_item)
     assert_equal 1, image_item.number
     assert_equal 'sample-image', image_item.id
-    assert_equal 'Sample Image Caption', image_item.caption_node&.to_inline_text
+    assert_equal 'Sample Image Caption', indexer.registry.lookup(:image, image_item.id).caption_node&.to_inline_text
 
     assert_equal 1, indexer.footnote_index.size
     footnote_item = indexer.footnote_index['footnote1']
@@ -339,7 +339,7 @@ class TestASTIndexer < Test::Unit::TestCase
     column_item = indexer.column_index['col1']
     assert_not_nil(column_item)
     assert_equal 'col1', column_item.id
-    assert_equal 'Column Title', column_item.caption_node&.to_inline_text
+    assert_equal 'Column Title', indexer.registry.lookup(:column, column_item.id).caption_node&.to_inline_text
 
     assert_equal 1, indexer.footnote_index.size
     footnote_item = indexer.footnote_index['col-footnote']
@@ -436,7 +436,7 @@ class TestASTIndexer < Test::Unit::TestCase
     bib_item = indexer.bibpaper_index['ref1']
     assert_not_nil(bib_item)
     assert_equal 'ref1', bib_item.id
-    assert_equal 'Author Name, "Book Title", Publisher, 2024', bib_item.caption_node&.to_inline_text
+    assert_equal 'Author Name, "Book Title", Publisher, 2024', indexer.registry.lookup(:bibpaper, bib_item.id).caption_node&.to_inline_text
   end
 
   def test_caption_inline_elements
@@ -530,6 +530,35 @@ class TestASTIndexer < Test::Unit::TestCase
   end
 
   private
+
+  def test_indepimage_does_not_advance_image_number
+    # Regression (found by PBT): //indepimage and //numberlessimage are
+    # unnumbered and must not increment @image_index. Otherwise a following
+    # //image is numbered 1.2 instead of 1.1, so @<img> references diverge from
+    # LATEXBuilder. They belong in @indepimage_index (matching IndexBuilder).
+    source = <<~EOS
+      = Chapter Title
+
+      //indepimage[indep1][Indep caption]
+
+      //numberlessimage[nl1][Numberless caption]
+
+      //image[img1][Real image]
+    EOS
+
+    ast_root = compile_to_ast(source)
+    indexer = ReVIEW::AST::Indexer.new(@chapter)
+    indexer.build_indexes(ast_root)
+
+    # Only the numbered //image lands in image_index, and it is 1.
+    assert_equal 1, indexer.image_index.size
+    assert_equal 1, indexer.image_index['img1'].number
+
+    # indepimage and numberlessimage both go to indepimage_index.
+    assert_equal 2, indexer.indepimage_index.size
+    assert_not_nil(indexer.indepimage_index['indep1'])
+    assert_not_nil(indexer.indepimage_index['nl1'])
+  end
 
   def compile_to_ast(content)
     @chapter.content = content

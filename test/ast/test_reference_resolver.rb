@@ -52,15 +52,15 @@ class ReferenceResolverTest < Test::Unit::TestCase
   end
 
   def test_resolve_image_reference
-    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
+    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
 
     # Add actual ImageNode to generate index
-    img_node = ReVIEW::AST::ImageNode.new(id: 'img01', location: ReVIEW::SnapshotLocation.new(nil, 0))
+    img_node = ReVIEW::AST::ImageNode.new(id: 'img01', location: ReVIEW::AST::SourceLocation.new(nil, 0))
     doc.add_child(img_node)
 
     # Add inline reference to the image
-    inline = ReVIEW::AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :img)
-    ref_node = ReVIEW::AST::ReferenceNode.new('img01', nil, location: ReVIEW::SnapshotLocation.new(nil, 0))
+    inline = ReVIEW::AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :img)
+    ref_node = ReVIEW::AST::ReferenceNode.new('img01', nil, location: ReVIEW::AST::SourceLocation.new(nil, 0))
     inline.add_child(ref_node)
     doc.add_child(inline)
 
@@ -83,15 +83,15 @@ class ReferenceResolverTest < Test::Unit::TestCase
   end
 
   def test_resolve_table_reference
-    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
+    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
 
     # Add actual TableNode to generate index
-    table_node = ReVIEW::AST::TableNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), id: 'tbl01')
+    table_node = ReVIEW::AST::TableNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), id: 'tbl01')
     doc.add_child(table_node)
 
     # Add inline reference to the table
-    inline = ReVIEW::AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :table)
-    ref_node = ReVIEW::AST::ReferenceNode.new('tbl01', nil, location: ReVIEW::SnapshotLocation.new(nil, 0))
+    inline = ReVIEW::AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :table)
+    ref_node = ReVIEW::AST::ReferenceNode.new('tbl01', nil, location: ReVIEW::AST::SourceLocation.new(nil, 0))
     inline.add_child(ref_node)
     doc.add_child(inline)
 
@@ -110,15 +110,15 @@ class ReferenceResolverTest < Test::Unit::TestCase
   end
 
   def test_resolve_list_reference
-    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
+    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
 
     # Add actual CodeBlockNode (list) to generate index
-    code_node = ReVIEW::AST::CodeBlockNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), id: 'list01', code_type: :list)
+    code_node = ReVIEW::AST::CodeBlockNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), id: 'list01', code_type: :list)
     doc.add_child(code_node)
 
     # Add inline reference to the list
-    inline = ReVIEW::AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :list)
-    ref_node = ReVIEW::AST::ReferenceNode.new('list01', nil, location: ReVIEW::SnapshotLocation.new(nil, 0))
+    inline = ReVIEW::AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :list)
+    ref_node = ReVIEW::AST::ReferenceNode.new('list01', nil, location: ReVIEW::AST::SourceLocation.new(nil, 0))
     inline.add_child(ref_node)
     doc.add_child(inline)
 
@@ -137,16 +137,16 @@ class ReferenceResolverTest < Test::Unit::TestCase
   end
 
   def test_resolve_footnote_reference
-    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
+    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
 
     # Add actual FootnoteNode to generate index
     fn_node = ReVIEW::AST::FootnoteNode.new(location: nil, id: 'fn01')
-    fn_node.add_child(ReVIEW::AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Footnote content'))
+    fn_node.add_child(ReVIEW::AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Footnote content'))
     doc.add_child(fn_node)
 
     # Add inline reference to the footnote
-    inline = ReVIEW::AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :fn)
-    ref_node = ReVIEW::AST::ReferenceNode.new('fn01', nil, location: ReVIEW::SnapshotLocation.new(nil, 0))
+    inline = ReVIEW::AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :fn)
+    ref_node = ReVIEW::AST::ReferenceNode.new('fn01', nil, location: ReVIEW::AST::SourceLocation.new(nil, 0))
     inline.add_child(ref_node)
     doc.add_child(inline)
 
@@ -164,15 +164,15 @@ class ReferenceResolverTest < Test::Unit::TestCase
   end
 
   def test_resolve_equation_reference
-    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
+    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
 
     # Add actual TexEquationNode to generate index
     eq_node = ReVIEW::AST::TexEquationNode.new(location: nil, id: 'eq01', content: 'E=mc^2')
     doc.add_child(eq_node)
 
     # Add inline reference to the equation
-    inline = ReVIEW::AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :eq)
-    ref_node = ReVIEW::AST::ReferenceNode.new('eq01', nil, location: ReVIEW::SnapshotLocation.new(nil, 0))
+    inline = ReVIEW::AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :eq)
+    ref_node = ReVIEW::AST::ReferenceNode.new('eq01', nil, location: ReVIEW::AST::SourceLocation.new(nil, 0))
     inline.add_child(ref_node)
     doc.add_child(inline)
 
@@ -197,9 +197,9 @@ class ReferenceResolverTest < Test::Unit::TestCase
       'ruby' => 'Ruby Programming Language'
     }
 
-    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    inline = ReVIEW::AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :w)
-    ref_node = ReVIEW::AST::ReferenceNode.new('rails', nil, location: ReVIEW::SnapshotLocation.new(nil, 0))
+    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    inline = ReVIEW::AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :w)
+    ref_node = ReVIEW::AST::ReferenceNode.new('rails', nil, location: ReVIEW::AST::SourceLocation.new(nil, 0))
 
     doc.add_child(inline)
     inline.add_child(ref_node)
@@ -218,9 +218,9 @@ class ReferenceResolverTest < Test::Unit::TestCase
   end
 
   def test_resolve_nonexistent_reference
-    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    inline = ReVIEW::AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :img)
-    ref_node = ReVIEW::AST::ReferenceNode.new('nonexistent', nil, location: ReVIEW::SnapshotLocation.new(nil, 0))
+    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    inline = ReVIEW::AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :img)
+    ref_node = ReVIEW::AST::ReferenceNode.new('nonexistent', nil, location: ReVIEW::AST::SourceLocation.new(nil, 0))
 
     doc.add_child(inline)
     inline.add_child(ref_node)
@@ -232,15 +232,15 @@ class ReferenceResolverTest < Test::Unit::TestCase
   end
 
   def test_resolve_label_reference_finds_image
-    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
+    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
 
     # Add actual ImageNode to generate index
-    img_node = ReVIEW::AST::ImageNode.new(id: 'img01', location: ReVIEW::SnapshotLocation.new(nil, 0))
+    img_node = ReVIEW::AST::ImageNode.new(id: 'img01', location: ReVIEW::AST::SourceLocation.new(nil, 0))
     doc.add_child(img_node)
 
     # Add labelref reference that should find the image
-    inline = ReVIEW::AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :labelref)
-    ref_node = ReVIEW::AST::ReferenceNode.new('img01', nil, location: ReVIEW::SnapshotLocation.new(nil, 0))
+    inline = ReVIEW::AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :labelref)
+    ref_node = ReVIEW::AST::ReferenceNode.new('img01', nil, location: ReVIEW::AST::SourceLocation.new(nil, 0))
     inline.add_child(ref_node)
     doc.add_child(inline)
 
@@ -258,15 +258,15 @@ class ReferenceResolverTest < Test::Unit::TestCase
   end
 
   def test_resolve_label_reference_finds_table
-    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
+    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
 
     # Add actual TableNode to generate index
-    table_node = ReVIEW::AST::TableNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), id: 'tbl01')
+    table_node = ReVIEW::AST::TableNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), id: 'tbl01')
     doc.add_child(table_node)
 
     # Add ref reference that should find the table
-    inline = ReVIEW::AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :ref)
-    ref_node = ReVIEW::AST::ReferenceNode.new('tbl01', nil, location: ReVIEW::SnapshotLocation.new(nil, 0))
+    inline = ReVIEW::AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :ref)
+    ref_node = ReVIEW::AST::ReferenceNode.new('tbl01', nil, location: ReVIEW::AST::SourceLocation.new(nil, 0))
     inline.add_child(ref_node)
     doc.add_child(inline)
 
@@ -284,31 +284,31 @@ class ReferenceResolverTest < Test::Unit::TestCase
   end
 
   def test_multiple_references
-    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
+    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
 
     # Add actual block nodes to generate indexes
-    img_node = ReVIEW::AST::ImageNode.new(id: 'img01', location: ReVIEW::SnapshotLocation.new(nil, 0))
+    img_node = ReVIEW::AST::ImageNode.new(id: 'img01', location: ReVIEW::AST::SourceLocation.new(nil, 0))
     doc.add_child(img_node)
 
-    table_node = ReVIEW::AST::TableNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), id: 'tbl01')
+    table_node = ReVIEW::AST::TableNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), id: 'tbl01')
     doc.add_child(table_node)
 
-    code_node = ReVIEW::AST::CodeBlockNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), id: 'list01', code_type: :list)
+    code_node = ReVIEW::AST::CodeBlockNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), id: 'list01', code_type: :list)
     doc.add_child(code_node)
 
     # Add multiple references
-    inline1 = ReVIEW::AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :img)
-    ref1 = ReVIEW::AST::ReferenceNode.new('img01', nil, location: ReVIEW::SnapshotLocation.new(nil, 0))
+    inline1 = ReVIEW::AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :img)
+    ref1 = ReVIEW::AST::ReferenceNode.new('img01', nil, location: ReVIEW::AST::SourceLocation.new(nil, 0))
     inline1.add_child(ref1)
     doc.add_child(inline1)
 
-    inline2 = ReVIEW::AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :table)
-    ref2 = ReVIEW::AST::ReferenceNode.new('tbl01', nil, location: ReVIEW::SnapshotLocation.new(nil, 0))
+    inline2 = ReVIEW::AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :table)
+    ref2 = ReVIEW::AST::ReferenceNode.new('tbl01', nil, location: ReVIEW::AST::SourceLocation.new(nil, 0))
     inline2.add_child(ref2)
     doc.add_child(inline2)
 
-    inline3 = ReVIEW::AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :list)
-    ref3 = ReVIEW::AST::ReferenceNode.new('list01', nil, location: ReVIEW::SnapshotLocation.new(nil, 0))
+    inline3 = ReVIEW::AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :list)
+    ref3 = ReVIEW::AST::ReferenceNode.new('list01', nil, location: ReVIEW::AST::SourceLocation.new(nil, 0))
     inline3.add_child(ref3)
     doc.add_child(inline3)
 
@@ -323,16 +323,16 @@ class ReferenceResolverTest < Test::Unit::TestCase
   end
 
   def test_resolve_endnote_reference
-    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
+    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
 
     # Add actual FootnoteNode with endnote type
     en_node = ReVIEW::AST::FootnoteNode.new(location: nil, id: 'en01', footnote_type: :endnote)
-    en_node.add_child(ReVIEW::AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Endnote content'))
+    en_node.add_child(ReVIEW::AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Endnote content'))
     doc.add_child(en_node)
 
     # Add inline reference to the endnote
-    inline = ReVIEW::AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :endnote)
-    ref_node = ReVIEW::AST::ReferenceNode.new('en01', nil, location: ReVIEW::SnapshotLocation.new(nil, 0))
+    inline = ReVIEW::AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :endnote)
+    ref_node = ReVIEW::AST::ReferenceNode.new('en01', nil, location: ReVIEW::AST::SourceLocation.new(nil, 0))
     inline.add_child(ref_node)
     doc.add_child(inline)
 
@@ -349,15 +349,15 @@ class ReferenceResolverTest < Test::Unit::TestCase
   end
 
   def test_resolve_column_reference
-    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
+    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
 
     # Add actual ColumnNode
     col_node = ReVIEW::AST::ColumnNode.new(location: nil, level: 3, label: 'col01')
     doc.add_child(col_node)
 
     # Add inline reference to the column
-    inline = ReVIEW::AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :column)
-    ref_node = ReVIEW::AST::ReferenceNode.new('col01', nil, location: ReVIEW::SnapshotLocation.new(nil, 0))
+    inline = ReVIEW::AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :column)
+    ref_node = ReVIEW::AST::ReferenceNode.new('col01', nil, location: ReVIEW::AST::SourceLocation.new(nil, 0))
     inline.add_child(ref_node)
     doc.add_child(inline)
 
@@ -374,15 +374,15 @@ class ReferenceResolverTest < Test::Unit::TestCase
   end
 
   def test_resolve_headline_reference
-    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
+    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
 
     # Add actual HeadlineNode
     headline = ReVIEW::AST::HeadlineNode.new(location: nil, level: 2, label: 'sec01')
     doc.add_child(headline)
 
     # Add inline reference to the headline
-    inline = ReVIEW::AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :hd)
-    ref_node = ReVIEW::AST::ReferenceNode.new('sec01', nil, location: ReVIEW::SnapshotLocation.new(nil, 0))
+    inline = ReVIEW::AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :hd)
+    ref_node = ReVIEW::AST::ReferenceNode.new('sec01', nil, location: ReVIEW::AST::SourceLocation.new(nil, 0))
     inline.add_child(ref_node)
     doc.add_child(inline)
 
@@ -399,15 +399,15 @@ class ReferenceResolverTest < Test::Unit::TestCase
   end
 
   def test_resolve_section_reference
-    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
+    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
 
     # Add actual HeadlineNode
     headline = ReVIEW::AST::HeadlineNode.new(location: nil, level: 2, label: 'sec01')
     doc.add_child(headline)
 
     # Add inline reference using sec (alias for hd)
-    inline = ReVIEW::AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :sec)
-    ref_node = ReVIEW::AST::ReferenceNode.new('sec01', nil, location: ReVIEW::SnapshotLocation.new(nil, 0))
+    inline = ReVIEW::AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :sec)
+    ref_node = ReVIEW::AST::ReferenceNode.new('sec01', nil, location: ReVIEW::AST::SourceLocation.new(nil, 0))
     inline.add_child(ref_node)
     doc.add_child(inline)
 
@@ -429,11 +429,11 @@ class ReferenceResolverTest < Test::Unit::TestCase
     chap_item = ReVIEW::Book::Index::Item.new('chap01', 1, @chapter)
     @book.chapter_index.add_item(chap_item)
 
-    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
+    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
 
     # Add inline reference to the chapter
-    inline = ReVIEW::AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :chap)
-    ref_node = ReVIEW::AST::ReferenceNode.new('chap01', nil, location: ReVIEW::SnapshotLocation.new(nil, 0))
+    inline = ReVIEW::AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :chap)
+    ref_node = ReVIEW::AST::ReferenceNode.new('chap01', nil, location: ReVIEW::AST::SourceLocation.new(nil, 0))
     inline.add_child(ref_node)
     doc.add_child(inline)
 
@@ -450,19 +450,12 @@ class ReferenceResolverTest < Test::Unit::TestCase
   end
 
   def test_resolve_cross_chapter_image_reference
-    # Setup second chapter with proper ID
-    chapter2 = ReVIEW::Book::Chapter.new(@book, 2, 'chap02', 'chap02.re')
+    # Setup second chapter with an image definition in its source. Cross-chapter
+    # resolution compiles and indexes the target chapter's source on demand
+    # (doc/design-improvements #7), so the definition must live in the AST.
+    chapter2 = ReVIEW::Book::Chapter.new(@book, 2, 'chap02', 'chap02.re',
+                                         StringIO.new("= Chapter 2\n\n//image[img01][Caption]{\n//}\n"))
     chapter2.instance_variable_set(:@number, 2)
-
-    # Create AST with image node for chapter2
-    doc2 = ReVIEW::AST::DocumentNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    img_node2 = ReVIEW::AST::ImageNode.new(id: 'img01', location: ReVIEW::SnapshotLocation.new(nil, 0))
-    doc2.add_child(img_node2)
-
-    # Build index for chapter2 using AST
-    resolver2 = ReVIEW::AST::ReferenceResolver.new(chapter2)
-    # Build indexes to populate chapter2's image_index
-    resolver2.send(:build_indexes_from_ast, doc2)
 
     # Override @book.contents to return our test chapters
     # This is necessary because the actual contents method calculates from parts/chapters
@@ -473,11 +466,11 @@ class ReferenceResolverTest < Test::Unit::TestCase
     @book.instance_variable_set(:@chapter2, chapter2)
 
     # Create main document with cross-chapter reference
-    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
+    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
 
     # Add cross-chapter reference (chap02|img01)
-    inline = ReVIEW::AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :img)
-    ref_node = ReVIEW::AST::ReferenceNode.new('img01', 'chap02', location: ReVIEW::SnapshotLocation.new(nil, 0))
+    inline = ReVIEW::AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :img)
+    ref_node = ReVIEW::AST::ReferenceNode.new('img01', 'chap02', location: ReVIEW::AST::SourceLocation.new(nil, 0))
     inline.add_child(ref_node)
     doc.add_child(inline)
 
@@ -496,16 +489,16 @@ class ReferenceResolverTest < Test::Unit::TestCase
   end
 
   def test_resolve_reference_in_paragraph
-    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
+    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
 
     # Add actual ImageNode
-    img_node = ReVIEW::AST::ImageNode.new(id: 'img01', location: ReVIEW::SnapshotLocation.new(nil, 0))
+    img_node = ReVIEW::AST::ImageNode.new(id: 'img01', location: ReVIEW::AST::SourceLocation.new(nil, 0))
     doc.add_child(img_node)
 
     # Add paragraph containing inline reference
-    para = ReVIEW::AST::ParagraphNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    inline = ReVIEW::AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :img)
-    ref_node = ReVIEW::AST::ReferenceNode.new('img01', nil, location: ReVIEW::SnapshotLocation.new(nil, 0))
+    para = ReVIEW::AST::ParagraphNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    inline = ReVIEW::AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :img)
+    ref_node = ReVIEW::AST::ReferenceNode.new('img01', nil, location: ReVIEW::AST::SourceLocation.new(nil, 0))
     inline.add_child(ref_node)
     para.add_child(inline)
     doc.add_child(para)
@@ -519,19 +512,19 @@ class ReferenceResolverTest < Test::Unit::TestCase
   end
 
   def test_resolve_nested_inline_references
-    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
+    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
 
     # Add actual ImageNode
-    img_node = ReVIEW::AST::ImageNode.new(id: 'img01', location: ReVIEW::SnapshotLocation.new(nil, 0))
+    img_node = ReVIEW::AST::ImageNode.new(id: 'img01', location: ReVIEW::AST::SourceLocation.new(nil, 0))
     doc.add_child(img_node)
 
     # Add paragraph with nested inline elements
-    para = ReVIEW::AST::ParagraphNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
+    para = ReVIEW::AST::ParagraphNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
 
     # Bold inline containing image reference
-    bold = ReVIEW::AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :b)
-    img_inline = ReVIEW::AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :img)
-    ref_node = ReVIEW::AST::ReferenceNode.new('img01', nil, location: ReVIEW::SnapshotLocation.new(nil, 0))
+    bold = ReVIEW::AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :b)
+    img_inline = ReVIEW::AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :img)
+    ref_node = ReVIEW::AST::ReferenceNode.new('img01', nil, location: ReVIEW::AST::SourceLocation.new(nil, 0))
     img_inline.add_child(ref_node)
     bold.add_child(img_inline)
     para.add_child(bold)
@@ -547,22 +540,22 @@ class ReferenceResolverTest < Test::Unit::TestCase
   end
 
   def test_resolve_reference_in_caption
-    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
+    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
 
     # Add actual FootnoteNode
     fn_node = ReVIEW::AST::FootnoteNode.new(location: nil, id: 'fn01')
-    fn_node.add_child(ReVIEW::AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: 'Footnote'))
+    fn_node.add_child(ReVIEW::AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: 'Footnote'))
     doc.add_child(fn_node)
 
     # Add table with caption containing footnote reference
-    caption = ReVIEW::AST::CaptionNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    inline = ReVIEW::AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :fn)
-    ref_node = ReVIEW::AST::ReferenceNode.new('fn01', nil, location: ReVIEW::SnapshotLocation.new(nil, 0))
+    caption = ReVIEW::AST::CaptionNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    inline = ReVIEW::AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :fn)
+    ref_node = ReVIEW::AST::ReferenceNode.new('fn01', nil, location: ReVIEW::AST::SourceLocation.new(nil, 0))
     inline.add_child(ref_node)
     caption.add_child(inline)
 
     # Create table and set caption_node
-    table_node = ReVIEW::AST::TableNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), id: 'tbl01', caption_node: caption)
+    table_node = ReVIEW::AST::TableNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), id: 'tbl01', caption_node: caption)
     doc.add_child(table_node)
 
     result = @resolver.resolve_references(doc)
@@ -574,26 +567,26 @@ class ReferenceResolverTest < Test::Unit::TestCase
   end
 
   def test_resolve_multiple_references_same_inline
-    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
+    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
 
     # Add actual ImageNodes
-    img_node1 = ReVIEW::AST::ImageNode.new(id: 'img01', location: ReVIEW::SnapshotLocation.new(nil, 0))
+    img_node1 = ReVIEW::AST::ImageNode.new(id: 'img01', location: ReVIEW::AST::SourceLocation.new(nil, 0))
     doc.add_child(img_node1)
-    img_node2 = ReVIEW::AST::ImageNode.new(id: 'img02', location: ReVIEW::SnapshotLocation.new(nil, 10))
+    img_node2 = ReVIEW::AST::ImageNode.new(id: 'img02', location: ReVIEW::AST::SourceLocation.new(nil, 10))
     doc.add_child(img_node2)
 
     # Add single paragraph with multiple references
-    para = ReVIEW::AST::ParagraphNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
+    para = ReVIEW::AST::ParagraphNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
 
-    inline1 = ReVIEW::AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :img)
-    ref1 = ReVIEW::AST::ReferenceNode.new('img01', nil, location: ReVIEW::SnapshotLocation.new(nil, 0))
+    inline1 = ReVIEW::AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :img)
+    ref1 = ReVIEW::AST::ReferenceNode.new('img01', nil, location: ReVIEW::AST::SourceLocation.new(nil, 0))
     inline1.add_child(ref1)
     para.add_child(inline1)
 
-    para.add_child(ReVIEW::AST::TextNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), content: ' and '))
+    para.add_child(ReVIEW::AST::TextNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), content: ' and '))
 
-    inline2 = ReVIEW::AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :img)
-    ref2 = ReVIEW::AST::ReferenceNode.new('img02', nil, location: ReVIEW::SnapshotLocation.new(nil, 0))
+    inline2 = ReVIEW::AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :img)
+    ref2 = ReVIEW::AST::ReferenceNode.new('img02', nil, location: ReVIEW::AST::SourceLocation.new(nil, 0))
     inline2.add_child(ref2)
     para.add_child(inline2)
 
@@ -614,9 +607,9 @@ class ReferenceResolverTest < Test::Unit::TestCase
       'api' => 'Application Programming Interface'
     }
 
-    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
-    inline = ReVIEW::AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :wb)
-    ref_node = ReVIEW::AST::ReferenceNode.new('api', nil, location: ReVIEW::SnapshotLocation.new(nil, 0))
+    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
+    inline = ReVIEW::AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :wb)
+    ref_node = ReVIEW::AST::ReferenceNode.new('api', nil, location: ReVIEW::AST::SourceLocation.new(nil, 0))
 
     doc.add_child(inline)
     inline.add_child(ref_node)
@@ -634,21 +627,21 @@ class ReferenceResolverTest < Test::Unit::TestCase
   end
 
   def test_mixed_resolved_and_unresolved_references
-    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0))
+    doc = ReVIEW::AST::DocumentNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0))
 
     # Add one actual ImageNode
-    img_node = ReVIEW::AST::ImageNode.new(id: 'img01', location: ReVIEW::SnapshotLocation.new(nil, 0))
+    img_node = ReVIEW::AST::ImageNode.new(id: 'img01', location: ReVIEW::AST::SourceLocation.new(nil, 0))
     doc.add_child(img_node)
 
     # Add valid reference
-    inline1 = ReVIEW::AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :img)
-    ref1 = ReVIEW::AST::ReferenceNode.new('img01', nil, location: ReVIEW::SnapshotLocation.new(nil, 0))
+    inline1 = ReVIEW::AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :img)
+    ref1 = ReVIEW::AST::ReferenceNode.new('img01', nil, location: ReVIEW::AST::SourceLocation.new(nil, 0))
     inline1.add_child(ref1)
     doc.add_child(inline1)
 
     # Add invalid reference
-    inline2 = ReVIEW::AST::InlineNode.new(location: ReVIEW::SnapshotLocation.new(nil, 0), inline_type: :img)
-    ref2 = ReVIEW::AST::ReferenceNode.new('nonexistent', nil, location: ReVIEW::SnapshotLocation.new(nil, 0))
+    inline2 = ReVIEW::AST::InlineNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0), inline_type: :img)
+    ref2 = ReVIEW::AST::ReferenceNode.new('nonexistent', nil, location: ReVIEW::AST::SourceLocation.new(nil, 0))
     inline2.add_child(ref2)
     doc.add_child(inline2)
 

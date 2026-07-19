@@ -3,16 +3,20 @@
 # Monkey patches applied to the released `review` gem so that the AST
 # subsystem can run without modifying Re:VIEW itself.
 #
-# These correspond to the only changes the AST branch makes to existing
-# Re:VIEW files (34 lines total). All three are purely additive:
-#   - ReVIEW::SnapshotLocation#to_h / #format_for_error
-#   - ReVIEW::Book::Index::Item : caption_node support
+# One purely-additive hook remains, existing only so the AST can install its
+# own computed indexes onto legacy Re:VIEW objects (see doc/design-improvements
+# #7):
 #   - ReVIEW::Book::BookUnit#ast_indexes=
+#
+# The former Index::Item#caption_node patch was retired: caption nodes now live
+# in the AST-owned ChapterIndexRegistry (chapter_index_registry.rb) that the
+# reference resolver reads, so the legacy index items no longer need to carry
+# them. The former SnapshotLocation#to_h / #format_for_error patch was likewise
+# retired once the AST gained its own location type (ReVIEW::AST::SourceLocation).
 #
 # If/when these hooks are upstreamed into Re:VIEW, this file can be made
 # conditional (e.g. skip patching when the methods already exist).
 
-require 'review/snapshot_location'
 require 'review/book/index'
 require 'review/book/book_unit'
 
@@ -26,44 +30,7 @@ rescue LoadError
 end
 
 module ReVIEW
-  class SnapshotLocation
-    unless method_defined?(:to_h)
-      def to_h
-        {
-          filename: filename,
-          lineno: lineno
-        }
-      end
-    end
-
-    unless method_defined?(:format_for_error)
-      # Format location information for error messages
-      # Returns a string like " at line 42 in chapter01.re"
-      def format_for_error
-        info = " at line #{@lineno}"
-        info += " in #{@filename}" if @filename
-        info
-      end
-    end
-  end
-
   module Book
-    class Index
-      class Item
-        unless method_defined?(:caption_node)
-          attr_accessor :caption_node
-
-          module ASTCaptionNode
-            def initialize(id, number, caption = nil, caption_node: nil)
-              super(id, number, caption)
-              @caption_node = caption_node
-            end
-          end
-          prepend ASTCaptionNode
-        end
-      end
-    end
-
     class BookUnit
       unless method_defined?(:ast_indexes=)
         # Set indexes using AST-based indexing
