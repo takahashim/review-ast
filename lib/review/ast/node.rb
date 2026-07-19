@@ -37,8 +37,8 @@ module ReVIEW
       attr_writer :noindent
 
       # Filesystem path of the image a node renders, resolved once at compile time
-      # by the Indexer via ReVIEW::Book::ImageFinder (nil when unbound). Set on the
-      # image-bearing nodes -- ImageNode, the //imgtable TableNode, and the
+      # by ImagePathProcessor via ReVIEW::Book::ImageFinder (nil when unbound). Set
+      # on the image-bearing nodes -- ImageNode, the //imgtable TableNode, and the
       # @<icon> InlineNode. Like definition_number it is a source-derived fact
       # stamped on the node, so renderers need no chapter image index and dumps
       # are self-contained (doc/design-improvements #7). It is builder-specific
@@ -78,6 +78,20 @@ module ReVIEW
       # the stage-boundary check test for markers without a type/name convention.
       def directive?
         false
+      end
+
+      # Yield every AST node held by this node, across all of its sub-node
+      # collections -- ordinary children plus the side collections some node
+      # types carry (a caption node, definition-list term children). A full-tree
+      # walk should recurse through this rather than only #children, so nodes
+      # tucked in captions or terms (e.g. an @<icon> in a //emlist caption or a
+      # definition term) are not missed.
+      def each_subnode(&block)
+        return enum_for(:each_subnode) unless block
+
+        @children.each(&block)
+        yield(caption_node) if respond_to?(:caption_node) && caption_node
+        term_children.each(&block) if respond_to?(:term_children) && term_children&.any?
       end
 
       def add_child(child)

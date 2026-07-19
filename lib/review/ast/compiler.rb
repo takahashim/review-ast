@@ -128,21 +128,18 @@ module ReVIEW
 
         build_ast_from_chapter
 
-        # Resolve references after AST building but before post-processing
-        # Skip if explicitly requested (e.g., during index building)
+        # Resolution phase: bind references and resolve image file paths against
+        # the environment. `reference_resolution` really means "a full build whose
+        # tree will be rendered" -- an index-only build (false, e.g. cross-chapter
+        # registry construction) discards the tree, so it skips this whole phase
+        # rather than doing work only to throw it away. Post-processing (directive
+        # lowering, structural passes) always runs afterwards, independent of it.
         if reference_resolution
           resolve_references
+          resolve_image_paths
         end
 
         execute_post_processes
-
-        # Resolve image file paths only for a tree that will be rendered. An
-        # index-only build (reference_resolution: false, e.g. cross-chapter
-        # registry construction) discards the tree, so there is no point walking
-        # it and touching the filesystem to stamp image paths.
-        if reference_resolution
-          ImagePathProcessor.process(@ast_root, chapter: @chapter, compiler: self)
-        end
 
         # Check for accumulated errors (similar to HTMLBuilder's Compiler)
         if @compile_errors
@@ -579,7 +576,10 @@ module ReVIEW
           words << w2
         end
         unless scanner.eos?
-          # Handle error - would need access to error reporting
+          # Malformed argument list -- report through the compiler's error channel
+          # (accumulated, then raised at end of compile) instead of silently
+          # dropping the args, matching ReVIEW::Compiler#parse_args.
+          error("argument syntax error: #{scanner.rest} in #{str.inspect}", location: location)
           return []
         end
 
@@ -596,6 +596,13 @@ module ReVIEW
         result = resolver.resolve_references(@ast_root)
 
         warn "Reference resolution: #{result[:resolved]} resolved, #{result[:failed]} failed" if result[:failed] > 0
+      end
+
+      # Stamp each image-bearing node with its resolved filesystem path
+      # (ImagePathProcessor). Runs in the resolution phase because it is a
+      # render-time fact, independent of the post-process passes.
+      def resolve_image_paths
+        ImagePathProcessor.process(@ast_root, chapter: @chapter, compiler: self)
       end
     end
   end

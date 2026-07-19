@@ -25,7 +25,8 @@ module ReVIEW
       # source-derived fact the renderers read off the node (node.image_path),
       # needing no chapter image index (doc/design-improvements #7). Icons in
       # captions of id-less blocks (e.g. //emlist) are exactly why this walks the
-      # full tree rather than relying on the Indexer's id-gated caption visits.
+      # full tree (Node#each_subnode, which includes captions and terms) rather
+      # than relying on the Indexer's id-gated caption visits.
       class ImagePathProcessor < PostProcessor
         def process(ast_root)
           @finder = ReVIEW::Book::ImageFinder.new(@chapter) if @chapter&.book
@@ -39,8 +40,7 @@ module ReVIEW
 
         def walk(node)
           stamp(node)
-          node.children.each { |child| walk(child) }
-          walk(node.caption_node) if node.respond_to?(:caption_node) && node.caption_node
+          node.each_subnode { |child| walk(child) }
         end
 
         def stamp(node)
