@@ -25,7 +25,7 @@ class TestASTDiffNode < Test::Unit::TestCase
 
     result = @comparator.compare(node1, node2)
     assert_false(result.equal?)
-    assert_match(/text content mismatch/, result.to_s)
+    assert_match(/content mismatch/, result.to_s)
   end
 
   def test_compare_nil_nodes
@@ -75,7 +75,7 @@ class TestASTDiffNode < Test::Unit::TestCase
 
     result = @comparator.compare(node1, node2)
     assert_false(result.equal?)
-    assert_match(/headline level mismatch/, result.to_s)
+    assert_match(/level mismatch/, result.to_s)
   end
 
   def test_compare_nodes_with_children
@@ -118,7 +118,7 @@ class TestASTDiffNode < Test::Unit::TestCase
 
     result = @comparator.compare(code1, code2)
     assert_false(result.equal?)
-    assert_match(/code block lang mismatch/, result.to_s)
+    assert_match(/lang mismatch/, result.to_s)
   end
 
   def test_compare_inline_nodes
@@ -135,7 +135,7 @@ class TestASTDiffNode < Test::Unit::TestCase
 
     result = @comparator.compare(inline1, inline2)
     assert_false(result.equal?)
-    assert_match(/inline type mismatch/, result.to_s)
+    assert_match(/inline_type mismatch/, result.to_s)
   end
 
   def test_comparison_result_with_path

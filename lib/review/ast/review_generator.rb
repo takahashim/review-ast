@@ -68,12 +68,26 @@ module ReVIEW
 
       def visit_headline(node)
         text = '=' * (node.level || 1)
+        # "=+[tag]{label} caption" -- the tag ([nonum]/[notoc]/[nodisp]/[column])
+        # was dropped here, so regenerating source turned an unnumbered heading
+        # back into a numbered one.
+        text += "[#{node.tag}]" if node.tag && !node.tag.empty?
         text += "{#{node.label}}" if node.label && !node.label.empty?
 
         caption_text = caption_to_review_markup(node.caption_node)
         text += ' ' + caption_text unless caption_text.empty?
 
         text + "\n\n" + visit_children(node)
+      end
+
+      # Fallback for a code block with no code_type recorded (hand-built nodes
+      # in tests); mirrors what the compiler would have chosen.
+      def derived_code_block_type(node)
+        if node.id?
+          node.line_numbers ? 'listnum' : 'list'
+        else
+          node.line_numbers ? 'emlistnum' : 'emlist'
+        end
       end
 
       def visit_paragraph(node)
@@ -185,12 +199,10 @@ module ReVIEW
       end
 
       def visit_code_block(node)
-        # Determine block type
-        block_type = if node.id?
-                       node.line_numbers ? 'listnum' : 'list'
-                     else
-                       node.line_numbers ? 'emlistnum' : 'emlist'
-                     end
+        # The command the block was written with. This used to be derived from
+        # id?/line_numbers alone, which collapsed //source and //cmd into
+        # //emlist -- regenerating source silently changed the command.
+        block_type = (node.code_type || derived_code_block_type(node)).to_s
 
         # Re-emit the //firstlinenum the FirstLineNumProcessor folded onto this
         # code block as the `first_line_num` attribute (a source fact).
@@ -209,6 +221,9 @@ module ReVIEW
           # list/listnum: //list[id][caption][lang]
           text += "[#{caption_text}]" if has_caption || has_lang
           text += "[#{node.lang}]" if has_lang
+        elsif block_type == 'cmd'
+          # //cmd takes a caption only; its language is fixed ('shell').
+          text += "[#{caption_text}]" if has_caption
         elsif has_lang
           # emlist/emlistnum with lang: //emlist[caption][lang]
           # Caption parameter is required even when empty
@@ -591,6 +606,17 @@ module ReVIEW
       end
 
       # Format a list item with proper indentation
+      # Split children into source lines. Each entry of `breaks` is the index of
+      # the child that started a new line (ListItemNode#mark_source_line_break!
+      # records children.size at the break).
+      # @return [Array<Array>] Children grouped per source line
+      def split_at_source_line_breaks(children, breaks)
+        return [children] if breaks.empty?
+
+        boundaries = ([0] + breaks.sort + [children.size]).uniq
+        boundaries.each_cons(2).map { |from, to| children[from...to] }.compact
+      end
+
       def format_list_item(marker, _level, item)
         # For Re:VIEW format, all list items start with a single space
         indent = ' '
@@ -607,37 +633,20 @@ module ReVIEW
           end
         end
 
-        # Process non-list content
-        # Check if we have multiple TextNodes (possibly with InlineNodes in between)
-        # which indicates continuation lines in the original markup
-        text_node_count = non_list_children.count { |c| c.is_a?(ReVIEW::AST::TextNode) }
+        # Where the source broke this item across lines. Reconstructing that
+        # from the shape of the children ("more than one TextNode means
+        # continuation lines") guessed wrong for a single line carrying several
+        # inline commands, which alternates Text/Inline/Text/…: every inline got
+        # its own line. The item records the real break positions instead, and a
+        # break inside a list item is not cosmetic -- LaTeX turns it into a
+        # space.
+        breaks = item.source_line_breaks || []
+        parts = split_at_source_line_breaks(non_list_children, breaks).map { |line| visit_all(line).join.strip }
+        parts.reject!(&:empty?)
 
-        if text_node_count > 1
-          # Multiple text nodes indicate continuation lines
-          # Process each child separately and join with newlines
-          parts = []
-          current_line = []
-
-          non_list_children.each do |child|
-            # Start a new line if we already have content
-            if child.is_a?(ReVIEW::AST::TextNode) && current_line.any?
-              # Join the current line and strip it
-              parts << current_line.join.strip
-              current_line = []
-            end
-            # Add the visited child to the current line (TextNode or InlineNode)
-            current_line << visit(child)
-          end
-
-          # Don't forget the last line
-          parts << current_line.join.strip if current_line.any?
-
-          content = parts.first
-          continuation = parts[1..].map { |part| "   #{part}" }.join("\n")
-          content += "\n" + continuation unless continuation.empty?
-        else
-          content = visit_all(non_list_children).join.strip
-        end
+        content = parts.first.to_s
+        continuation = parts[1..].to_a.map { |part| "   #{part}" }.join("\n")
+        content += "\n" + continuation unless continuation.empty?
 
         # Build the item text
         text = "#{indent}#{marker} #{content}\n"
