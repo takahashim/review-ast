@@ -142,6 +142,16 @@
   @top-right { content: none; border-bottom: none; }
 }
 
+/* LaTeX の \plainifnotempty 相当: 章の開始ページには柱を出さない。
+   Vivliostyle は spine の文書ごとにページを数え直すので、:nth(1) が
+   「各章ファイルの1ページ目」に当たる（実測で確認）。Re:VIEW は章ごとに
+   XHTML を分けるため、これで章の開始ページだけを狙える。
+   :first（文書全体の1ページ目）では章ごとには効かない。 */
+@page :nth(1) {
+  @top-left { content: none; border-bottom: none; }
+  @top-right { content: none; border-bottom: none; }
+}
+
 /* ノンブルも柱もない面（表紙・裏表紙） */
 @page bare {
   margin: 0;
@@ -476,7 +486,7 @@ div[id] > .caption::before {
 
 /* 図キャプションは画像の下・マーカーは▲・中央寄せ */
 .image {
-  margin: var(--baselineskip) 0;
+  margin: var(--float-sep) 0;
   text-align: center;
   break-inside: avoid;
   page-break-inside: avoid;
@@ -517,11 +527,25 @@ div[id] > .caption::before {
   height: auto;
 }
 .image .caption {
-  margin-top: 5pt;                           /* \abovecaptionskip */
+  margin-top: var(--caption-sep);            /* \abovecaptionskip */
   padding-left: 0;
   text-indent: 0;
   text-align: center;
 }
+/* 図キャプションは画像の「下」に来るので、後ろを繋ぎ止めてはいけない。
+   共通指定の break-after: avoid をそのまま効かせると、図の直後の本文まで
+   図に貼り付けられる。その本文が脚注を持つと、脚注ぶんの場所が足りない
+   ページでは図ごと次ページへ送られてしまう（実測で確認。版面が75mm空いた
+   まま図が送られていた）。
+   代わりに前を繋ぎ止めて、画像とキャプションが離れないようにする。 */
+.image .caption {
+  margin-bottom: var(--caption-sep);         /* \belowcaptionskip */
+  break-before: avoid;
+  page-break-before: avoid;
+  break-after: auto;
+  page-break-after: auto;
+}
+
 .image .caption::before {
   content: "▲";
 }
@@ -553,7 +577,7 @@ img.width-100per { --scale: 1.00; }
    数式そのものの組版（TeX 記法の解釈）は行わないので、
    MathJax などを併用しない限り原文のまま表示される。 */
 .equation {
-  margin: var(--baselineskip) 0;
+  margin: var(--float-sep) 0;
   text-align: center;
 }
 
@@ -577,19 +601,19 @@ img.width-100per { --scale: 1.00; }
 
 /* //imgtable: 画像で表を表す。キャプションは表と同じく上 */
 .imgtable {
-  margin: var(--baselineskip) 0;
+  margin: var(--float-sep) 0;
   text-align: center;
   break-inside: avoid;
 }
 
 /* 表: \small(9pt)、行送り 1.2zw、全罫。キャプションは表の上 */
 .table {
-  margin: var(--baselineskip) 0;
+  margin: var(--float-sep) 0;
   break-inside: avoid;
   page-break-inside: avoid;
 }
 .table .caption {
-  margin-bottom: 5pt;                        /* \abovecaptionskip */
+  margin-bottom: var(--caption-sep);         /* \abovecaptionskip */
   text-align: center;
   padding-left: 0;
   text-indent: 0;
