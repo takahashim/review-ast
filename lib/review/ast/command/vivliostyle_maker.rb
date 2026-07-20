@@ -8,6 +8,7 @@
 
 require 'fileutils'
 require 'rexml/document'
+require 'review/ast/image_size_annotator'
 require_relative 'epub_maker'
 
 module ReVIEW
@@ -53,6 +54,9 @@ module ReVIEW
           error! "OPF not found under #{workdir}." unless opf
 
           apply_frontmatter_overrides(opf, vconfig)
+          # Sized like \includegraphics does, from the resolution embedded in
+          # each image; see ImageSizeAnnotator.
+          ImageSizeAnnotator.new(workdir).annotate if vconfig.fetch('image_intrinsic_size', true)
 
           # NOTE: not <bookname>.pdf — that would overwrite pdfmaker's output.
           output = File.absolute_path(vconfig['output'] || "#{bookname}-vivliostyle.pdf")
