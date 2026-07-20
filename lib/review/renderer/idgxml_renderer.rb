@@ -31,6 +31,7 @@ require 'review/i18n'
 require 'review/loggable'
 require 'digest/sha2'
 require_relative 'base'
+require_relative 'graph_image'
 require_relative 'rendering_context'
 require_relative 'idgxml/inline_context'
 require_relative 'idgxml/inline_element_handler'
@@ -579,65 +580,19 @@ module ReVIEW
       end
 
       def visit_graph(node)
-        # Graph block generates an image file and then renders it as an image
         # Args: [id, command, caption]
         id = node.args[0]
         command = node.args[1]
 
-        # Get graph content from child TextNodes
         content = node.children.map { |child| child.is_a?(ReVIEW::AST::TextNode) ? child.content : '' }.join("\n")
         content += "\n" unless content.empty?
 
-        # Initialize ImgGraph if needed and command is mermaid
-        if command == 'mermaid'
-          begin
-            require 'playwrightrunner'
-            unless @img_graph
-              require 'review/img_graph'
-              @img_graph = ReVIEW::ImgGraph.new(config, 'idgxml')
-            end
-            # Defer mermaid image generation
-            file_path = @img_graph.defer_mermaid_image(content, id)
-          rescue LoadError
-            # Playwright not available, skip graph generation
-            # But we still need a file path for rendering
-            c = 'idgxml'
-            dir = File.join(render_context.imagedir, c)
-            file_path = File.join(dir, "#{id}.#{image_ext}")
+        file_path =
+          if command == 'mermaid'
+            deferred_mermaid_path(id, content)
+          else
+            graph_image.generate(id: id, command: command, content: content)
           end
-        else
-          # For other graph types, generate directly
-          c = 'idgxml' # target_name
-          dir = File.join(render_context.imagedir, c)
-          FileUtils.mkdir_p(dir) unless File.directory?(dir)
-
-          file = "#{id}.#{image_ext}"
-          file_path = File.join(dir, file)
-
-          # Create temporary file and generate graph
-          require 'tempfile'
-          tf = Tempfile.new('review_graph')
-          tf.puts content
-          tf.close
-
-          begin
-            if command == 'graphviz' || command == 'dot'
-              system_graph_graphviz(id, file_path, tf.path)
-            elsif command == 'gnuplot'
-              system_graph_gnuplot(id, file_path, content, tf.path)
-            elsif command == 'blockdiag'
-              system_graph_blockdiag(id, file_path, tf.path, 'blockdiag')
-            elsif command == 'seqdiag'
-              system_graph_blockdiag(id, file_path, tf.path, 'seqdiag')
-            elsif command == 'actdiag'
-              system_graph_blockdiag(id, file_path, tf.path, 'actdiag')
-            elsif command == 'nwdiag'
-              system_graph_blockdiag(id, file_path, tf.path, 'nwdiag')
-            end
-          ensure
-            tf.unlink
-          end
-        end
 
         # Now render as a regular numbered image using the just-generated file
         # path directly (no chapter image index needed).
@@ -1748,23 +1703,24 @@ module ReVIEW
       end
 
       # Graph generation helper methods (for non-mermaid graphs)
-      def system_graph_graphviz(_id, file_path, tf_path)
-        system("dot -Tpdf -o#{file_path} #{tf_path}")
+      def graph_image
+        @graph_image ||= GraphImage.new(imagedir: render_context.imagedir,
+                                        target_name: 'idgxml',
+                                        image_ext: image_ext)
       end
 
-      def system_graph_gnuplot(_id, file_path, content, tf_path)
-        File.open(tf_path, 'w') do |tf|
-          tf.puts <<~GNUPLOT
-            set terminal pdf
-            set output "#{file_path}"
-            #{content}
-          GNUPLOT
+      # Mermaid images are drawn in a browser after the build, so ImgGraph only
+      # records the request here. Without playwright there is nothing to defer
+      # to, and the markup falls back to the path the image would have had.
+      def deferred_mermaid_path(id, content)
+        require 'playwrightrunner'
+        unless @img_graph
+          require 'review/img_graph'
+          @img_graph = ReVIEW::ImgGraph.new(config, 'idgxml')
         end
-        system("gnuplot #{tf_path}")
-      end
-
-      def system_graph_blockdiag(_id, file_path, tf_path, command)
-        system("#{command} -Tpdf -o #{file_path} #{tf_path}")
+        @img_graph.defer_mermaid_image(content, id)
+      rescue LoadError
+        graph_image.file_path(id)
       end
     end
   end
