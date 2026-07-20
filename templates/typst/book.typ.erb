@@ -25,6 +25,12 @@
   ),
   theme: <%= book.theme.expression %>,
 )
+
+// The author's escape hatch: `hooks` in theme.typ is a document transform
+// applied inside book.document, so its set/show rules win over the library
+// defaults. Anything written there is outside the parity contract
+// (doc/typst-review-book.md).
+#show: if theme.at("hooks", default: none) == none { doc => doc } else { theme.hooks }
 <% if book.front_matter.cover? %>
 #review.cover(theme: <%= book.theme.expression %>, image-path: <%= book.front_matter.cover_image.literal %>, title: <%= book.metadata.title.content %>, authors: ((name: <%= book.metadata.author_line.content %>),))
 <% end %>

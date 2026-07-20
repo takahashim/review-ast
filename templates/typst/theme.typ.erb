@@ -8,4 +8,10 @@
 
 #let theme = merge-theme(default-theme, (
   paper: <%= paper %>,
+  // Free-form set/show rules go into `hooks`; they win over the library
+  // defaults but are outside the parity guarantees:
+  // hooks: doc => {
+  //   show raw: set text(font: ("PlemolJP", "Menlo"))
+  //   doc
+  // },
 ))

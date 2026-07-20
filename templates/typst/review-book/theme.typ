@@ -82,9 +82,11 @@
 #let default-running-head(info, theme) = {
   if info.chapter-title == none { return none }
 
+  let size = if theme.text.running-head-size == auto { theme.text.size }
+             else { theme.text.running-head-size }
   block(width: 100%, {
     block(below: 0.3em, text(
-      size: theme.text.running-head-size,
+      size: size,
       font: theme.fonts.heading,
       {
         info.chapter-title
@@ -98,7 +100,10 @@
   })
 }
 
-#let default-page-number(number, theme) = text(size: theme.text.folio-size, number)
+#let default-page-number(number, theme) = text(
+  size: if theme.text.folio-size == auto { theme.text.size } else { theme.text.folio-size },
+  number,
+)
 
 // ------------------------------------------------------------------ 設計値
 
@@ -122,8 +127,10 @@
     medium: 1.2,                 // 小見出し・コラム
     small: 0.9,                  // キャプション・表
     xsmall: 0.8,                 // コード・脚注
-    running-head-size: Q(11),
-    folio-size: Q(11),
+    // 柱とノンブルは本文と同寸(auto)。LaTeX 版(fancyhdr にサイズ指定がなく
+    // 本文級数で組まれる)に合わせた。実寸で上書きしてもよい。
+    running-head-size: auto,
+    folio-size: auto,
   ),
 
   // --- 余白 ---------------------------------------------------------------
@@ -137,6 +144,9 @@
 
   // --- 書体 ---------------------------------------------------------------
   // 欧文を先、和文を後に並べる。総称は末尾にだけ置く。
+  // 和欧は同寸で組む(jlreq の既定と同じ)。jsbook 流の欧文 1.081 倍補正は
+  // 全出力形式で採らないことにした。欧文が小さく見えるときは
+  // 倍率ではなく x-height の大きい書体を選ぶ。
   fonts: (
     body: ("Latin Modern Roman", "CMU Serif", "Times New Roman",
            "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif CJK JP", "IPAexMincho"),
@@ -206,6 +216,14 @@
     running-head: default-running-head,
     page-number: default-page-number,
   ),
+
+  // --- 保証外フック -------------------------------------------------------
+  // 文書変換関数(doc => doc)。生成された root が book.document の内側で
+  // 適用するので、ここに書いた set / show はライブラリの既定に勝つ。
+  // show rule は文書フローにしか効かず、import される theme.typ に直接は
+  // 書けないため、この出口を設けている。renderers と違い、契約
+  // (番号・ラベル・PDF/UA)の保証外である。
+  hooks: none,
 )
 
 // ------------------------------------------------------------------ 導出
