@@ -294,8 +294,11 @@ module ReVIEW
 
       # Format endnote reference
       def format_endnote_reference(data)
-        # For all formats - return plain number without markup
-        data.item_number.to_s
+        # Builder#inline_endnote's form, which is what a format that adds no
+        # markup of its own (plain text) prints. The formats that do mark up
+        # their endnote references -- HTML, LaTeX, IDGXML, TOP -- build their
+        # own and never reach this.
+        "(#{data.item_number})"
       end
 
       # Format chapter reference

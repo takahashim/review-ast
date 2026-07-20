@@ -277,24 +277,6 @@ module ReVIEW
         result
       end
 
-      # Join a paragraph's source lines the way LATEXBuilder's split_paragraph /
-      # join_lines_to_paragraph does: with join_lines_by_lang off, drop the
-      # newlines (""); with it on, insert a language-aware space (add_space?).
-      def join_paragraph_lines(content)
-        return content unless content.include?("\n")
-
-        if config['join_lines_by_lang']
-          lines = content.split("\n")
-          lang = config['language'] || 'ja'
-          0.upto(lines.size - 2) do |n|
-            lines[n] += ' ' if add_space?(lines[n], lines[n + 1], lang, true)
-          end
-          lines.join
-        else
-          content.gsub(/\n+/, '')
-        end
-      end
-
       # Process caption for code blocks with proper context management
       # @param node [CodeBlockNode] The code block node
       # @return [Array<String, Object>] [caption, caption_collector]

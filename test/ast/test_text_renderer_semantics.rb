@@ -186,4 +186,84 @@ class TestTextRendererSemantics < Test::Unit::TestCase
 
     assert_not_include(output, '◆→img1←◆')
   end
+
+  # Each of these was a command whose output dropped information the builder
+  # kept. They are checked against the builder line for line rather than by
+  # pattern, since the point is that the two agree.
+  #
+  # source => the lines to compare, per format
+  DROPPED_INFORMATION = {
+    'キーワード@<kw>{キーワード, keyword}です。' => /キーワード/,
+    'UTF@<uchar>{3042}です。' => /UTF/,
+    '削除@<del>{del削除}です。' => /削除/,
+    "//noindent\n段落です。" => /段落/,
+    "//texequation[eq1][式のキャプション]{\nE = mc^2\n//}" => /式/
+  }.freeze
+
+  data(DROPPED_INFORMATION.keys.to_h { |src| [src, src] })
+  def test_command_keeps_what_the_builder_keeps(source)
+    pattern = DROPPED_INFORMATION.fetch(source)
+    document = "= 章\n\n#{source}\n"
+
+    %i[plaintext top].each do |format|
+      comparator = ReVIEW::Test::TextComparator.new(format: format)
+
+      assert_equal comparator.convert_with_builder(document).lines.grep(pattern),
+                   comparator.convert_with_renderer(document).lines.grep(pattern),
+                   "#{format}: #{source.inspect}"
+    end
+  end
+
+  def test_olnum_sets_where_the_numbering_starts
+    # TOP numbered from 1 regardless, silently renumbering the author's items.
+    source = "= 章\n\n//olnum[10]\n\n 1. 十番目\n 2. 十一番目\n"
+
+    assert_include(top(source), "10\t十番目")
+    assert_include(top(source), "11\t十一番目")
+  end
+
+  def test_emtable_caption_carries_no_block_marker
+    # An id-less table goes through table_header, which prints the caption bare;
+    # the ■ that other TOP block captions carry does not belong here.
+    output = top("= 章\n\n//emtable[説明表]{\nA\tB\n//}\n")
+
+    assert_include(output, "\n説明表\n")
+    assert_not_include(output, '■説明表')
+  end
+
+  def test_endnote_is_printed_only_where_printendnotes_asks
+    # The //endnote definition also rendered in place, so every endnote
+    # appeared twice.
+    source = "= 章\n\n本文@<endnote>{en1}です。\n\n//endnote[en1][後注の内容]\n\n//printendnotes\n"
+
+    assert_equal 1, plaintext(source).scan('後注の内容').size
+    assert_equal 1, top(source).scan('後注の内容').size
+    # Builder#inline_endnote's reference form, which plain text had as a bare
+    # number.
+    assert_include(plaintext(source), '本文(1)です。')
+  end
+
+  # @<sec> and @<sectitle> both fell through to the @<hd> form, so three
+  # commands printed the same thing.
+  def test_section_commands_differ_from_each_other
+    source = "= 章\n\n=={target} 節\n\n@<hd>{target}／@<sec>{target}／@<sectitle>{target}\n"
+
+    %i[plaintext top].each do |format|
+      comparator = ReVIEW::Test::TextComparator.new(format: format)
+
+      assert_equal comparator.convert_with_builder(source).lines.grep(%r{／}),
+                   comparator.convert_with_renderer(source).lines.grep(%r{／}),
+                   format.to_s
+    end
+  end
+
+  def test_paragraph_source_line_breaks_are_folded
+    # A paragraph's newlines are source formatting; every builder folds them
+    # away. The text renderers kept them, so paragraphs came out pre-wrapped at
+    # the author's line breaks.
+    source = "= 章\n\n一行目の続きが\n二行目にあります。\n"
+
+    assert_include(plaintext(source), '一行目の続きが二行目にあります。')
+    assert_include(top(source), '一行目の続きが二行目にあります。')
+  end
 end

@@ -47,6 +47,69 @@ module ReVIEW
         end
         result
       end
+
+      # An //endnote defines content that //printendnotes prints later, so the
+      # definition itself renders as nothing where it stands. Without this both
+      # text renderers printed each endnote twice: once as a footnote at the
+      # point of definition, once in the //printendnotes block. The LaTeX and
+      # HTML renderers already had this guard.
+      def endnote_definition?(node)
+        node.footnote_type == :endnote
+      end
+
+      # The section number an @<sec> names ("2.1.2"), chapter included.
+      # Builder#inline_sec errors when the target has no number; here an
+      # unnumbered target simply contributes nothing, which is what the rest of
+      # the renderers do with a suppressed number.
+      def section_number_of(node)
+        data = resolved_data_of(node)
+        number = data.headline_number
+        chapter_number = text_formatter.format_chapter_number_short(data.chapter_number, data.chapter_type)
+        return '' if number.nil? || number.empty? || chapter_number.to_s.empty?
+        return '' unless text_formatter.over_secnolevel?(number)
+
+        ([chapter_number] + number).join('.')
+      end
+
+      # The section title an @<sectitle> names, with no number and no quotes --
+      # Builder#inline_sectitle. Both text renderers used to let @<sec> and
+      # @<sectitle> fall through to the @<hd> form ("「2.1.2 図」"), so three
+      # different commands printed the same thing.
+      def section_title_of(node)
+        data = resolved_data_of(node)
+        data.caption_node ? render_children(data.caption_node) : data.caption_text.to_s
+      end
+
+      # An @<chapref>'s text, wrapped in a <link> when the book asks for it.
+      #
+      # chapterlink is meant for the formats that have links, but
+      # PLAINTEXTBuilder#inline_chapref honors it too and emits the raw <link>
+      # tag into the text -- odd, but it is what a book built with the setting
+      # gets, and the tag carries the target id that would otherwise be lost.
+      def chapter_reference_text(data)
+        title = text_formatter.format_reference(:chapter, data)
+        return title unless config['chapterlink']
+
+        %Q(<link href="#{data.item_id}">#{title}</link>)
+      end
+
+      # The chapter title an @<title> names, alone -- no number, no quotes
+      # (Builder#inline_title). Both text renderers used to let @<title> fall
+      # through to the reference's own rendering, which is the @<chapref> form
+      # ("第1章「章見出し」").
+      def chapter_title_of(node)
+        resolved_data_of(node).chapter_title || ''
+      end
+
+      # The ResolvedData behind an inline command that wraps a reference.
+      def resolved_data_of(node)
+        ref_node = node.children.first
+        unless ref_node.reference_node? && ref_node.resolved?
+          raise 'BUG: Reference should be resolved at AST construction time'
+        end
+
+        ref_node.resolved_data
+      end
     end
   end
 end

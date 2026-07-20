@@ -11,6 +11,7 @@ require 'review/ast/footnote_node'
 require 'review/ast/render_context'
 require 'review/exception'
 require 'review/renderer/text_formatter'
+require 'review/textutils'
 
 module ReVIEW
   module Renderer
@@ -41,6 +42,9 @@ module ReVIEW
     #   renderer = HtmlRenderer.new
     #   html_output = renderer.render(ast_root)
     class Base < ReVIEW::AST::Visitor
+      # For add_space?, which decides where join_paragraph_lines puts a space.
+      include ReVIEW::TextUtils
+
       # Initialize the renderer with chapter context.
       #
       # @param chapter [ReVIEW::Book::Chapter] Chapter context
@@ -90,6 +94,33 @@ module ReVIEW
       # @return [Boolean] true if the caption goes above the block
       def caption_top?(type)
         config.dig('caption_position', type) != 'bottom'
+      end
+
+      # Join a paragraph's source lines the way the builders do.
+      #
+      # A paragraph's newlines are source formatting, not content: every builder
+      # folds them away via split_paragraph / join_lines_to_paragraph. With
+      # join_lines_by_lang off the newlines are simply dropped; with it on, a
+      # space goes in wherever add_space? wants one at the boundary (an
+      # ASCII/Japanese transition). LaTeX, plaintext and TOP all need this, so it
+      # lives here rather than once per renderer -- the text renderers did not
+      # fold at all, and kept the source's line breaks in their output.
+      #
+      # @param content [String] Rendered paragraph content
+      # @return [String] The content with its source line breaks folded
+      def join_paragraph_lines(content)
+        return content unless content.include?("\n")
+
+        unless config['join_lines_by_lang']
+          return content.gsub(/\n+/, '')
+        end
+
+        lines = content.split("\n")
+        lang = config['language'] || 'ja'
+        0.upto(lines.size - 2) do |n|
+          lines[n] += ' ' if add_space?(lines[n], lines[n + 1], lang, true)
+        end
+        lines.join
       end
 
       # Render all children of a node and join the results.
