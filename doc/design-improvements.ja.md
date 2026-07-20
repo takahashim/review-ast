@@ -1088,8 +1088,10 @@ AST 対 AST の自己整合性であってオラクル比較ではないため�
   AST の方が情報を保っているため、こちらを採る。
 - 空行の位置: ビルダーは `blank`/`@blank_seen` による連続空行の抑制を持つが、AST は再現していない。
 - 表の罫線幅: 区切り行のダッシュ数と末尾タブの有無。
-- TOP の `@<em>`: TOPBuilder は `inline_em` を持たず、装飾なしの素通しになる(`@<i>` は `▲…☆`)。
-  AST は `▲…☆` を出す。強調の情報が残る方を採る。
+- TOP の `@<em>`: 許容差ではなく Re:VIEW 本体側のバグだった。TOPBuilder は装飾系 16 命令のうち
+  15 個を上書きしており、`@<em>` だけが PLAINTEXTBuilder の素通しに落ちていた。本体に
+  `alias_method :inline_em, :inline_i` を追加(ブランチ `fix-top-inline-em`)。AST 側は変更不要で、
+  取り込み後は `▲…☆` で一致する。
 
 上記のため `test_text_renderer_semantics.rb` はバイト一致ではなく情報の有無を検証している。
 LaTeX / HTML / IDGXML の目標(DVI 一致 / rendered-equivalence / byte 一致)は従来どおり変更なし。
