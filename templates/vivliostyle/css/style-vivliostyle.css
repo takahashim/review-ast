@@ -797,6 +797,14 @@ a.noteref {
 :is(nav#toc, div#toc) {
   page: plainhead;
   break-before: page;
+
+  /* 折り返した行のぶら下げ幅。LaTeX の \@lnumwidth に対応する。
+     Re:VIEW の目次は番号と表題を1つのテキストとして出すため、番号のぶんだけ
+     2行目以降を下げてそろえる用途にだけ使う。 */
+  --toc-chapter-hang: 4.683em;               /* 章 4.683zw */
+  --toc-section-hang: 3.683em;               /* 節 3.683zw */
+  /* 節の字下げ。章の行頭からこれだけ右にずらす */
+  --toc-section-indent: 1em;
 }
 
 :is(nav#toc, div#toc) h1 {
@@ -822,8 +830,8 @@ a.noteref {
   font-family: var(--font-heading);
   font-weight: bold;
   margin-top: 1em;                           /* \addvspace{1.0em} */
-  padding-left: 4.683em;                     /* \@lnumwidth = 4.683zw */
-  text-indent: -4.683em;
+  padding-left: var(--toc-chapter-hang);
+  text-indent: calc(-1 * var(--toc-chapter-hang));
 }
 
 /* 章はリーダードットなし。ただし float: right だと行ボックス基準になって
@@ -832,13 +840,22 @@ a.noteref {
   content: leader(" ") target-counter(attr(href), page);
 }
 
-/* 節: リーダードット + インデント 1zw */
+/* 節の一覧は章の li の中にあるので、章のぶら下げ幅（padding-left）のぶん
+   だけ右にずれた位置から始まってしまう。いったん打ち消して、章の行頭と
+   同じ基準に戻してから節自身の字下げを与える。
+   これをしないと節の行頭が「章のぶら下げ幅 + 節の字下げ」になり、
+   実測で 5.68 字ぶんも右に寄っていた。 */
+:is(nav#toc, div#toc) ol.toc-h2 {
+  margin-left: calc(-1 * var(--toc-chapter-hang));
+}
+
+/* 節: リーダードットつき。行頭は章より 1zw 下げる */
 :is(nav#toc, div#toc) ol.toc-h2 > li {
   font-family: var(--font-body);
   font-weight: normal;
   margin-top: 0;
-  padding-left: calc(1em + 3.683em);         /* indent 1zw + numwidth 3.683zw */
-  text-indent: -3.683em;
+  padding-left: calc(var(--toc-section-indent) + var(--toc-section-hang));
+  text-indent: calc(-1 * var(--toc-section-hang));
 }
 
 :is(nav#toc, div#toc) ol.toc-h2 > li > a::after {
