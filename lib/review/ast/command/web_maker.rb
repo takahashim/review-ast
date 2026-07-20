@@ -8,6 +8,7 @@
 
 require 'fileutils'
 require 'review/webmaker'
+require 'review/ast/stylesheet_resolver'
 require 'review/ast/web_assets'
 require 'review/ast/web_toc_builder'
 require_relative 'ast_html_converter'
@@ -26,6 +27,8 @@ module ReVIEW
       # and fills the sidebar TOC in post_process, so chapter pages come out as the
       # legacy maker would render them.
       class WebMaker < ReVIEW::WEBMaker
+        include ReVIEW::AST::StylesheetResolver
+
         private
 
         def build_chap(chap, base_path, basetmpdir, ispart)
@@ -81,10 +84,12 @@ module ReVIEW
           end
         end
 
-        # Ship the modern default stylesheet alongside the user's own; the layout
-        # links it under its fixed name. Runs after the base copy of config styles.
+        # Copy the user's stylesheets through the AST search path (root, css/,
+        # bundled) instead of the base maker's root-only copy, and ship the
+        # modern default stylesheet alongside them; the layout links it under
+        # its fixed name.
         def copy_stylesheet(basetmpdir)
-          super
+          copy_resolved_stylesheets(basetmpdir)
           FileUtils.cp(ReVIEW::AST::WebAssets::STYLESHEET,
                        File.join(basetmpdir, ReVIEW::AST::WebAssets::STYLESHEET_NAME))
         end
