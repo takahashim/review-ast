@@ -155,8 +155,7 @@ class TestCommandParityCoverage < Test::Unit::TestCase
               'test_idgxml_renderer_builder_comparison.rb#test_syntax_book_bib.',
     graph: 'shells out to dot/gnuplot and writes generated images into the book ' \
            'imagedir, so it is not safe to run on every CI push. The html and latex ' \
-           'renderers also leave it unimplemented (ast-semantics.ja.md section 4), and ' \
-           'idgxml diverges on the generated filename (builder .eps vs renderer .pdf).'
+           'renderers also leave it unimplemented (ast-semantics.ja.md section 4).'
   }.freeze
 
   INLINE_EXCLUSIONS = {

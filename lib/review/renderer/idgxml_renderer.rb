@@ -567,6 +567,13 @@ module ReVIEW
         visit_bibpaper(node)
       end
 
+      # IDGXMLBuilder#image_ext. Each builder has its own ('png' for HTML,
+      # 'pdf' for LaTeX); IDGXML wants EPS, and this renderer had 'pdf'
+      # hardcoded, so //graph referenced a file that is never written.
+      def image_ext
+        'eps'
+      end
+
       def visit_block_graph(node)
         visit_graph(node)
       end
@@ -596,7 +603,7 @@ module ReVIEW
             # But we still need a file path for rendering
             c = 'idgxml'
             dir = File.join(render_context.imagedir, c)
-            file_path = File.join(dir, "#{id}.pdf")
+            file_path = File.join(dir, "#{id}.#{image_ext}")
           end
         else
           # For other graph types, generate directly
@@ -604,8 +611,6 @@ module ReVIEW
           dir = File.join(render_context.imagedir, c)
           FileUtils.mkdir_p(dir) unless File.directory?(dir)
 
-          # Determine image extension based on format
-          image_ext = 'pdf' # IDGXML typically uses PDF
           file = "#{id}.#{image_ext}"
           file_path = File.join(dir, file)
 
