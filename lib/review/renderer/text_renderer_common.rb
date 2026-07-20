@@ -80,17 +80,14 @@ module ReVIEW
         data.caption_node ? render_children(data.caption_node) : data.caption_text.to_s
       end
 
-      # An @<chapref>'s text, wrapped in a <link> when the book asks for it.
+      # An @<chapref>'s text.
       #
-      # chapterlink is meant for the formats that have links, but
-      # PLAINTEXTBuilder#inline_chapref honors it too and emits the raw <link>
-      # tag into the text -- odd, but it is what a book built with the setting
-      # gets, and the tag carries the target id that would otherwise be lost.
+      # chapterlink is deliberately not honored: plain text has nowhere to put a
+      # link. PLAINTEXTBuilder used to emit IDGXML's <link> tag here, carried
+      # over with the rest of a copied method; that is fixed upstream on
+      # fix-plaintext-chapterlink.
       def chapter_reference_text(data)
-        title = text_formatter.format_reference(:chapter, data)
-        return title unless config['chapterlink']
-
-        %Q(<link href="#{data.item_id}">#{title}</link>)
+        text_formatter.format_reference(:chapter, data)
       end
 
       # The chapter title an @<title> names, alone -- no number, no quotes
