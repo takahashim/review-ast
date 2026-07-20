@@ -90,7 +90,13 @@
  * 0.4pt は LaTeX 版で fancyhdr の既定がそのまま残っていた値を踏襲している。
  *
  * NOTE: 名前付きページ（@page bare 等）はこれらより優先されるので、
- * 表紙の margin: 0 がここで上書きされることはない（実測で確認済み）。 */
+ * 表紙の margin: 0 がここで上書きされることはない（実測で確認済み）。
+ *
+ * NOTE: 通常の分割位置のない長い柱（記号の連続など）は版面幅で切れる。
+ * マージンボックスには word-break / overflow-wrap が効かない（Vivliostyle が
+ * 捨てる。ページコンテキストからの継承も届かない。実測で確認）ため、
+ * 本文（body の overflow-wrap）のような緊急折り返しは柱には掛けられない。
+ * 通常の分割位置がある柱は既定の規則で折り返される。 */
 @page :left {
   margin-left: var(--edge);
   margin-right: var(--gutter);
@@ -177,7 +183,12 @@ body {
   text-align: justify;
   /* ベタ組み寄りの近似。TeX の段落全体最適化までは再現できない */
   line-break: strict;
-  overflow-wrap: normal;
+  /* pTeX は ■□ のような記号も和字としてどこでも折り返すが、Chromium は
+     Unicode の行分割クラスが「曖昧」な記号を（lang によらず）欧文の
+     1 単語として扱い、連続すると行長を突き抜ける。行に収まらないときだけ
+     緊急折り返しで畳んで LaTeX 版の折り返しに合わせる。通常の分割位置が
+     ある行には影響しない。 */
+  overflow-wrap: break-word;
   /* ぶら下げ組み。Chromium は未実装なので現状は効かない（Safari のみ対応）。
      実装されれば行末の句読点がぶら下がる。それまでは無害な指定として残す。 */
   hanging-punctuation: allow-end;
