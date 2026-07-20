@@ -3,3 +3,7 @@
 Gemfile.lock
 *.gem
 .DS_Store
+
+# TypstMaker の中間生成物と出力
+*-typst/
+*-typst.pdf

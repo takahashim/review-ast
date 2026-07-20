@@ -1,0 +1,56 @@
+name: typst
+
+# The one suite that needs a document engine installed.
+#
+# test.yml runs `rake test` on a plain runner, where the Typst integration tests
+# omit themselves for want of the `typst` executable -- so a change that broke
+# the generated Typst, or the book library it calls, would pass there unnoticed.
+# This workflow installs the toolchain those tests need and runs them.
+#
+# It is kept out of test.yml's Ruby matrix on purpose: the value is in compiling
+# a book at all, which one Ruby proves as well as four, and installing Typst
+# four times over does not pay for itself.
+#
+# No path filter: the generated Typst depends on the AST, the renderer base and
+# the review gem, so a change almost anywhere can move its output.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: true
+
+      - uses: typst-community/setup-typst@v5
+        with:
+          typst-version: '0.15.1'
+
+      # poppler-utils: pdfinfo and pdftotext read the produced PDF back to check
+      # page size, front matter and the theme's effect. Without them those tests
+      # omit themselves, which would hide what this workflow exists to catch.
+      #
+      # fonts-noto-cjk: the default theme asks for CJK faces. Typst falls back
+      # silently when they are missing, so the sample books would compile
+      # without ever setting Japanese text.
+      - name: Install poppler-utils and CJK fonts
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils fonts-noto-cjk
+
+      - name: Build books with Typst
+        run: bundle exec ruby -Itest test/ast/test_ast_typst_maker.rb
+
+      # The sample books cover far more Re:VIEW commands than the fixtures do,
+      # and they are the reference this output target is developed against.
+      - name: Build the sample books
+        run: |
+          for book in samples/syntax-book samples/md-syntax-book; do
+            (cd "$book" && bundle exec ruby "$GITHUB_WORKSPACE/bin/review-ast-typstmaker" config.yml)
+          done
