@@ -163,7 +163,13 @@ module ReVIEW
 
       def visit_headline(node)
         check_id(node.label)
-        @sec_counter.inc(node.level)
+        # IndexBuilder advances the section counter in #headline only.
+        # [nonum]/[notoc]/[nodisp] go to nonum_begin/notoc_begin/nodisp_begin,
+        # which register the heading with a nil number and leave the counter
+        # alone. Advancing it here shifted the number of every later heading,
+        # so a reference to one resolved to the wrong anchor.
+        numbered = !(node.nonum? || node.notoc? || node.nodisp?)
+        @sec_counter.inc(node.level) if numbered
 
         if node.level >= 2
           # Build item_id exactly like IndexBuilder
@@ -177,7 +183,7 @@ module ReVIEW
 
           item_id = @headline_stack.join('|')
           leaf_id = @headline_stack[cursor]
-          number = @sec_counter.number_list
+          number = numbered ? @sec_counter.number_list : nil
 
           # A headline is addressable both by its full pipe-path and by its leaf
           # segment alone (its label or caption), matching Book::HeadlineIndex.

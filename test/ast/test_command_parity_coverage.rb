@@ -248,6 +248,19 @@ class TestCommandParityCoverage < Test::Unit::TestCase
     assert_fragments_match(INLINE_FRAGMENTS, INLINE_FORMAT_EXCLUSIONS, '@<')
   end
 
+  # A [notoc]/[nonum]/[nodisp] heading does not consume a section number:
+  # IndexBuilder advances its counter in #headline only. Advancing it for them
+  # shifted every later heading's number, so a reference resolved to the wrong
+  # anchor. Found by the generator at seed 600.
+  def test_unnumbered_heading_does_not_shift_later_anchors
+    source = "= 章\n\n==[notoc] 目次外\n\n== 通常節\n\n==={g2} 項\n\n参照 @<hd>{g2}\n"
+    comparator = ReVIEW::Test::HtmlComparator.new
+
+    assert(ReVIEW::AST::Diff::Html.new.equal?(comparator.convert_with_builder(source),
+                                              comparator.convert_with_renderer(source)),
+           'a notoc heading must not shift the anchors of the headings after it')
+  end
+
   private
 
   def assert_table_covered(table, table_name, fragments, exclusions)
