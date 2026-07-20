@@ -818,7 +818,12 @@ module ReVIEW
           content = render_list_item_body(item)
           rendered = %Q(<li aid:pstyle="ol-item" olnum="#{current_olnum}" num="#{display_number}">#{content}</li>)
           current_number += 1
-          current_olnum += 1
+          # A nested list closes the enclosing <ol> in the builder (ol_end clears
+          # its counter, and the ol_begin that resumes the list starts it over),
+          # so the items after one restart at 1. The AST merges the continuation
+          # into a single list (ast-semantics 2.2), which is why the boundary has
+          # to be reproduced here instead of falling out of the structure.
+          current_olnum = nested_list?(item) ? 1 : current_olnum + 1
           rendered
         end
 
@@ -871,6 +876,11 @@ module ReVIEW
         else
           %Q(<dt>#{term_content}</dt><dd>#{definition_content}</dd>)
         end
+      end
+
+      # Whether this item carries a nested list (//beginchild ... //endchild).
+      def nested_list?(item)
+        item.respond_to?(:children) && item.children.any?(ReVIEW::AST::ListNode)
       end
 
       def render_list_item_body(item)

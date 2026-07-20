@@ -1088,6 +1088,22 @@ LaTeX / HTML / IDGXML の目標(DVI 一致 / rendered-equivalence / byte 一致)
   設計として筋が悪く、いつか ImgGraph 側(既に遅延生成を持つ)へ寄せる価値がある。挙動に触れるため、
   単独で検証する変更として切り出すこと。
 
+### 検証の拡張と、PBT が検出した未修正の乖離(2026-07)
+
+CI が検証する範囲を広げた。いずれもリポジトリ内の素材か生成物で駆動し、再配布できない文書に依存しない。
+
+- `test/ast/test_corpus_builder_parity.rb`: catalog が宣言する全章(syntax-book 6・debug-book 4)を IDGXML(byte)・HTML(描画等価)・LaTeX(テキスト篩)でビルダーと比較する。従来は各形式2章の抜き取りだった。約1秒。
+- `test/ast/test_command_parity_coverage.rb`: `BLOCK_COMMAND_TABLE`(61)と `DEFAULT_INLINE_HANDLERS`(26)を実行時に列挙し、各命令に断片か理由付き除外があることを強制する。命令が増えるとカバレッジを用意するまで落ちる。
+- `.github/workflows/nightly.yml`: PBT を PR より深く(既定 500 seed)、html と idgxml の両モードでビルダーと比較する。PR 側の PBT テストは AST 対 AST の自己整合性なので、オラクル比較はここが担う。
+
+この拡張で見つけて修正したもの: HTML レンダラに `//read`・`//talk`・`//doorquote`・`//point`・`//bpo`・`@<imgref>` のハンドラが無かった件(ビルダーは実装済み)、`//doorquote` の内容が段落分割されていなかった件、IDGXML の `olnum` が源泉番号を使っていた件(正しくは 1 始まりの連番で、`//olnum[N]` のみが起点を変える)、入れ子リスト後に `olnum` がリセットされない件、`@<hd>` の見出しキャプションが未エスケープで XML 不正になっていた件。
+`olnum` の 2 件については `test_idgxml_renderer.rb` の期待値自体が誤っており(ビルダーの実出力と不一致)、ビルダーに合わせて訂正した。
+
+未修正(nightly が現に落ちる。次に着手すべき対象):
+
+- IDGXML の表セル座標(seed 72、94)。区切り行のセル数の扱いが違う。`//table` の区切り行が見出し区切りと認識されない場合、ビルダーはその行にあるセルだけを出し(2×2 で 5 セル)、レンダラは列数に合わせて詰める(6 セル)。どちらが正かは要判断。
+- HTML(seed 167)。`@<raw>{|latex|\,}` を含む表で、トークン列の差として現れる。差分表示上は同じテキストに見えるため、空白位置の差と推測されるが未特定。
+
 ---
 
 ## 10. MarkdownCompiler の取り込み

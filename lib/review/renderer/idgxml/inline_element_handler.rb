@@ -311,7 +311,10 @@ module ReVIEW
           return content unless ref_node.reference_node? && ref_node.resolved?
 
           data = ref_node.resolved_data
-          @ctx.text_formatter.format_reference(:headline, data)
+          # The caption comes from the referenced heading's source text, so it
+          # can carry &, < or >. IDGXMLBuilder escapes it (compile_inline on the
+          # headline caption); emitting it raw produced invalid XML.
+          escape(@ctx.text_formatter.format_reference(:headline, data))
         end
 
         # Section number reference

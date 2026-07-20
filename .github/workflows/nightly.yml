@@ -1,0 +1,44 @@
+name: nightly
+
+# Deeper verification than a pull request should wait for.
+#
+# The pull-request suite runs the property-based generator over 30 fixed seeds
+# (test/ast/test_pbt_round_trip_identity.rb). That is a self-consistency check:
+# a reloaded tree must render like a fresh one. What runs here instead is the
+# generator against the *legacy builders*, over far more seeds -- the oracle
+# comparison, which is where real divergences turn up but which costs more than
+# a PR should pay.
+#
+# Neither mode needs TeX or any external document, so this depends on nothing
+# outside the repository.
+
+on:
+  schedule:
+    # 18:00 UTC daily (03:00 JST).
+    - cron: '0 18 * * *'
+  workflow_dispatch:
+    inputs:
+      seeds:
+        description: Number of generated documents to check
+        required: false
+        default: '500'
+
+jobs:
+  pbt:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # html compares under the CSS white-space model; idgxml byte for byte.
+        mode: [html, idgxml]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: true
+      - name: Compare generated documents against the legacy builders
+        run: |
+          bundle exec ruby tools/pbt/runner.rb \
+            --mode ${{ matrix.mode }} \
+            --seeds ${{ github.event.inputs.seeds || 500 }}

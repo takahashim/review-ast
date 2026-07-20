@@ -46,20 +46,16 @@ module ReVIEW
 
         # Set olnum_start for lists without an explicit //olnum.
         def add_olnum_starts(node)
-          if ordered_list_node?(node) && node.olnum_start.nil?
-            start_number = node.start_number || 1
-
-            # Check if items have consecutive increasing numbers
-            is_consecutive = node.children.each_with_index.all? do |item, idx|
-              next true unless item.is_a?(ListItemNode)
-
-              expected = start_number + idx
-              actual = item.number || expected
-              actual == expected
-            end
-
-            node.olnum_start = is_consecutive ? start_number : 1
-          end
+          # IDGXMLBuilder keeps olnum as a plain 1-based counter over the list
+          # (ol_begin does `@ol_num ||= 1`, ol_item increments it), and only
+          # //olnum[N] presets it -- which the directive pass has already
+          # recorded when olnum_start is non-nil. The numbers written in the
+          # source affect the num attribute, never olnum.
+          #
+          # This used to start olnum at the source's first number whenever the
+          # items ran consecutively, so a list written "3. / 4." emitted
+          # olnum="3" where the builder emits olnum="1".
+          node.olnum_start = 1 if ordered_list_node?(node) && node.olnum_start.nil?
 
           node.children.each { |child| add_olnum_starts(child) }
         end
