@@ -1,0 +1,20 @@
+# ビルド成果物
+*.pdf
+*.epub
+/syntax-book/
+/syntax-book-pdf/
+/syntax-book-epub/
+/syntax-book-vivliostyle/
+/syntax-book-text/
+/syntax-book-idgxml/
+/webroot/
+images/_review_math/
+images/_review_math_text/
+
+# rake copy_sty が review gem から写すもの (rake clean で消える)
+sty/*.cls
+sty/review-*.sty
+sty/gentombow.sty
+
+# bundler
+/.bundle/
