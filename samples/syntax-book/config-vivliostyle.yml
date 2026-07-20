@@ -1,0 +1,7 @@
+inherit: ["config.yml"]
+stylesheet: ["style-vivliostyle-design.css", "style-vivliostyle.css"]
+epubmaker:
+  stylesheet: ["style-vivliostyle-design.css", "style-vivliostyle.css"]
+vivliostyle:
+  output: syntax-book-vivliostyle.pdf
+  timeout: 300
