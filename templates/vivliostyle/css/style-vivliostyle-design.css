@@ -71,14 +71,15 @@
                  "Noto Serif CJK JP", "Noto Serif JP", "IPAexMincho", serif;
   --font-gothic: "Hiragino Kaku Gothic ProN", "Yu Gothic", "YuGothic",
                  "Noto Sans CJK JP", "Noto Sans JP", "IPAexGothic", sans-serif;
-  /* 欧文は下の @font-face で作る合成フォントを先に置く（大きさ補正のため）。
-     補正を切りたいときは "LatinBody" 等を外して素の名前だけにする。 */
-  --font-latin-serif: "LatinBody", "Latin Modern Roman", "CMU Serif",
-                      "Times New Roman";
-  --font-latin-sans: "LatinHead", "Helvetica Neue", Helvetica, Arial;
+  /* 和欧は同寸で組む（jlreq の既定に合わせる）。jsbook 流の欧文 1.081 倍補正は
+     採らない。Typst にフォールバック単位の大きさ補正がなく、倍率を使うと
+     LaTeX・Vivliostyle・Typst の紙面一致が保てないため。
+     同寸で欧文が小さく見えるときは、倍率ではなく x-height の大きい欧文書体を
+     選んで解決すること。 */
+  --font-latin-serif: "Latin Modern Roman", "CMU Serif", "Times New Roman";
+  --font-latin-sans: "Helvetica Neue", Helvetica, Arial;
   /* 和文と組ませず単独で使うので、こちらは総称を末尾に持つ */
-  --font-mono: "LatinMono", "Latin Modern Mono", "DejaVu Sans Mono",
-               "Menlo", monospace;
+  --font-mono: "Latin Modern Mono", "DejaVu Sans Mono", "Menlo", monospace;
 
   --font-body: var(--font-latin-serif), var(--font-mincho);
   /* 見出し: review-style.sty が \headfont を gt+sf+bf に再定義している */
@@ -108,33 +109,4 @@
   --box-pad-y: 3mm;              /* top/bottom 2mm + boxsep 1mm */
   --box-rule: 0.5mm;             /* boxrule */
   --box-arc: 1mm;                /* arc */
-}
-
-/* ----------------------------------------------------------------------------
- * 欧文の大きさ補正
- *
- * 和文と欧文を同じ font-size で組むと、欧文はアセンダ・ディセンダを含めて
- * 全角より小さく見える。jsbook は欧文を和文の約 1.081 倍で組むことでこれを
- * 補正しており、その比率をここで再現する。
- *
- * 和欧を同寸で組みたい場合（jlreq の既定はこちら）は size-adjust を 100% に
- * するか、:root の --font-latin-* から "LatinBody" 等を外す。
- *
- * NOTE: @font-face の記述子では var() が使えないので、この値だけは
- * :root ではなくここに直接書いてある。倍率を変えるときは3つとも揃えること。
- * ------------------------------------------------------------------------- */
-@font-face {
-  font-family: "LatinBody";
-  src: local("Latin Modern Roman"), local("CMU Serif"), local("Times New Roman");
-  size-adjust: 108.14%;
-}
-@font-face {
-  font-family: "LatinHead";
-  src: local("Helvetica Neue"), local("Helvetica"), local("Arial");
-  size-adjust: 108.14%;
-}
-@font-face {
-  font-family: "LatinMono";
-  src: local("Latin Modern Mono"), local("DejaVu Sans Mono"), local("Menlo");
-  size-adjust: 108.14%;
 }
