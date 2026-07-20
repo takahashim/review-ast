@@ -20,38 +20,64 @@ module ReVIEW
       include ReVIEW::Renderer::TextRendererCommon
 
       # Japanese titles for different block types (matching TOPBuilder)
+      # TOPBuilder's @titles, kept in the same order. These are the markers a
+      # DTP operator reads, so a wrong one is a wrong instruction, not a
+      # cosmetic difference: notice/caution/warning were each shifted by one
+      # (注意/警告/危険 rendered as 注記/注意/警告), and twenty commands had no
+      # entry at all and fell back to their command name.
       TITLES = {
-        list: 'リスト',
-        # TOPBuilder has no separate titles for the numbered variants: listnum
-        # reuses @titles['list'] and emlistnum reuses @titles['emlist'], so the
-        # block markers read the same whether or not lines are numbered.
-        listnum: 'リスト',
         emlist: 'インラインリスト',
+        # listnum/emlistnum reuse the plain list titles; TOPBuilder has no
+        # separate entry for the numbered variants.
         emlistnum: 'インラインリスト',
         cmd: 'コマンド',
         quote: '引用',
-        source: 'ソースコード',
-        table: '表',
-        emtable: 'インライン表',
-        imgtable: '画像付き表',
-        image: '図',
-        indepimage: '独立図',
-        numberlessimage: '番号なし図',
-        icon: 'アイコン',
+        centering: '中央揃え',
+        flushright: '右寄せ',
         note: 'ノート',
         memo: 'メモ',
-        tip: 'TIP',
-        info: 'インフォ',
-        warning: '警告',
         important: '重要',
-        caution: '注意',
-        notice: '注記',
-        lead: 'リード',
+        info: '情報',
+        planning: 'プランニング',
+        shoot: 'トラブルシュート',
+        term: '用語解説',
+        notice: '注意',
+        caution: '警告',
+        warning: '危険',
+        point: 'ここがポイント',
+        reference: '参考',
+        link: 'リンク',
+        best: 'ベストプラクティス',
+        practice: '練習問題',
+        security: 'セキュリティ',
+        expert: 'エキスパートに訊け',
+        tip: 'TIP',
+        box: '書式',
+        insn: '書式',
+        column: 'コラム',
+        xcolumn: 'コラムパターン2',
+        world: 'Worldコラム',
+        hood: 'Under The Hoodコラム',
+        edition: 'Editionコラム',
+        insideout: 'InSideOutコラム',
+        ref: '参照',
+        sup: '補足',
         read: 'リード',
-        flushright: '右寄せ',
-        centering: '中央揃え',
+        lead: 'リード',
+        list: 'リスト',
+        listnum: 'リスト',
+        image: '図',
         texequation: 'TeX式',
-        column: 'コラム'
+        table: '表',
+        bpo: 'bpo',
+        source: 'ソースコードリスト',
+        # Not in @titles: these come from other IDGXML/TOP paths but the
+        # renderer dispatches block titles through this table.
+        emtable: 'インライン表',
+        imgtable: '画像付き表',
+        indepimage: '独立図',
+        numberlessimage: '番号なし図',
+        icon: 'アイコン'
       }.freeze
 
       # Configure's default, used when the book config does not set one.
