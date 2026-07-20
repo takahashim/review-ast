@@ -493,37 +493,28 @@ div[id] > .caption::before {
 }
 /* 図版の大きさ。
  *
- * 画像は原寸で置き、版面幅（//image の scale 指定があればその割合）を上限に
- * 収める。LaTeX の \includegraphics[width=\maxwidth] と同じ考え方で、
- * 大きい画像は版面に収まるまで縮み、小さい画像は引き伸ばされない。
+ * LaTeX の \includegraphics[width=<scale>\maxwidth] を再現する。
+ *   \maxwidth = min(画像の原寸, 版面幅)
+ * //image の scale は「原寸に対する倍率」であって版面幅に対する割合では
+ * ない。版面より狭い画像に scale=0.5 を指定したらその画像の半分になる、
+ * というのが LaTeX 版の印字であり、記法解説の図が実演している挙動でもある
+ * （第7章の図7.1と図7.2）。
  *
- * ここでいう「原寸」は画像に埋め込まれた解像度から決まる。ブラウザはその
- * 情報を読まず画素数をそのまま CSS px（96dpi）として扱うので、
- * review-ast-vivliostylemaker の ImageSizeAnnotator が組版前に各 img の
- * style 属性へ image-resolution を書き込み、intrinsic な大きさを正す。
- * 標準プロパティなので、この CSS 側に受け皿は要らない。
+ * 原寸は画像に埋め込まれた解像度（PNG の pHYs / JPEG の JFIF density、
+ * 無ければ 72dpi）から決まる。ブラウザはこの情報を読まず画素数をそのまま
+ * CSS px（96dpi）として扱うので、review-ast-vivliostylemaker の
+ * ImageSizeAnnotator が組版前に各 img の style 属性へ --natural（原寸 mm）
+ * を書き込む。倍率を掛ける相手が値として要るため、標準の image-resolution
+ * ではなく長さで渡している。
  * 注入を止めるには config の vivliostyle: image_intrinsic_size: false
- * （そのときは 96dpi 解釈になり、図がやや大きくなるだけで破綻はしない）。
+ * （そのとき図は版面幅いっぱいになる）。
  *
- * NOTE: scale は「上限」であって倍率ではない。//image[...][scale=0.5] は
- * 「版面幅の半分に収める」の意味で、原寸がそれより小さい画像は原寸のまま
- * 置かれる（引き伸ばさない）。EPUB と PDF で同じ規則になるよう統一した。
- * --scale は Re:VIEW が出力する width-NNNper クラスから受け取る。 */
+ * NOTE: image-resolution を使う案は測ったうえで見送った。Vivliostyle
+ * 2.44.1 では from-image が無視され、明示値も 96dpi 未満だと max-width を
+ * 無効化して図が版面をはみ出す。詳細は review-ast の
+ * doc/vivliostyle-image-sizing.ja.md を参照。 */
 .image img {
-  /* この min-width は Vivliostyle 2.44.1 の回避策であって、最小幅を
-     指定したいわけではない。消すと図が版面をはみ出す。
-     理由: 同ビューアは image-resolution が 96dpi 未満のとき（＝画像を
-     拡大する側のとき）、拡大を min-width で表現する。CSS では min-width が
-     max-width に優先するため、下の max-width が無効化される。
-     実測では 1454px の画像を 72dpi と注記すると、版面 130mm に対して
-     512.9mm で配置された。解像度情報のない画像は 72dpi 扱いになるので、
-     これは例外ではなく通常のケース。
-     min-width が 0 以外だと同ビューアは width 経路に入り、max-width が
-     正しく効く（core/src/vivliostyle/vgen.ts の
-     modifyElemDimensionWithImageResolution を参照）。
-     ビューア側が修正されたらこの1行は不要になる。 */
-  min-width: 1px;
-  max-width: calc(var(--scale, 1) * 100%);
+  width: calc(var(--scale, 1) * min(var(--natural, 100%), 100%));
   height: auto;
 }
 .image .caption {

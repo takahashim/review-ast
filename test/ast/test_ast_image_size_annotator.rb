@@ -62,24 +62,24 @@ class ImageSizeAnnotatorTest < Test::Unit::TestCase
   def test_uses_the_embedded_resolution
     src = image('shot.png', width: 600, height: 400, dpi: 300)
 
-    # 埋め込まれた解像度をそのまま書き出す
-    assert_equal %Q(<img src="#{src}" style="image-resolution: 300dpi" />),
+    # 600px / 300dpi = 2in = 50.8mm
+    assert_equal %Q(<img src="#{src}" style="--natural: 50.800mm" />),
                  annotate(%Q(<img src="#{src}" />))
   end
 
   def test_falls_back_to_72dpi_like_dvipdfmx
     src = image('plain.png', width: 144, height: 100)
 
-    # 解像度情報がなければ dvipdfmx と同じく 72dpi とみなす
-    assert_equal %Q(<img src="#{src}" style="image-resolution: 72dpi" />),
+    # 144px / 72dpi = 2in = 50.8mm
+    assert_equal %Q(<img src="#{src}" style="--natural: 50.800mm" />),
                  annotate(%Q(<img src="#{src}" />))
   end
 
   def test_reads_jpeg_density
     src = image('photo.jpg', width: 600, height: 400, dpi: 150)
 
-    # JPEG は JFIF の density から読む
-    assert_equal %Q(<img src="#{src}" style="image-resolution: 150dpi" />),
+    # 600px / 150dpi = 4in = 101.6mm
+    assert_equal %Q(<img src="#{src}" style="--natural: 101.600mm" />),
                  annotate(%Q(<img src="#{src}" />))
   end
 
@@ -90,9 +90,8 @@ class ImageSizeAnnotatorTest < Test::Unit::TestCase
 
     result = annotate(markup)
 
-    # どちらも解像度情報がないので 72dpi
-    assert_include(result, %Q(alt="x" class="width-050per" style="image-resolution: 72dpi"))
-    assert_include(result, %Q(<img src="#{b}" style="image-resolution: 72dpi" />))
+    assert_include(result, %Q(alt="x" class="width-050per" style="--natural: 50.800mm"))
+    assert_include(result, %Q(<img src="#{b}" style="--natural: 101.600mm" />))
   end
 
   def test_leaves_alone_what_it_cannot_measure
@@ -123,7 +122,7 @@ class ImageSizeAnnotatorTest < Test::Unit::TestCase
     File.write(File.join(@dir, 'plain.xhtml'), '<p>no images</p>')
 
     assert_equal 1, ReVIEW::AST::ImageSizeAnnotator.new(@dir).annotate
-    assert_include(File.read(File.join(@dir, 'chapter.xhtml')), 'image-resolution: 300dpi')
+    assert_include(File.read(File.join(@dir, 'chapter.xhtml')), '--natural: 50.800mm')
   end
 
   def test_property_name_is_configurable
@@ -131,7 +130,7 @@ class ImageSizeAnnotatorTest < Test::Unit::TestCase
     annotator = ReVIEW::AST::ImageSizeAnnotator.new(@dir, property: '--intrinsic')
 
     assert_include(annotator.annotate_source(%Q(<img src="#{src}" />), @dir),
-                   'style="--intrinsic: 300dpi"')
+                   'style="--intrinsic: 50.800mm"')
   end
 end
 

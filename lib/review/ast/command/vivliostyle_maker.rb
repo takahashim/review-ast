@@ -33,8 +33,8 @@ module ReVIEW
       #     browser_path: ~                 # default: auto-detect Chrome/Chromium
       #     viewer_path: ~                  # default: viewer bundled in vivlio-pdf
       #     keep_workdir: false             # keep the extracted EPUB tree
-      #     image_intrinsic_size: false     # size figures from the resolution
-      #                                     # embedded in each image (opt-in)
+      #     image_intrinsic_size: true      # size figures from the resolution
+      #                                     # embedded in each image
       class VivliostyleMaker < EPUBMaker
         def produce(yamlfile, bookname = nil)
           super
@@ -56,15 +56,11 @@ module ReVIEW
           error! "OPF not found under #{workdir}." unless opf
 
           apply_frontmatter_overrides(opf, vconfig)
-          # Opt-in: size figures from the resolution embedded in each image, the
-          # way \includegraphics does. Off by default because that resolution is
-          # usually whatever the capture tool wrote rather than a decision the
-          # author made, so the same source would lay out differently after a
-          # screenshot is retaken. Without it a figure is placed at the browser's
-          # reading of its pixels (96dpi), capped by the stylesheet; //image's
-          # scale= is the explicit lever. See ImageSizeAnnotator, and note that
-          # enabling this requires `min-width: 1px` on the figure in the CSS.
-          ImageSizeAnnotator.new(workdir).annotate if vconfig.fetch('image_intrinsic_size', false)
+          # Sized like \includegraphics does, from the resolution embedded in
+          # each image. //image's scale= is a multiplier on that natural size,
+          # so the stylesheet needs it as a value; see ImageSizeAnnotator and
+          # doc/vivliostyle-image-sizing.ja.md.
+          ImageSizeAnnotator.new(workdir).annotate if vconfig.fetch('image_intrinsic_size', true)
 
           # NOTE: not <bookname>.pdf — that would overwrite pdfmaker's output.
           output = File.absolute_path(vconfig['output'] || "#{bookname}-vivliostyle.pdf")

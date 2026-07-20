@@ -10,37 +10,30 @@ require 'review/ast/intrinsic_size'
 
 module ReVIEW
   module AST
-    # Records the resolution embedded in each image on its <img> tag, so that
-    # figures come out at the physical size a TeX toolchain would give them.
+    # Records each image's physical size on its <img> tag, so that a stylesheet
+    # can size figures the way a TeX toolchain does.
     #
     # LaTeX places figures with
     #   \includegraphics[width=<scale>\maxwidth]
     #   \maxwidth = min(natural size, line width)
     # where the natural size comes from the resolution embedded in the image
     # (PNG pHYs, JPEG JFIF density), defaulting to 72dpi. Browsers ignore that
-    # metadata and treat one image pixel as one CSS px (96dpi), so a screenshot
-    # taken at 300dpi grows to the full measure.
+    # metadata and treat one image pixel as one CSS px (96dpi), so the same
+    # figure comes out at a different size. With the size annotated, a
+    # stylesheet reproduces \maxwidth and //image's scale= directly:
     #
-    # Annotating image-resolution corrects the image's *intrinsic* size, so an
-    # ordinary stylesheet caps figures with no cooperation needed:
+    #   width: calc(var(--scale, 1) * min(var(--natural, 100%), 100%))
     #
-    #   img { max-width: 100%; height: auto; }
-    #
-    # This is deliberately a standard property rather than a custom one. A
-    # custom property only works if the stylesheet is written to consume it,
-    # which couples the two silently; and when this annotation does not run,
-    # image-resolution degrades to the browser's 96dpi reading (figures a little
-    # large but still clamped) rather than leaving them unconstrained.
-    #
-    # Renderer notes (Vivliostyle 2.44.1):
-    #   - `image-resolution: from-image` is not implemented, which is why the
-    #     value is resolved here and written out per image.
-    #   - Below 96dpi the renderer enlarges the image by setting min-width,
-    #     which defeats the stylesheet's max-width (min-width wins in CSS).
-    #     Stylesheets must carry `min-width: 1px` to route around it; see
-    #     modifyElemDimensionWithImageResolution in core/src/vivliostyle/vgen.ts.
+    # scale= is a multiplier on the natural size, not a fraction of the measure:
+    # //image[...][scale=0.5] on a figure narrower than the measure has to come
+    # out at half that figure, which is what the LaTeX edition prints and what
+    # documentation of the syntax demonstrates. Expressing that in CSS needs the
+    # natural size as a value, which is why this is a length in mm rather than
+    # the standard image-resolution property -- see
+    # doc/vivliostyle-image-sizing.ja.md for the alternatives that were measured
+    # and rejected.
     class ImageSizeAnnotator
-      DEFAULT_PROPERTY = 'image-resolution'
+      DEFAULT_PROPERTY = '--natural'
       IMG_TAG = /<img\b[^>]*>/
       SRC_ATTRIBUTE = /\ssrc="([^"]*)"/
       ABSOLUTE_URL = /\A[a-z][a-z0-9+.-]*:/i
@@ -69,7 +62,7 @@ module ReVIEW
       # throughout the document for the sake of one attribute.
       def annotate_source(source, basedir)
         source.gsub(IMG_TAG) do |tag|
-          value = resolution_for(tag, basedir)
+          value = width_for(tag, basedir)
           value ? tag.sub(TAG_END, %Q( style="#{@property}: #{value}"\\1)) : tag
         end
       end
@@ -80,24 +73,16 @@ module ReVIEW
         Dir.glob(File.join(@root, '**', '*.{xhtml,html}'))
       end
 
-      def resolution_for(tag, basedir)
+      def width_for(tag, basedir)
         return nil if tag.include?(@property)
 
         source = tag[SRC_ATTRIBUTE, 1]
         return nil if source.nil? || source.empty? || source.match?(ABSOLUTE_URL)
 
         size = IntrinsicSize.of(File.join(basedir, source))
-        return nil unless size && size.dpi.to_f > 0
+        return nil unless size && size.width_mm > 0
 
-        format('%gdpi', tidy(size.dpi))
-      end
-
-      # PNG stores pixels per metre, so converting back to inches leaves values
-      # like 72.009 where the author plainly meant 72. Snap those to the whole
-      # number: the difference is a few micrometres on the page, and the markup
-      # is much easier to read.
-      def tidy(dpi)
-        (dpi - dpi.round).abs < 0.05 ? dpi.round : dpi.round(2)
+        format('%.3fmm', size.width_mm)
       end
     end
   end
