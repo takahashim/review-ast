@@ -1060,6 +1060,25 @@ AST 対 AST の自己整合性であってオラクル比較ではないため�
   未修正の乖離は無い。なお同スイープの `//bibpaper` は bib ファイルを要するためハーネス側の制約で
   エラーになり、集計から除いている。
 
+- 実装済み(手順 5: コーパス全体での残差の解消 / JM-000089)
+  - 手順 1 は構文スイープ(単発の構文断片)で検証していたが、samples の実文書でコーパス全章を
+    走らせると差が残っていた。断片では出ない組み合わせ(章をまたぐ参照、`chapterlink`、
+    複数行段落)が原因。命令単位で 13 件を修正。
+    - TOP のみ: `@<kw>` の `★…☆（…）`、`@<uchar>` の文字化、`@<icon>` のパス、`//noindent` の
+      DTP 連絡、`//texequation` の採番キャプション、`//olnum` の開始番号、`//emtable` キャプションの
+      余分な `■`、`//imgtable` の画像行。最後の 2 つは `visit_block_imgtable`/`visit_block_emtable` が
+      dead code だったことによる(TableNode は全て `visit_table` にディスパッチされる)。
+    - 両形式: `//endnote` の二重出力(定義位置と `//printendnotes` の両方。LaTeX/HTML には
+      既にガードがあった)、`@<title>`/`@<sec>`/`@<sectitle>` が `@<chapref>`/`@<hd>` の形に
+      素通ししていた件、`chapterlink` の未対応。
+    - plaintext のみ: `@<del>` が削除文字列を残していた(ビルダーは落とす)、`@<bib>` の末尾空白。
+  - 段落の行畳み込みは「同じ判断の複製」型: 段落内の改行はソースの整形であって内容ではなく、
+    ビルダーは `split_paragraph`/`join_lines_to_paragraph` で畳む。LaTeX にのみ正しい実装があり、
+    plaintext は `join_lines_by_lang` を無視する版、TOP は畳み込み自体が無かった。
+    `Base#join_paragraph_lines` に一本化。
+  - 検証: 全テスト緑(1223 tests)、rubocop クリーン。コーパス(syntax-book 6 章 + debug-book 4 章)の
+    実質差は、上記「許容している残差」に該当するもののみになった。
+
 ### 意図的に許容している残差(plaintext / TOP)
 
 この 2 形式はバイト一致を目標にしない(方針決定済み)。意味的に正しければよく、次の差は許容する。
@@ -1069,6 +1088,8 @@ AST 対 AST の自己整合性であってオラクル比較ではないため�
   AST の方が情報を保っているため、こちらを採る。
 - 空行の位置: ビルダーは `blank`/`@blank_seen` による連続空行の抑制を持つが、AST は再現していない。
 - 表の罫線幅: 区切り行のダッシュ数と末尾タブの有無。
+- TOP の `@<em>`: TOPBuilder は `inline_em` を持たず、装飾なしの素通しになる(`@<i>` は `▲…☆`)。
+  AST は `▲…☆` を出す。強調の情報が残る方を採る。
 
 上記のため `test_text_renderer_semantics.rb` はバイト一致ではなく情報の有無を検証している。
 LaTeX / HTML / IDGXML の目標(DVI 一致 / rendered-equivalence / byte 一致)は従来どおり変更なし。
