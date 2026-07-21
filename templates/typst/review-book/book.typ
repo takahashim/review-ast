@@ -63,10 +63,6 @@
   "jis-b4": (257mm, 364mm),
   "jis-b5": (182mm, 257mm),
   "jis-b6": (128mm, 182mm),
-  "jp-shiroku-ban-4": (127mm, 188mm),
-  "jp-shiroku-ban-5": (127mm, 188mm),
-  "jp-kiku-4": (227mm, 306mm),
-  "jp-kiku-5": (151mm, 227mm),
 )
 
 #let trim-size(theme) = {
