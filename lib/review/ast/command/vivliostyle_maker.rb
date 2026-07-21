@@ -71,9 +71,15 @@ module ReVIEW
           options[:browser_path] = vconfig['browser_path'] if vconfig['browser_path']
           options[:viewer] = vconfig['viewer_path'] if vconfig['viewer_path']
 
-          result = Vivlio::PDF.print(source: opf, output: output, **options)
+          begin
+            result = Vivlio::PDF.print(source: opf, output: output, **options)
+          ensure
+            # Also on failure: a half-printed run would otherwise leave the
+            # extracted tree behind, and the next run starts by removing it
+            # anyway.
+            FileUtils.remove_entry_secure(workdir) unless vconfig['keep_workdir']
+          end
 
-          FileUtils.remove_entry_secure(workdir) unless vconfig['keep_workdir']
           @logger.success("built #{File.basename(result.path)} (#{result.pages} pages, " \
                           "#{result.bookmarks} bookmarks)")
         end
@@ -102,7 +108,13 @@ module ReVIEW
           from_toc = []
 
           unless vconfig.fetch('cover', true)
-            cover = "#{@config['bookname']}.#{@config['htmlext']}"
+            # config.yml's cover: names the file; the producer only fills in
+            # "<bookname>.<htmlext>" as its default, and the legacy coverfile
+            # path renames it again. Reading it back is the only way to match
+            # the manifest entry.
+            cover = @config['cover'].to_s
+            cover = "#{@config['bookname']}.#{@config['htmlext']}" if cover.empty?
+            cover = File.basename(cover)
             from_spine << cover
             from_toc << cover
           end
@@ -176,11 +188,15 @@ module ReVIEW
         def extract_epub(epubfile, workdir)
           require 'zip'
           FileUtils.rm_rf(workdir)
+          prefix = "#{workdir}#{File::SEPARATOR}"
           Zip::File.open(epubfile) do |zip|
             zip.each do |entry|
               next if entry.directory?
 
               dest = File.join(workdir, entry.name)
+              # An entry named ../x would otherwise be written outside workdir.
+              next unless File.expand_path(dest).start_with?(prefix)
+
               FileUtils.mkdir_p(File.dirname(dest))
               File.binwrite(dest, entry.get_input_stream.read)
             end
