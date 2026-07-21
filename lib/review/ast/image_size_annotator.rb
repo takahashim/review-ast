@@ -82,7 +82,7 @@ module ReVIEW
         size = IntrinsicSize.of(File.join(basedir, source))
         return nil unless size && size.width_mm > 0
 
-        format('%.3fmm', size.width_mm)
+        sprintf('%.3fmm', size.width_mm)
       end
     end
   end

@@ -251,8 +251,8 @@ class TestTextRendererSemantics < Test::Unit::TestCase
     %i[plaintext top].each do |format|
       comparator = ReVIEW::Test::TextComparator.new(format: format)
 
-      assert_equal comparator.convert_with_builder(source).lines.grep(%r{／}),
-                   comparator.convert_with_renderer(source).lines.grep(%r{／}),
+      assert_equal comparator.convert_with_builder(source).lines.grep(/／/),
+                   comparator.convert_with_renderer(source).lines.grep(/／/),
                    format.to_s
     end
   end
