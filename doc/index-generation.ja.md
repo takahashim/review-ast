@@ -39,29 +39,63 @@ HTML / EPUB / Web はページ番号が不要で、アンカーへのリンク�
 
 ## 設計
 
-### 1. `//printindex` ブロック命令を追加する
+### 1. 設定で自動生成される後付録として作る
 
-`//printendnotes` と同じ形にする。著者は後付録の `.re` に `//printindex` と書き、
-それを `catalog.yml` の `POSTDEF` に入れる。
+pdfmaker に合わせる。著者は何も書かない。`makeindex` を真にすると索引ページが後付録
+の決まった位置に現れる。
+
+PDF ではこうなっている。`config.erb` が `\def\review@makeindex{true}` を出し、
+`review-base.sty` がそれを見て `\reviewprintindex` を `\printindex` として定義し、
+`layout.tex.erb` が後付録の固定位置でそれを呼ぶ。
 
 ```
-= 索引
-
-//printindex
+backmatter hook
+postdef body
+index page      ← \reviewprintindex
+profile page
+advfile page
 ```
 
-利点は、ページの生成・目次への登録・EPUB の spine 追加がすべて既存の経路に乗ること。
-maker 側に手を入れる必要がない。
+`.re` ファイルも `catalog.yml` への登録も不要で、設定ひとつで出る。
 
-Re:VIEW 本体に 1 行の追加が要る。
+EPUB 側には同じ形の前例が既にある。`EPUBMaker#copy_backmatter` は設定を見て、著者
+紹介・広告・奥付・裏表紙を後付録に足す。奥付は静的ファイルの複製ではなく、
+`_colophon.html.erb` から生成される。索引ページもこれと同じ扱いにする。
 
 ```ruby
-# lib/review/compiler.rb
-defsingle :printindex, 0
+# copy_backmatter の先頭。LaTeX が postdef の直後・profile の前に置くのに合わせる
+if makeindex?
+  build_indexpage(basetmpdir)
+  @htmltoc.add_item(1, "index.#{@config['htmlext']}",
+                    ReVIEW::I18n.t('indextitle'), chaptype: 'post')
+end
 ```
 
-review-ast 側は `block_processor.rb` に `printindex: :build_control_command_ast` を
-足すだけで、既存の `printendnotes` と同じ扱いになる。
+この形なら Re:VIEW 本体へのブロック命令追加（`defsingle :printindex, 0`）は要らない。
+著者に新しい記法を覚えてもらう必要もない。
+
+なお `//printendnotes` のようなブロック命令として作る案もあったが、それだと著者が
+索引ページの `.re` を書いて `POSTDEF` に登録する必要があり、同じ本の PDF と EPUB で
+手順が食い違う。pdfmaker の挙動に合わせる方を採る。
+
+### 1b. 設定をどこに置くか
+
+現状 `makeindex` は `pdfmaker:` の下にある。
+
+```yaml
+pdfmaker:
+  makeindex: true
+  makeindex_dic: my.dic
+```
+
+`makeindex_command` / `makeindex_options` / `makeindex_sty` / `makeindex_mecab` は
+mendex 固有なので `pdfmaker:` のままでよい。一方 `makeindex` そのものと
+`makeindex_dic`（読み辞書）は形式に依らない。
+
+`epubmaker:` / `webmaker:` にも `makeindex` を置き、読み辞書はトップレベルに上げるのが
+素直だが、既存の `pdfmaker.makeindex_dic` を壊さないよう、当面は
+「`epubmaker.makeindex` が未設定なら `pdfmaker.makeindex` を見る」といった継承で
+逃げる手もある。要検討。
 
 ### 2. 章をまたぐ収集は WebTocBuilder の形を踏襲する
 
@@ -126,23 +160,26 @@ reader = Yomikata.reader(overrides: overrides)
 
 ## 段取り
 
-1. Re:VIEW 本体に `defsingle :printindex, 0` を入れる（要 PR）
-2. review-ast に `BookIndexBuilder` を追加。テストは AST から索引語と掲載箇所を
-   正しく集められることに対して書く
-3. `makeindex: true` のとき HTML レンダラが `@<idx>` に id を出すようにする
-4. `HtmlRenderer#visit_block_printindex` で索引ページを描画する
-5. LaTeX レンダラの `visit_block_printindex` は `\reviewprintindex` を出すか、何も
-   出さない（LaTeX 経路は従来どおり mendex に任せる）
-6. plaintext / TOP / IDGXML は当面何も出さない
+Re:VIEW 本体への変更は要らない。すべて review-ast 側で閉じる。
 
-1 が入るまでは、review-ast 側だけで完結させるために `//embed` か `review-ext.rb` で
-仮に通す手もあるが、正式には本体側の 1 行が要る。
+1. `BookIndexBuilder` を追加。全章の AST から索引語と掲載箇所を集める。テストは
+   「AST から正しく集められること」に対して書く
+2. `makeindex` が真のとき HTML レンダラが `@<idx>` / `@<hidx>` に id を出す
+3. 索引ページのテンプレート（`_index.html.erb`）と、それを描画する処理
+4. `epub_maker` / `web_maker` の後付録に索引ページを差し込む。位置は postdef の直後、
+   著者紹介の前で、LaTeX の並びに合わせる
+5. LaTeX 経路は従来どおり mendex に任せる（当面変更なし）
+6. IDGXML / plaintext / TOP は当面何も出さない
 
 ## 未決
 
+- 設定の置き場所（`epubmaker.makeindex` を新設するか、`pdfmaker.makeindex` を
+  見に行くか）
 - 索引ページのマークアップ（`<dl>` か入れ子 `<ul>` か）。`@<hidx>{親<<>>子}` の階層を
   どう表現するか
 - 同じ語が複数箇所に出るときのリンクの並べ方
 - 英字項目のグループ見出し。`Yomikata::Sorter` は `A` の 1 グループにまとめている
   が、`A` `B` `C` と分けたい本もある
 - Web 版でサイドバーに索引へのリンクを出すか
+- `review-ast` の EPUB は gem の `EPUBMaker` を継承しているだけなので、後付録への
+  差し込みをどう実現するか。`copy_backmatter` の上書きで足りるか要確認
