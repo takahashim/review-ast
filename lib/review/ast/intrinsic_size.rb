@@ -38,14 +38,21 @@ module ReVIEW
 
       # Returns a Size, or nil for formats we cannot measure (SVG has its own
       # sizing rules; unknown formats are left to the browser).
+      #
+      # The whole file is read because the metadata is not bounded to the head:
+      # an ICC profile (iCCP) or Exif block written by an image editor routinely
+      # runs to hundreds of kilobytes and precedes pHYs. Reading a fixed prefix
+      # instead would silently fall back to DEFAULT_DPI and place the figure at
+      # the wrong size. Both scans stop at the first chunk that can no longer be
+      # followed by the metadata, so the cost is the read itself.
       def of(path)
         return nil unless File.file?(path)
 
-        data = File.binread(path, 1024 * 64)
+        data = File.binread(path)
         if data.start_with?(PNG_SIGNATURE)
           png(data)
         elsif data.start_with?("\xFF\xD8".b)
-          jpeg(File.binread(path))
+          jpeg(data)
         end
       rescue StandardError
         nil

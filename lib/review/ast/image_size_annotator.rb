@@ -38,6 +38,9 @@ module ReVIEW
       SRC_ATTRIBUTE = /\ssrc="([^"]*)"/
       ABSOLUTE_URL = /\A[a-z][a-z0-9+.-]*:/i
       TAG_END = %r{(\s*/?>)\z}
+      # //image's metric passes any k="v" through to the tag, so an image can
+      # already carry a style of its own (`//image[id][cap][html::style="..."]`).
+      STYLE_ATTRIBUTE = /(\sstyle=")([^"]*)(")/
 
       def initialize(root, property: DEFAULT_PROPERTY)
         @root = root
@@ -63,11 +66,26 @@ module ReVIEW
       def annotate_source(source, basedir)
         source.gsub(IMG_TAG) do |tag|
           value = width_for(tag, basedir)
-          value ? tag.sub(TAG_END, %Q( style="#{@property}: #{value}"\\1)) : tag
+          value ? annotate_tag(tag, value) : tag
         end
       end
 
       private
+
+      # Merges into an existing style rather than appending a second style
+      # attribute: the chapter files are XHTML, where a duplicate attribute is
+      # a fatal parse error that would take the whole chapter down. The size is
+      # written first so that anything the author declared comes later and wins.
+      def annotate_tag(tag, value)
+        declaration = "#{@property}: #{value}"
+        return tag.sub(TAG_END, %Q( style="#{declaration}"\\1)) unless STYLE_ATTRIBUTE.match?(tag)
+
+        tag.sub(STYLE_ATTRIBUTE) do
+          matched = Regexp.last_match
+          existing = matched[2].strip
+          existing.empty? ? "#{matched[1]}#{declaration}#{matched[3]}" : "#{matched[1]}#{declaration}; #{existing}#{matched[3]}"
+        end
+      end
 
       def documents
         Dir.glob(File.join(@root, '**', '*.{xhtml,html}'))

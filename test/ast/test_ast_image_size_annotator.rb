@@ -6,6 +6,7 @@ require 'test/unit'
 require 'fileutils'
 require 'tmpdir'
 require 'zlib'
+require 'rexml/document'
 require 'review/ast/image_size_annotator'
 require 'review/ast/intrinsic_size'
 
@@ -14,8 +15,11 @@ require 'review/ast/intrinsic_size'
 module ImageFixtures
   module_function
 
-  def png(path, width:, height:, dpi: nil)
+  def png(path, width:, height:, dpi: nil, padding: 0)
     chunks = [chunk('IHDR', [width, height, 8, 2, 0, 0, 0].pack('N2C5'))]
+    # An ICC profile written by an image editor sits between IHDR and pHYs and
+    # is routinely larger than any fixed read-ahead would be.
+    chunks << chunk('iCCP', "profile\0\0" + ("\0" * padding)) if padding > 0
     if dpi
       per_metre = (dpi / 0.0254).round
       chunks << chunk('pHYs', [per_metre, per_metre, 1].pack('N2C'))
@@ -94,6 +98,25 @@ class ImageSizeAnnotatorTest < Test::Unit::TestCase
     assert_include(result, %Q(<img src="#{b}" style="--natural: 101.600mm" />))
   end
 
+  # //image's metric passes any k="v" through, so the tag can already carry a
+  # style. A second style attribute would make the XHTML non-well-formed.
+  def test_merges_into_a_style_the_image_already_has
+    src = image('shot.png', width: 600, height: 400, dpi: 300)
+
+    result = annotate(%Q(<img src="#{src}" style="border: 1px solid" />))
+
+    assert_equal %Q(<img src="#{src}" style="--natural: 50.800mm; border: 1px solid" />),
+                 result
+    assert_nothing_raised { REXML::Document.new("<r>#{result}</r>") }
+  end
+
+  def test_merges_into_an_empty_style
+    src = image('shot.png', width: 600, height: 400, dpi: 300)
+
+    assert_equal %Q(<img src="#{src}" style="--natural: 50.800mm" />),
+                 annotate(%Q(<img src="#{src}" style="" />))
+  end
+
   def test_leaves_alone_what_it_cannot_measure
     [
       '<img src="https://example.com/remote.png" />',
@@ -157,6 +180,16 @@ class IntrinsicSizeTest < Test::Unit::TestCase
     # to within a fiftieth -- real files carry the same rounding.
     assert_in_delta(150.0, size.dpi, 0.02)
     assert_in_delta(234.35, size.width_mm, 0.05)
+  end
+
+  # An embedded ICC profile pushes pHYs past any fixed read-ahead; missing it
+  # would silently place a 300dpi figure at 72dpi, over four times too wide.
+  def test_png_resolution_behind_a_large_chunk
+    ImageFixtures.png(path('icc.png'), width: 600, height: 400, dpi: 300, padding: 200 * 1024)
+    size = ReVIEW::AST::IntrinsicSize.of(path('icc.png'))
+
+    assert_in_delta(300.0, size.dpi, 0.02)
+    assert_in_delta(50.8, size.width_mm, 0.01)
   end
 
   # A pHYs unit other than 1 states an aspect ratio, not a physical size.
