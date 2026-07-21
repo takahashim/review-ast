@@ -26,16 +26,16 @@ module ReVIEW
       # html/layout*.erb), so the output matches the legacy maker (HTML is
       # rendered-equivalent, not byte-identical).
       class EPUBMaker < ReVIEW::EPUBMaker
-        include ReVIEW::AST::StylesheetResolver
-
         private
 
         # The base maker copies stylesheets from the book root only; resolve
         # them through the AST search path (root, css/, bundled) instead.
         def copy_stylesheet(basetmpdir)
-          copy_resolved_stylesheets(basetmpdir) do |name|
+          ReVIEW::AST::StylesheetResolver.new(@config['stylesheet']).copy_to(basetmpdir) do |name|
             @producer.contents.push(ReVIEW::EPUBMaker::Content.new(file: name))
           end
+        rescue ReVIEW::AST::StylesheetResolver::Error => e
+          error! e.message
         end
 
         def build_chap(chap, base_path, basetmpdir, ispart)

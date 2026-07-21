@@ -27,8 +27,6 @@ module ReVIEW
       # and fills the sidebar TOC in post_process, so chapter pages come out as the
       # legacy maker would render them.
       class WebMaker < ReVIEW::WEBMaker
-        include ReVIEW::AST::StylesheetResolver
-
         private
 
         def build_chap(chap, base_path, basetmpdir, ispart)
@@ -89,9 +87,12 @@ module ReVIEW
         # modern default stylesheet alongside them; the layout links it under
         # its fixed name.
         def copy_stylesheet(basetmpdir)
-          copy_resolved_stylesheets(basetmpdir, preserve: false)
+          ReVIEW::AST::StylesheetResolver.new(@config['stylesheet']).
+            copy_to(basetmpdir, preserve: false)
           FileUtils.cp(ReVIEW::AST::WebAssets::STYLESHEET,
                        File.join(basetmpdir, ReVIEW::AST::WebAssets::STYLESHEET_NAME))
+        rescue ReVIEW::AST::StylesheetResolver::Error => e
+          error! e.message
         end
       end
     end

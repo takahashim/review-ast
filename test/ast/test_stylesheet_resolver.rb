@@ -5,19 +5,10 @@ require 'review/ast/stylesheet_resolver'
 require 'tmpdir'
 
 class StylesheetResolverTest < Test::Unit::TestCase
-  class Host
-    include ReVIEW::AST::StylesheetResolver
+  BUNDLED = ReVIEW::AST::StylesheetResolver::BUNDLED_CSS_DIR
 
-    attr_reader :copied
-
-    def initialize(config)
-      @config = config
-      @copied = []
-    end
-
-    def error!(msg)
-      raise msg
-    end
+  def resolver(*names)
+    ReVIEW::AST::StylesheetResolver.new(names)
   end
 
   def with_book_dir
@@ -29,8 +20,7 @@ class StylesheetResolverTest < Test::Unit::TestCase
   def test_resolves_from_book_root
     with_book_dir do
       File.write('style.css', 'a')
-      host = Host.new('stylesheet' => ['style.css'])
-      assert_equal 'style.css', host.resolve_stylesheet('style.css')
+      assert_equal 'style.css', resolver.resolve('style.css')
     end
   end
 
@@ -38,8 +28,7 @@ class StylesheetResolverTest < Test::Unit::TestCase
     with_book_dir do
       Dir.mkdir('css')
       File.write('css/style.css', 'a')
-      host = Host.new('stylesheet' => ['style.css'])
-      assert_equal 'css/style.css', host.resolve_stylesheet('style.css')
+      assert_equal 'css/style.css', resolver.resolve('style.css')
     end
   end
 
@@ -48,26 +37,32 @@ class StylesheetResolverTest < Test::Unit::TestCase
       Dir.mkdir('css')
       File.write('style.css', 'root')
       File.write('css/style.css', 'css')
-      host = Host.new('stylesheet' => ['style.css'])
-      assert_equal 'style.css', host.resolve_stylesheet('style.css')
+      assert_equal 'style.css', resolver.resolve('style.css')
     end
   end
 
   def test_resolves_from_bundled_templates
     with_book_dir do
-      host = Host.new('stylesheet' => ['style-vivliostyle.css'])
-      resolved = host.resolve_stylesheet('style-vivliostyle.css')
-      assert_equal File.join(ReVIEW::AST::StylesheetResolver::BUNDLED_CSS_DIR,
-                             'style-vivliostyle.css'),
-                   resolved
-      assert File.exist?(resolved)
+      resolved = resolver.resolve('style-vivliostyle.css')
+
+      assert_equal File.join(BUNDLED, 'style-vivliostyle.css'), resolved
+      assert_path_exist(resolved)
     end
   end
 
   def test_rejects_names_with_directory_component
     with_book_dir do
-      host = Host.new('stylesheet' => [])
-      assert_raise(RuntimeError) { host.resolve_stylesheet('css/style.css') }
+      error = assert_raise(ReVIEW::AST::StylesheetResolver::Error) do
+        resolver.resolve('css/style.css')
+      end
+      assert_match(/bare filename/, error.message)
+    end
+  end
+
+  def test_reports_a_stylesheet_it_cannot_find
+    with_book_dir do
+      error = assert_raise(ReVIEW::AST::StylesheetResolver::Error) { resolver.resolve('nope.css') }
+      assert_match(/nope\.css is not found/, error.message)
     end
   end
 
@@ -76,21 +71,37 @@ class StylesheetResolverTest < Test::Unit::TestCase
       Dir.mkdir('css')
       Dir.mkdir('out')
       File.write('css/mine.css', 'mine')
-      host = Host.new('stylesheet' => ['mine.css', 'style-vivliostyle.css'])
       yielded = []
-      host.copy_resolved_stylesheets('out') { |name| yielded << name }
+
+      resolver('mine.css', 'style-vivliostyle.css').copy_to('out') { |name| yielded << name }
+
       assert_equal %w[mine.css style-vivliostyle.css], yielded
       assert_equal 'mine', File.read('out/mine.css')
-      assert File.exist?('out/style-vivliostyle.css')
+      assert_path_exist('out/style-vivliostyle.css')
     end
   end
 
-  def test_copy_reports_missing_stylesheet
+  # An installed gem holds the bundled stylesheets read-only; the web output
+  # should not inherit that.
+  def test_copy_can_leave_permissions_behind
     with_book_dir do
       Dir.mkdir('out')
-      host = Host.new('stylesheet' => ['nope.css'])
-      error = assert_raise(RuntimeError) { host.copy_resolved_stylesheets('out') }
-      assert_match(/nope\.css is not found/, error.message)
+      File.write('mine.css', 'mine')
+      File.chmod(0o444, 'mine.css')
+
+      resolver('mine.css').copy_to('out', preserve: false)
+
+      assert_true(File.writable?('out/mine.css'))
+    end
+  end
+
+  def test_copy_of_an_empty_list_does_nothing
+    with_book_dir do
+      Dir.mkdir('out')
+
+      ReVIEW::AST::StylesheetResolver.new(nil).copy_to('out')
+
+      assert_empty(Dir.children('out'))
     end
   end
 end
