@@ -131,11 +131,12 @@
 
 // ---------------------------------------------------- front and back matter
 
-#let cover(image-path: none, title: none, authors: (), theme: none) = book.cover(
+#let cover(image-path: none, title: none, authors: (), theme: none, force: false) = book.cover(
   image-path: image-path,
   title: title,
   authors: authors,
   theme: theme,
+  force: force,
 )
 
 #let titlepage(title: none, subtitle: none, authors: (), publisher: none) = book.titlepage(

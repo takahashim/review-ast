@@ -704,7 +704,13 @@
 
 // ------------------------------------------------------- front and back matter
 
-#let cover(image-path: none, title: none, authors: (), theme: none) = {
+#let cover(image-path: none, title: none, authors: (), theme: none, force: false) = {
+  // A press-ready body PDF carries no cover: the cover is submitted to the
+  // printer as separate spread data (front, spine, back). So when crop marks
+  // are on, the cover page is skipped by default -- the same semantics as
+  // review-jsbook's media=print, whose cover=true likewise forces one in.
+  if theme != none and theme.crop.enabled and not force { return }
+
   // Cover art has to run into the bleed, so its page keeps just enough margin
   // to sit on the trim box plus the bleed -- not zero, which would spill over
   // the crop marks.

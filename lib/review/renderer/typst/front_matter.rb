@@ -30,6 +30,13 @@ module ReVIEW
           @config.fetch('cover', true) && !cover_image.nil?
         end
 
+        # An explicit `cover: true` keeps the cover page even in a press PDF
+        # (crop marks on), where it is otherwise skipped -- the same meaning
+        # the key has for review-jsbook's media=print.
+        def cover_forced?
+          @config['cover'] == true
+        end
+
         # @return [Text, nil] Path from the Typst project root
         def cover_image
           name = Text.presence(@config['coverimage'])

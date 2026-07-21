@@ -32,7 +32,7 @@
 // (doc/typst-review-book.md).
 #show: if theme.at("hooks", default: none) == none { doc => doc } else { theme.hooks }
 <% if book.front_matter.cover? %>
-#review.cover(theme: <%= book.theme.expression %>, image-path: <%= book.front_matter.cover_image.literal %>, title: <%= book.metadata.title.content %>, authors: ((name: <%= book.metadata.author_line.content %>),))
+#review.cover(theme: <%= book.theme.expression %>, image-path: <%= book.front_matter.cover_image.literal %>, title: <%= book.metadata.title.content %>, authors: ((name: <%= book.metadata.author_line.content %>),)<% if book.front_matter.cover_forced? %>, force: true<% end %>)
 <% end %>
 <% if book.front_matter.titlepage? %>
 #review.titlepage(title: <%= book.metadata.title.content %><% if book.metadata.subtitle %>, subtitle: <%= book.metadata.subtitle.content %><% end %>, authors: ((name: <%= book.metadata.author_line.content %>),)<% if book.metadata.publisher %>, publisher: <%= book.metadata.publisher.content %><% end %>)
