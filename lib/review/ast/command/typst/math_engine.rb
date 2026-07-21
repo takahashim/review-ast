@@ -52,9 +52,9 @@ module ReVIEW
           # mitex comes from the Typst package registry, which needs network
           # access on first use. Say so before the compile stalls on a fetch.
           #
-          # The pinned version has to be the one present: another version in the
-          # cache does not help, since mitex renamed its inline entry point
-          # between releases.
+          # The pinned version has to be the one present: another version in
+          # the cache does not help, since the import in math-mitex.typ names
+          # the exact version.
           def warn_unless_cached
             version = pinned_version
             return if version.nil? || cached?(version)

@@ -401,10 +401,10 @@ module ReVIEW
           out, status = Open3.capture2e(*args)
           return if status.success?
 
-          # Typst reports positions in the generated .typ. Mapping those back to
-          # the manuscript needs a source map, which is a later phase
-          # (doc/design-typst.md); until then the generated
-          # tree is kept so the reported position can be looked up.
+          # Typst reports positions in the generated .typ, which is not what the
+          # author wrote: the source map turns each of them into a manuscript
+          # position alongside (doc/design-typst.md). The generated tree is kept
+          # on failure either way, since only it can be read by line number.
           @logger.error("typst compile failed:\n#{source_map.annotate(out)}")
           error! "Typst build failed. The generated sources are kept at #{build_dir}."
         end
