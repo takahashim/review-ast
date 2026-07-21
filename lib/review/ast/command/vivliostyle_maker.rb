@@ -7,8 +7,9 @@
 # the GNU LGPL, Lesser General Public License version 2.1.
 
 require 'fileutils'
-require 'rexml/document'
+require 'review/ast/epub_publication'
 require 'review/ast/image_size_annotator'
+require 'review/ast/vivliostyle_config'
 require_relative 'epub_maker'
 
 module ReVIEW
@@ -24,17 +25,13 @@ module ReVIEW
       # vivlio-pdf is a soft dependency (AGPL, browser-driving), so it is
       # required lazily; everything in this file is plain LGPL Ruby.
       #
+      # The publication itself is EpubPublication's business and the settings
+      # are VivliostyleConfig's; what is left here is the order of the steps.
+      #
       # config.yml:
       #   stylesheet: ["style-vivliostyle.css"]   # the CSS defines the page layout
-      #   vivliostyle:
-      #     output: mybook-vivliostyle.pdf  # default: <bookname>-vivliostyle.pdf
-      #     outline: toc                    # toc (default) / headings / none
-      #     timeout: 300
-      #     browser_path: ~                 # default: auto-detect Chrome/Chromium
-      #     viewer_path: ~                  # default: viewer bundled in vivlio-pdf
-      #     keep_workdir: false             # keep the extracted EPUB tree
-      #     image_intrinsic_size: true      # size figures from the resolution
-      #                                     # embedded in each image
+      #   vivliostyle:                            # see VivliostyleConfig
+      #     output: mybook-vivliostyle.pdf
       class VivliostyleMaker < EPUBMaker
         def produce(yamlfile, bookname = nil)
           super
@@ -45,43 +42,38 @@ module ReVIEW
 
         def build_pdf(bookname)
           require_vivlio_pdf
-          vconfig = @config['vivliostyle'] || {}
+          vconfig = VivliostyleConfig.new(@config['vivliostyle'])
 
           epubfile = File.absolute_path("#{bookname}.epub")
           error! "#{epubfile} not found." unless File.exist?(epubfile)
 
-          workdir = File.absolute_path("#{bookname}-vivliostyle")
-          extract_epub(epubfile, workdir)
-          opf = Dir.glob(File.join(workdir, '**', '*.opf')).min
-          error! "OPF not found under #{workdir}." unless opf
-
-          apply_frontmatter_overrides(opf, vconfig)
+          publication = extract_publication(epubfile, bookname)
+          apply_frontmatter_overrides(publication, vconfig)
           # Sized like \includegraphics does, from the resolution embedded in
           # each image. //image's scale= is a multiplier on that natural size,
           # so the stylesheet needs it as a value; see ImageSizeAnnotator and
           # doc/vivliostyle-image-sizing.ja.md.
-          ImageSizeAnnotator.new(workdir).annotate if vconfig.fetch('image_intrinsic_size', true)
+          ImageSizeAnnotator.new(publication.root).annotate if vconfig.image_intrinsic_size?
 
-          # NOTE: not <bookname>.pdf — that would overwrite pdfmaker's output.
-          output = File.absolute_path(vconfig['output'] || "#{bookname}-vivliostyle.pdf")
-
-          options = { outline: (vconfig['outline'] || 'toc').to_sym,
-                      metadata: pdf_metadata }
-          options[:timeout] = vconfig['timeout'] if vconfig['timeout']
-          options[:browser_path] = vconfig['browser_path'] if vconfig['browser_path']
-          options[:viewer] = vconfig['viewer_path'] if vconfig['viewer_path']
-
-          begin
-            result = Vivlio::PDF.print(source: opf, output: output, **options)
-          ensure
-            # Also on failure: a half-printed run would otherwise leave the
-            # extracted tree behind, and the next run starts by removing it
-            # anyway.
-            FileUtils.remove_entry_secure(workdir) unless vconfig['keep_workdir']
-          end
-
+          result = print_pdf(publication, vconfig, bookname)
           @logger.success("built #{File.basename(result.path)} (#{result.pages} pages, " \
                           "#{result.bookmarks} bookmarks)")
+        end
+
+        def extract_publication(epubfile, bookname)
+          EpubPublication.extract(epubfile, File.absolute_path("#{bookname}-vivliostyle"))
+        rescue EpubPublication::Error => e
+          error! e.message
+        end
+
+        def print_pdf(publication, vconfig, bookname)
+          output = File.absolute_path(vconfig.output_for(bookname))
+          Vivlio::PDF.print(source: publication.opf, output: output,
+                            **vconfig.print_options(metadata: pdf_metadata))
+        ensure
+          # Also on failure: a half-printed run would otherwise leave the
+          # extracted tree behind, and the next run starts by removing it anyway.
+          publication.discard unless vconfig.keep_workdir?
         end
 
         def require_vivlio_pdf
@@ -97,110 +89,30 @@ module ReVIEW
         # title page in the navigation; neither can be switched off from
         # config.yml. Print output usually wants neither -- the cover is
         # submitted separately, and LaTeX's media=print drops it too
-        # (review-jsbook.cls sets \@reclscoverfalse) -- so adjust the unzipped
+        # (review-jsbook.cls sets \@reclscoverfalse) -- so adjust the unpacked
         # publication before handing it to the renderer.
-        #
-        #   vivliostyle:
-        #     cover: false          # 表紙ページを出力しない
-        #     toc_titlepage: false  # 目次に大扉を載せない
-        def apply_frontmatter_overrides(opf, vconfig)
+        def apply_frontmatter_overrides(publication, vconfig)
           from_spine = []
           from_toc = []
 
-          unless vconfig.fetch('cover', true)
-            # config.yml's cover: names the file; the producer only fills in
-            # "<bookname>.<htmlext>" as its default, and the legacy coverfile
-            # path renames it again. Reading it back is the only way to match
-            # the manifest entry.
-            cover = @config['cover'].to_s
-            cover = "#{@config['bookname']}.#{@config['htmlext']}" if cover.empty?
-            cover = File.basename(cover)
-            from_spine << cover
-            from_toc << cover
+          unless vconfig.cover?
+            from_spine << cover_document
+            from_toc << cover_document
           end
-          unless vconfig.fetch('toc_titlepage', true)
-            from_toc << "titlepage.#{@config['htmlext']}"
-          end
-          return if from_spine.empty? && from_toc.empty?
+          from_toc << "titlepage.#{@config['htmlext']}" unless vconfig.toc_titlepage?
 
-          package = read_xml(opf)
-          remove_spine_items(package, from_spine)
-          nav = nav_file(opf, package)
-          write_xml(opf, package)
-
-          return unless nav && File.exist?(nav)
-
-          toc = read_xml(nav)
-          remove_toc_items(toc, from_toc)
-          write_xml(nav, toc)
+          publication.remove_from_spine(from_spine)
+          publication.remove_from_toc(from_toc)
         end
 
-        def read_xml(path)
-          REXML::Document.new(File.read(path))
-        end
-
-        def write_xml(path, doc)
-          File.write(path, doc.to_s)
-        end
-
-        # Drop <itemref>s whose manifest entry points at one of +hrefs+.
-        # The manifest item itself stays: dangling manifest entries are
-        # harmless, and keeping them avoids breaking other references.
-        def remove_spine_items(package, hrefs)
-          return if hrefs.empty?
-
-          ids = each_element(package, 'item').
-                select { |item| hrefs.include?(item.attributes['href']) }.
-                map { |item| item.attributes['id'] }
-          each_element(package, 'itemref').each do |itemref|
-            itemref.parent.delete_element(itemref) if ids.include?(itemref.attributes['idref'])
-          end
-        end
-
-        # Drop the <li> wrapping each link to one of +hrefs+.
-        def remove_toc_items(toc, hrefs)
-          return if hrefs.empty?
-
-          each_element(toc, 'a').each do |anchor|
-            next unless hrefs.include?(anchor.attributes['href'])
-
-            item = anchor.parent
-            item = item.parent while item && item.name != 'li'
-            item&.parent&.delete_element(item)
-          end
-        end
-
-        def nav_file(opf, package)
-          item = each_element(package, 'item').
-                 find { |i| i.attributes['properties'].to_s.split.include?('nav') }
-          item && File.join(File.dirname(opf), item.attributes['href'])
-        end
-
-        # OPF and XHTML both use default namespaces, which REXML's XPath does
-        # not resolve by element name alone; match on the local name instead.
-        def each_element(doc, name)
-          REXML::XPath.match(doc, "//*[local-name()='#{name}']")
-        end
-
-        # Extract with rubyzip (a dependency of the review gem). Reading each
-        # entry avoids the Zip::Entry#extract signature differences between
-        # rubyzip 2 and 3.
-        def extract_epub(epubfile, workdir)
-          require 'zip'
-          FileUtils.rm_rf(workdir)
-          prefix = "#{workdir}#{File::SEPARATOR}"
-          Zip::File.open(epubfile) do |zip|
-            zip.each do |entry|
-              next if entry.directory?
-
-              dest = File.join(workdir, entry.name)
-              # An entry named ../x would otherwise be written outside workdir.
-              next unless File.expand_path(dest).start_with?(prefix)
-
-              FileUtils.mkdir_p(File.dirname(dest))
-              File.binwrite(dest, entry.get_input_stream.read)
-            end
-          end
+        # config.yml's cover: names the file; the producer only fills in
+        # "<bookname>.<htmlext>" as its default, and the legacy coverfile path
+        # renames it again. Reading it back is the only way to match the
+        # manifest entry.
+        def cover_document
+          name = @config['cover'].to_s
+          name = "#{@config['bookname']}.#{@config['htmlext']}" if name.empty?
+          File.basename(name)
         end
 
         def pdf_metadata
