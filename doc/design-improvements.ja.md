@@ -1316,8 +1316,9 @@ Vivliostyle の表はすべて自動レイアウトになる。固定幅列(LaTe
   対象の選別は `value_for_target` をそのまま使い、`|latex|` 限定は無視、
   汎用指定と `|vivliostyle|` / `|html|` 指定を拾う。
 
-動作する実装とテストは一度コミットしたうえで取り消してある
-(ef0f0f2、revert は 8d3229b)。再開するときは revert の revert で復元できる。
+動作する実装とテストは一度コミットしたうえで取り消してある。ブランチ
+`vivliostyle-maker` の「//tsize を Vivliostyle の表の列幅に翻訳する」と、
+その直後の revert がそれで、再開するときは revert の revert で復元できる。
 
 ### 見送りの理由と再開の条件
 

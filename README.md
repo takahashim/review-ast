@@ -26,6 +26,8 @@ Current scope:
   - `review-ast-dump2re` — regenerate Re:VIEW source from the AST
   - `review-ast-compile` — render a chapter (`--target html|latex|idgxml`)
   - `review-ast-pdfmaker` / `review-ast-idgxmlmaker` / `review-ast-textmaker` — book makers
+  - `review-ast-vivliostylemaker` — PDF through Vivliostyle (CSS paged media)
+    instead of LaTeX; needs Chrome/Chromium and the `vivlio-pdf` gem
 
 EPUB maker and Markdown input exist in the upstream `ast-renderer` branch and can
 be brought in as follow-ups.
