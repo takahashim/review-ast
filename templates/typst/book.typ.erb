@@ -39,7 +39,7 @@
 <% end %>
 #show: book.frontmatter
 <% if book.front_matter.toc? %>
-#review.toc(title: <%= book.front_matter.toc_title.content %>)
+#review.toc(title: <%= book.front_matter.toc_title.content %><% if book.front_matter.toc_depth %>, depth: <%= book.front_matter.toc_depth %><% end %>)
 <% end %>
 <% chapters.predef.each do |file| %>
 #include "/chapters/<%= file.basename %>.typ"

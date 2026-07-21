@@ -51,6 +51,18 @@ module ReVIEW
           Text.new(ReVIEW::I18n.t('toctitle'))
         end
 
+        # How deep the table of contents goes. The depth belongs to the book,
+        # not to the theme: EPUB and the LaTeX path both read `toclevel`, so
+        # leaving it to the theme would give one manuscript a different table
+        # of contents per format. The theme's own depth stays as the default
+        # for documents written against `book.*` by hand.
+        #
+        # @return [Integer, nil] nil when the book states no usable level
+        def toc_depth
+          level = @config['toclevel'].to_i
+          level > 0 ? level : nil
+        end
+
         private
 
         def imagedir

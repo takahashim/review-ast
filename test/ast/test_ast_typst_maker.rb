@@ -42,6 +42,22 @@ class TestAstTypstMaker < Test::Unit::TestCase
     end
   end
 
+  # toclevel decides how deep the table of contents goes, and both EPUB and the
+  # LaTeX path honour it. Leaving it to the theme would give one manuscript a
+  # different table of contents per format.
+  def test_toclevel_sets_the_table_of_contents_depth
+    Dir.mktmpdir do |dir|
+      # 4, not the theme's own default of 2: the assertion has to fail if the
+      # depth stops coming from the book's configuration.
+      write_book(dir, extra_config: "toc: true\ntoclevel: 4\ntypst:\n  keep_workdir: true\n")
+
+      output = IO.popen([BIN, File.join(dir, 'config.yml'), { err: %i[child out] }], &:read)
+      root = File.read(File.join(dir, 'book-typst', 'book.typ'))
+
+      assert_match(/#review\.toc\([^)]*depth: 4\)/, root, output)
+    end
+  end
+
   # The book furniture the other makers get from a LaTeX class or the EPUB
   # pipeline is generated here instead, so its absence would be silent.
   def test_builds_front_and_back_matter
