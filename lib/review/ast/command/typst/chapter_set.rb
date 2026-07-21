@@ -6,10 +6,6 @@
 # You can distribute or modify this program under the terms of
 # the GNU LGPL, Lesser General Public License version 2.1.
 
-require 'review/i18n'
-require_relative 'chapter_file'
-require 'review/renderer/typst/text'
-
 module ReVIEW
   module AST
     module Command
@@ -19,6 +15,11 @@ module ReVIEW
         class ChapterSet
           PARTS = %i[predef chaps appendix postdef].freeze
 
+          # One generated chapter file. Exactly one of the last two is set: a
+          # chapter to compile and render, or source already spelled out for a
+          # part that has no .re file to compile.
+          Entry = Struct.new(:basename, :chapter, :source)
+
           def initialize
             @groups = PARTS.to_h { |name| [name, []] }
           end
@@ -27,7 +28,7 @@ module ReVIEW
             @groups.fetch(part_name) << file
           end
 
-          # @return [Array<ChapterFile>]
+          # @return [Array<Entry>]
           def fetch(part_name)
             @groups.fetch(part_name)
           end

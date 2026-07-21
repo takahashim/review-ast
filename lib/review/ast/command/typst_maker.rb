@@ -22,6 +22,7 @@ require 'review/renderer/typst_renderer'
 require_relative 'typst/chapter_set'
 require 'review/renderer/typst/erb_template'
 require_relative 'typst/math_engine'
+require 'review/renderer/typst/part_document'
 require 'review/renderer/typst/root_document'
 require 'review/renderer/typst/source_map'
 
@@ -272,7 +273,7 @@ module ReVIEW
               next unless build?(basename)
 
               chapters.add(Typst::ChapterSet.group_for(chapter),
-                           Typst::ChapterFile.for_source(basename, chapter))
+                           Typst::ChapterSet::Entry.new(basename, chapter, nil))
             end
           end
 
@@ -287,13 +288,16 @@ module ReVIEW
 
           @config['use_part'] = true
           unless part.file?
-            return chapters.add(:chaps, Typst::ChapterFile.for_part(part))
+            source = ReVIEW::Renderer::Typst::PartDocument.source(
+              part, ReVIEW::Renderer::TypstRenderer::LIBRARY_IMPORT
+            )
+            return chapters.add(:chaps, Typst::ChapterSet::Entry.new("part-#{part.number}", nil, source))
           end
 
           basename = File.basename(part.path, '.*')
           return unless build?(basename)
 
-          chapters.add(:chaps, Typst::ChapterFile.for_source(basename, part))
+          chapters.add(:chaps, Typst::ChapterSet::Entry.new(basename, part, nil))
         end
 
         def build?(basename)
@@ -304,10 +308,10 @@ module ReVIEW
         # which is what keeps //graph's images inside it.
         def render_chapters(chapters)
           chapters.each do |file|
-            if file.compiled?
+            if file.chapter
               render_chapter(file.chapter, file.basename)
             else
-              write_chapter(file.basename, file.part_source(ReVIEW::Renderer::TypstRenderer::LIBRARY_IMPORT))
+              write_chapter(file.basename, file.source)
             end
           end
         end
