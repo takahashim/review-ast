@@ -81,6 +81,7 @@ $ @<b>{ls /}
 === 表
 表はtableを使います。@<table>{tab2-1}
 
+//tsize[15,45,60]
 //table[tab2-1][表の@<b>{例}@<fn>{tabalign}]{
 #@#//table[tab2-1][表の@<b>{例}]{
 A	B	C
