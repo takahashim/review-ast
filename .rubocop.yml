@@ -332,3 +332,4 @@ Gemspec/DevelopmentDependencies:
   Exclude:
     - samples/syntax-book/Gemfile
     - samples/debug-book/Gemfile
+    - samples/md-syntax-book/Gemfile
