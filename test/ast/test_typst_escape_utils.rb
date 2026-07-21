@@ -39,9 +39,11 @@ class TestTypstEscapeUtils < Test::Unit::TestCase
   def test_escapes_line_leading_markers_only_when_they_are_markers
     assert_equal '\\- item', escape_typst('- item')
     assert_equal '\\= heading', escape_typst('= heading')
+    assert_equal '\\/ term: description', escape_typst('/ term: description')
     assert_equal '1\\. item', escape_typst('1. item')
     assert_equal '1.5', escape_typst('1.5')
     assert_equal '-3', escape_typst('-3')
+    assert_equal 'and/or', escape_typst('and/or')
   end
 
   def test_escapes_line_leading_markers_on_later_lines
