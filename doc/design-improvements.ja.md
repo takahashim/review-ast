@@ -1259,3 +1259,47 @@ review-ast 側には受け口だけが残っている。
   機能し始めた時点で、maker 経由のビルドもそのまま通る見込みである。
 - `Diff::Markdown` の正規化オプション 5 種は、`Diff::Latex` と同様のコンフィグ過剰(lib/diff レビューでの指摘と同種)であり、移植時に実使用分へ縮めてよい。
 - Markdown 方言の拡張(定義リストの入力対応、インライン HTML の EmbedNode 化)は、取り込み完了後の別項目とする。
+
+## 11. //tsize の Vivliostyle への翻訳(アイデア、未実施)
+
+### 動機
+
+`//tsize` は LaTeX では列指定、IDGXML では mm 幅になるが、HTML 系では捨てられ、
+Vivliostyle の表はすべて自動レイアウトになる。固定幅列(LaTeX の p 列)で
+折り返しを制御したい表が CSS 組版で再現できない。
+
+### 設計
+
+情報は AST まで来ている(`TableNode#tsize` が生値を保持し、
+`TableColumnWidthParser.value_for_target` がビルダ限定指定を選別する)ので、
+翻訳は二段で行う。
+
+- HtmlRenderer は epubmaker 経由のときだけ `//tsize` の生値を
+  `<table data-tsize="...">` として透過する。描画に影響しない不活性な属性で、
+  プレーン HTML と webmaker はレガシー HTMLBuilder とのパリティを保つ。
+- VivliostyleMaker が組版前の後処理(ImageSizeAnnotator と同型の
+  TableWidthAnnotator)で data-tsize を `<colgroup>` に変換する。数値形式は mm、
+  `p{長さ}` は CSS 単位のもののみ幅として拾う。全列の幅が揃うときは
+  `table-layout: fixed` と合計幅も与え、「固定幅内で折り返す」p 列の挙動を
+  再現する。l/c/r と罫線位置は colgroup で表現できないので扱わない。
+  対象の選別は `value_for_target` をそのまま使い、`|latex|` 限定は無視、
+  汎用指定と `|vivliostyle|` / `|html|` 指定を拾う。
+
+動作する実装とテストは一度コミットしたうえで取り消してある
+(ef0f0f2、revert は 8d3229b)。再開するときは revert の revert で復元できる。
+
+### 見送りの理由と再開の条件
+
+これまで `//tsize` は HTML 系出力に影響しなかったため、汎用の数値指定
+(`//tsize[10,18,50]`)を書いている既存の本では EPUB / Vivliostyle の紙面が
+変わる。導入するなら非互換の受け皿が要る:
+
+- 既定を off(`vivliostyle: table_tsize: true` で opt-in)にする、または
+- 効果を `|vivliostyle|` 明示指定に限る(汎用指定は従来どおり無視する)、または
+- メジャーバージョン境界で既定 on に切り替える。
+
+### 検証
+
+サンプル表(syntax-book 表2.1)に汎用 tsize を付けた紙面で、列幅の反映と
+固定幅内の折り返し、`|latex|` 限定指定がスキップされることを確認済み。
+単体テストは TableWidthAnnotator の revert 前コミットにある。
