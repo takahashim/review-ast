@@ -22,18 +22,17 @@
 
 #let renderer(name) = theme-state.get().renderers.at(name)
 
-// レンダラは最後にテーマを受け取る。呼び出し側でいちいち取り出さずに済むよう
-// にまとめる。
 #let apply(name, ..args) = context {
   let t = theme-state.get()
   (t.renderers.at(name))(..args, t)
 }
 
-// 版面から余白を導出する。
+// Derive the margins from the text block.
 //
-// 指定するのは天とノドだけで、地と小口はここで決まる。ノドを広げれば小口が
-// 同じだけ狭くなり、版面そのものは動かない(style-vivliostyle-design.css と
-// 同じ考え方)。
+// Only the head space and the gutter are stated; the foot and the fore-edge
+// are decided here. Widening the gutter narrows the fore-edge by the same
+// amount -- the text block itself never moves (the same approach as
+// style-vivliostyle-design.css).
 #let derived-margins(theme, paper-size) = {
   let block-size = text-block-size(theme)
   let (pw, ph) = paper-size
@@ -198,7 +197,7 @@
   // keeps its position relative to the trim box, not to the sheet.
   let crop-on = theme.crop.enabled
   let extra = if crop-on { crop-margins(theme) } else { (x: 0pt, y: 0pt) }
-  // 仕上がり寸法。トンボを付けないときも余白の導出には仕上がりを使う。
+  // The trim size. Margin derivation uses it even when no marks are drawn.
   let trim = trim-size(theme)
   let sheet = if crop-on {
     (width: trim.at(0) + 2 * extra.x, height: trim.at(1) + 2 * extra.y)
@@ -224,9 +223,10 @@
     background: if crop-on { crop-marks(theme) },
   )
 
-  // 行送りを決定的にする。Typst の leading は行箱の隙間なので、行箱を 1em に
-  // 固定すれば baseline 間 = 1em + leading になる。既定の top-edge は
-  // cap-height でフォントごとに変わってしまい、行送りを指定できない。
+  // Make the line feed deterministic. Typst's leading is the gap between
+  // line boxes, so pinning the box to 1em makes the baseline distance
+  // exactly 1em + leading. The default top-edge is the cap height, which
+  // varies per font and would make the line feed unspecifiable.
   set text(
     font: theme.fonts.body,
     size: theme.text.size,
@@ -316,7 +316,14 @@
   let number = (t.renderers.page-number)(counter(page).display(numbering-state.get()), t)
   let placement = if not t.two-sided {
     center
-  } else if calc.even(here().page()) { left } else { right }
+  } else {
+    let odd = calc.odd(here().page())
+    if t.binding == "right" {
+      if odd { left } else { right }
+    } else {
+      if odd { right } else { left }
+    }
+  }
   align(placement, number)
 }
 
@@ -783,7 +790,8 @@
     for line in history { block(below: 0.3em, line) }
     if history.len() > 0 { v(0.8em) }
 
-    // ラベルの幅を揃える。「著　者」と「発行所」が同じ幅で始まる。
+    // Even out the label column so "著　者" and "発行所" start their values
+    // at the same position.
     grid(
       columns: (auto, 1fr),
       column-gutter: 1em,
