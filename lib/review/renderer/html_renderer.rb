@@ -240,17 +240,6 @@ module ReVIEW
                          ''
                        end
 
-        # The raw //tsize rides along as an inert data attribute so the
-        # Vivliostyle stage, which only sees the packaged XHTML, can turn it
-        # into column widths (TableWidthAnnotator). EPUB output only: plain
-        # HTML and webmaker stay parity with the legacy HTMLBuilder, which
-        # drops //tsize.
-        tsize_attr = if node.tsize && config.maker == 'epubmaker'
-                       %Q( data-tsize="#{escape_content(node.tsize)}")
-                     else
-                       ''
-                     end
-
         # Process table content with table context
         table_html = @rendering_context.with_child_context(:table) do |table_context|
           # Process all table rows using visitor pattern with table context
@@ -258,7 +247,7 @@ module ReVIEW
           rows_html = all_rows.map { |row| visit_with_context(row, table_context) }.join("\n")
           rows_html += "\n" unless rows_html.empty?
 
-          %Q(<table#{tsize_attr}>
+          %Q(<table>
 #{rows_html}</table>)
         end
 

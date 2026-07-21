@@ -9,7 +9,6 @@
 require 'fileutils'
 require 'rexml/document'
 require 'review/ast/image_size_annotator'
-require 'review/ast/table_width_annotator'
 require_relative 'epub_maker'
 
 module ReVIEW
@@ -36,8 +35,6 @@ module ReVIEW
       #     keep_workdir: false             # keep the extracted EPUB tree
       #     image_intrinsic_size: true      # size figures from the resolution
       #                                     # embedded in each image
-      #     table_tsize: true               # turn //tsize into CSS column
-      #                                     # widths (LaTeX-like p columns)
       class VivliostyleMaker < EPUBMaker
         def produce(yamlfile, bookname = nil)
           super
@@ -64,9 +61,6 @@ module ReVIEW
           # so the stylesheet needs it as a value; see ImageSizeAnnotator and
           # doc/vivliostyle-image-sizing.ja.md.
           ImageSizeAnnotator.new(workdir).annotate if vconfig.fetch('image_intrinsic_size', true)
-          # //tsize を LaTeX の p 列に相当する固定幅列へ翻訳する。
-          # see TableWidthAnnotator.
-          TableWidthAnnotator.new(workdir).annotate if vconfig.fetch('table_tsize', true)
 
           # NOTE: not <bookname>.pdf — that would overwrite pdfmaker's output.
           output = File.absolute_path(vconfig['output'] || "#{bookname}-vivliostyle.pdf")
