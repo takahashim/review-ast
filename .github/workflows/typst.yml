@@ -44,6 +44,46 @@ jobs:
       - name: Install poppler-utils and CJK fonts
         run: sudo apt-get update && sudo apt-get install -y poppler-utils fonts-noto-cjk
 
+      # veraPDF is the second stage of the PDF/A and PDF/UA check. Typst's own
+      # export check knows only what Typst can see; veraPDF reads the finished
+      # file. The test skips this stage silently when the binary is absent, so
+      # without it a conformance regression would pass here unnoticed -- the
+      # same trap as the missing CJK fonts above.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # The installer is IzPack: unattended mode takes an XML file holding the
+      # answers a human would click through. Only the CLI pack is wanted, and
+      # the path to the XML has to be absolute -- a relative one is not
+      # resolved. The URL is the latest stable build, so a veraPDF release that
+      # reorders the packs would need this list updated.
+      - name: Install veraPDF
+        run: |
+          curl -sSL -o verapdf-installer.zip https://software.verapdf.org/releases/verapdf-installer.zip
+          unzip -q verapdf-installer.zip
+          cat > "$RUNNER_TEMP/verapdf-install.xml" <<XML
+          <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+          <AutomatedInstallation langpack="eng">
+          <com.izforge.izpack.panels.htmlhello.HTMLHelloPanel id="welcome"/>
+          <com.izforge.izpack.panels.target.TargetPanel id="install_dir">
+          <installpath>$RUNNER_TEMP/verapdf</installpath>
+          </com.izforge.izpack.panels.target.TargetPanel>
+          <com.izforge.izpack.panels.packs.PacksPanel id="sdk_pack_select">
+          <pack index="0" name="veraPDF GUI" selected="false"/>
+          <pack index="1" name="veraPDF CLI" selected="true"/>
+          <pack index="2" name="veraPDF Documentation" selected="false"/>
+          <pack index="3" name="veraPDF Sample Plugins" selected="false"/>
+          </com.izforge.izpack.panels.packs.PacksPanel>
+          <com.izforge.izpack.panels.install.InstallPanel id="install"/>
+          <com.izforge.izpack.panels.finish.FinishPanel id="finish"/>
+          </AutomatedInstallation>
+          XML
+          verapdf-greenfield-*/verapdf-install "$RUNNER_TEMP/verapdf-install.xml"
+          "$RUNNER_TEMP/verapdf/verapdf" --version
+          echo "$RUNNER_TEMP/verapdf" >> "$GITHUB_PATH"
+
       - name: Build books with Typst
         run: bundle exec ruby -Itest test/ast/test_ast_typst_maker.rb
 
