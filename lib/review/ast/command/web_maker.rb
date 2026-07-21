@@ -89,7 +89,7 @@ module ReVIEW
         # modern default stylesheet alongside them; the layout links it under
         # its fixed name.
         def copy_stylesheet(basetmpdir)
-          copy_resolved_stylesheets(basetmpdir)
+          copy_resolved_stylesheets(basetmpdir, preserve: false)
           FileUtils.cp(ReVIEW::AST::WebAssets::STYLESHEET,
                        File.join(basetmpdir, ReVIEW::AST::WebAssets::STYLESHEET_NAME))
         end

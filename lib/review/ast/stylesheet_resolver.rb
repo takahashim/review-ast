@@ -41,11 +41,16 @@ module ReVIEW
       # Copies each stylesheet in the config into +basetmpdir+, yielding the
       # name for maker-specific bookkeeping (the EPUB maker registers it in
       # the manifest).
-      def copy_resolved_stylesheets(basetmpdir)
+      #
+      # +preserve+ follows each upstream maker: the EPUB one preserves, the web
+      # one does not. It matters for the bundled stylesheets, which an installed
+      # gem holds read-only -- preserving that into a writable output tree would
+      # be a change the web output never asked for.
+      def copy_resolved_stylesheets(basetmpdir, preserve: true)
         (@config['stylesheet'] || []).each do |name|
           src = resolve_stylesheet(name)
           error! "stylesheet: #{name} is not found." unless src
-          FileUtils.cp(src, File.join(basetmpdir, name), preserve: true)
+          FileUtils.cp(src, File.join(basetmpdir, name), preserve: preserve)
           yield name if block_given?
         end
       end
