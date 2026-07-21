@@ -201,8 +201,11 @@
 // ---------------------------------------------------------------- inline
 
 // Inline code. `raw` takes a string, but Re:VIEW inline content may itself hold
-// markup, so this styles content instead of building a raw element.
-#let raw-inline(body) = box(text(font: ("Menlo", "Noto Sans Mono CJK JP"), body))
+// markup, so this styles content instead of building a raw element. The font
+// comes from the theme so that swapping the code face reaches inline code too.
+#let raw-inline(body) = context {
+  box(text(font: book.theme-state.get().fonts.code, body))
+}
 
 // One entry point for every decoration inline, keyed by Re:VIEW's inline_type.
 // Keeping the set closed here mirrors the renderer, which refuses unknown
