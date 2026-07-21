@@ -9,6 +9,7 @@
 require 'fileutils'
 require 'rexml/document'
 require 'review/ast/image_size_annotator'
+require 'review/ast/symbol_run_breaker'
 require_relative 'epub_maker'
 
 module ReVIEW
@@ -35,6 +36,8 @@ module ReVIEW
       #     keep_workdir: false             # keep the extracted EPUB tree
       #     image_intrinsic_size: true      # size figures from the resolution
       #                                     # embedded in each image
+      #     break_symbol_runs: true         # break inside runs of fullwidth
+      #                                     # symbols (■□...) the way pTeX does
       class VivliostyleMaker < EPUBMaker
         def produce(yamlfile, bookname = nil)
           super
@@ -61,6 +64,9 @@ module ReVIEW
           # so the stylesheet needs it as a value; see ImageSizeAnnotator and
           # doc/vivliostyle-image-sizing.ja.md.
           ImageSizeAnnotator.new(workdir).annotate if vconfig.fetch('image_intrinsic_size', true)
+          # pTeX に合わせて ■□ のような記号の連続にも折り返し位置を与える。
+          # see SymbolRunBreaker.
+          SymbolRunBreaker.new(workdir).annotate if vconfig.fetch('break_symbol_runs', true)
 
           # NOTE: not <bookname>.pdf — that would overwrite pdfmaker's output.
           output = File.absolute_path(vconfig['output'] || "#{bookname}-vivliostyle.pdf")

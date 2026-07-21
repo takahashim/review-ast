@@ -92,11 +92,12 @@
  * NOTE: 名前付きページ（@page bare 等）はこれらより優先されるので、
  * 表紙の margin: 0 がここで上書きされることはない（実測で確認済み）。
  *
- * NOTE: 通常の分割位置のない長い柱（記号の連続など）は版面幅で切れる。
- * マージンボックスには word-break / overflow-wrap が効かない（Vivliostyle が
- * 捨てる。ページコンテキストからの継承も届かない。実測で確認）ため、
- * 本文（body の overflow-wrap）のような緊急折り返しは柱には掛けられない。
- * 通常の分割位置がある柱は既定の規則で折り返される。 */
+ * NOTE: 分割位置のない長い柱（記号の連続など）は版面幅で切れる。
+ * マージンボックスには word-break / overflow-wrap が効かず（Vivliostyle が
+ * 捨てる。ページコンテキストからの継承も届かない）、SymbolRunBreaker が
+ * 本文に挿す折り返し位置（ZWSP）も string-set 経由の柱では折り返しに
+ * ならない（いずれも実測で確認）。通常の分割位置がある柱は既定の規則で
+ * 折り返される。 */
 @page :left {
   margin-left: var(--edge);
   margin-right: var(--gutter);
@@ -183,10 +184,11 @@ body {
   text-align: justify;
   /* ベタ組み寄りの近似。TeX の段落全体最適化までは再現できない */
   line-break: strict;
-  /* pTeX は ■□ のような記号も和字としてどこでも折り返すが、Chromium は
-     Unicode の行分割クラスが「曖昧」な記号を（lang によらず）欧文の
-     1 単語として扱い、連続すると行長を突き抜ける。行に収まらないときだけ
-     緊急折り返しで畳んで LaTeX 版の折り返しに合わせる。通常の分割位置が
+  /* Chromium は Unicode の行分割クラスが「曖昧」な記号（■□ など）を
+     lang によらず欧文の 1 単語として扱い、連続すると折り返せず行長を
+     突き抜ける。pTeX 相当の折り返し位置は SymbolRunBreaker が ZWSP で
+     与える。ここはそれ以外の折り返せない連続（長大な URL など）が
+     行に収まらないときだけ緊急折り返しで畳む保険。通常の分割位置が
      ある行には影響しない。 */
   overflow-wrap: break-word;
   /* ぶら下げ組み。Chromium は未実装なので現状は効かない（Safari のみ対応）。
