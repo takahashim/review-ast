@@ -757,17 +757,21 @@
   pagebreak(weak: true)
 }
 
-// 奥付。
+// The colophon.
 //
-// 書名を大きく置き、罫の下に発行の履歴と関係者を並べ、最後にもう一本罫を
-// 引いて権利表記を置く。LaTeX 版(review-jsbook)の奥付と同じ構成にしてある。
-// 「奥付」という見出しは出さない。紙面上あきらかであり、LaTeX 版も出さない。
+// The book title set large, then a rule, the publication history and the
+// people involved, then one more rule and the rights notice -- the same
+// composition as the LaTeX colophon (review-jsbook). No "奥付" heading is
+// printed: the page speaks for itself, and the LaTeX version prints none
+// either.
 //
-// entries: (ラベル, 値) の配列。history と rights は文字列の配列と content。
+// entries: an array of (label, value). history is an array of strings;
+// rights is content.
 #let colophon(book-title: none, entries: (), history: (), rights: none) = context {
   let t = theme-state.get()
   page(header: none, footer: none, {
-    // 版面の下に寄せる。奥付は紙面の下に置くのが通例で、LaTeX 版もそうなる。
+    // Push to the bottom of the page: the customary place for a colophon,
+    // and where the LaTeX version puts it.
     v(1fr)
 
     if book-title != none {
