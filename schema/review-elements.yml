@@ -1,0 +1,628 @@
+# Re:VIEW 要素と Typst 出力の対応表
+#
+# 設計文書(doc/design-typst.md)が求める対応表であり、その
+# 「未対応要素を黙って落とさない」という要求を検査可能な形にしたもの。test/ast/test_typst_element_coverage.rb が
+# この表とコンパイラの命令表・レンダラの定義メソッドを機械的に突き合わせる。
+#
+# これはテストのフィクスチャではなく契約である。表が正で実装が従なので、
+# テストを通すために書き換えてよいものではない。表を変えることは仕様を
+# 変えることを意味する。schema/ に置いてあるのはそのため
+# (ast-format-1.schema.json も、読むのはテストだけだが同じ性格を持つ)。
+#
+# status:
+#   render  出力する(出力位置が定義位置と異なる場合は note に記す)
+#   ignore  出力しないと決めた要素。reason 必須
+#   lowered directive lowering で描画前に消えるため、レンダラに対応メソッドはない
+#
+# この表に無い命令、または表にあってメソッドが無い命令があるとテストが落ちる。
+
+blocks:
+  list:
+    node: CodeBlockNode
+    renderer: visit_code_block_list
+    typst: review.listing
+    status: render
+
+  listnum:
+    node: CodeBlockNode
+    renderer: visit_code_block_listnum
+    typst: review.listing
+    status: render
+
+  emlist:
+    node: CodeBlockNode
+    renderer: visit_code_block_emlist
+    typst: review.listing
+    status: render
+
+  emlistnum:
+    node: CodeBlockNode
+    renderer: visit_code_block_emlistnum
+    typst: review.listing
+    status: render
+
+  cmd:
+    node: CodeBlockNode
+    renderer: visit_code_block_cmd
+    typst: review.listing
+    status: render
+
+  source:
+    node: CodeBlockNode
+    renderer: visit_code_block_source
+    typst: review.listing
+    status: render
+
+  image:
+    node: ImageNode
+    renderer: visit_image
+    typst: review.figure
+    status: render
+
+  indepimage:
+    node: ImageNode
+    renderer: visit_image
+    typst: review.figure
+    status: render
+
+  numberlessimage:
+    node: ImageNode
+    renderer: visit_image
+    typst: review.figure
+    status: render
+
+  table:
+    node: TableNode
+    renderer: visit_table
+    typst: review.table
+    status: render
+
+  emtable:
+    node: TableNode
+    renderer: visit_table
+    typst: review.table
+    status: render
+
+  imgtable:
+    node: TableNode
+    renderer: visit_table
+    typst: review.table
+    status: render
+    note: 表番号を持つ画像。review.imgtable へ渡す
+
+  ul:
+    node: ListNode
+    renderer: visit_list
+    typst: review.bullet-list / numbered-list / description-list
+    status: render
+
+  ol:
+    node: ListNode
+    renderer: visit_list
+    typst: review.bullet-list / numbered-list / description-list
+    status: render
+
+  dl:
+    node: ListNode
+    renderer: visit_list
+    typst: review.bullet-list / numbered-list / description-list
+    status: render
+
+  li:
+    node: ListItemNode
+    renderer: visit_list_item
+    typst: (list item)
+    status: render
+    note: ul/ol の項目。visit_list が項目ごとに描画する
+
+  dt:
+    node: ListItemNode
+    renderer: visit_list
+    typst: (description-list item)
+    status: render
+    note: dl の見出し。visit_list が description-list として描画する
+
+  dd:
+    node: ListItemNode
+    renderer: visit_list
+    typst: (description-list item)
+    status: render
+    note: dl の説明。visit_list が description-list として描画する
+
+  note:
+    node: MinicolumnNode
+    renderer: visit_minicolumn
+    typst: review.minicolumn
+    status: render
+
+  memo:
+    node: MinicolumnNode
+    renderer: visit_minicolumn
+    typst: review.minicolumn
+    status: render
+
+  tip:
+    node: MinicolumnNode
+    renderer: visit_minicolumn
+    typst: review.minicolumn
+    status: render
+
+  info:
+    node: MinicolumnNode
+    renderer: visit_minicolumn
+    typst: review.minicolumn
+    status: render
+
+  warning:
+    node: MinicolumnNode
+    renderer: visit_minicolumn
+    typst: review.minicolumn
+    status: render
+
+  important:
+    node: MinicolumnNode
+    renderer: visit_minicolumn
+    typst: review.minicolumn
+    status: render
+
+  caution:
+    node: MinicolumnNode
+    renderer: visit_minicolumn
+    typst: review.minicolumn
+    status: render
+
+  notice:
+    node: MinicolumnNode
+    renderer: visit_minicolumn
+    typst: review.minicolumn
+    status: render
+
+  column:
+    node: ColumnNode
+    renderer: visit_column
+    typst: review.column
+    status: render
+
+  footnote:
+    node: FootnoteNode
+    renderer: visit_footnote
+    typst: review.footnote / endnote-ref
+    status: render
+    note: 定義位置では何も出さず、本文は最初の @<fn> の位置に出す
+
+  endnote:
+    node: FootnoteNode
+    renderer: visit_footnote
+    typst: review.footnote / endnote-ref
+    status: render
+    note: 参照位置に番号を出し、本文は //printendnotes でまとめて出す
+
+  embed:
+    node: EmbedNode
+    renderer: visit_embed
+    typst: (raw passthrough)
+    status: render
+    note: 対象builderに typst が含まれるときだけ素通し
+
+  raw:
+    node: EmbedNode
+    renderer: visit_embed
+    typst: (raw passthrough)
+    status: render
+    note: 対象builderに typst が含まれるときだけ素通し
+
+  read:
+    node: BlockNode
+    renderer: visit_block_read
+    typst: review.quote / aligned
+    status: render
+
+  quote:
+    node: BlockNode
+    renderer: visit_block_quote
+    typst: review.quote / aligned
+    status: render
+
+  blockquote:
+    node: BlockNode
+    renderer: visit_block_blockquote
+    typst: review.quote / aligned
+    status: render
+
+  lead:
+    node: BlockNode
+    renderer: visit_block_lead
+    typst: review.quote / aligned
+    status: render
+
+  centering:
+    node: BlockNode
+    renderer: visit_block_centering
+    typst: review.quote / aligned
+    status: render
+
+  flushright:
+    node: BlockNode
+    renderer: visit_block_flushright
+    typst: review.quote / aligned
+    status: render
+
+  address:
+    node: BlockNode
+    renderer: visit_block_address
+    typst: review.quote / aligned
+    status: render
+
+  talk:
+    node: BlockNode
+    renderer: visit_block_talk
+    typst: review.quote / aligned
+    status: render
+
+  doorquote:
+    node: BlockNode
+    renderer: visit_block_doorquote
+    typst: review.framed / bibpaper / figure
+    status: render
+
+  bibpaper:
+    node: BlockNode
+    renderer: visit_block_bibpaper
+    typst: review.framed / bibpaper / figure
+    status: render
+
+  graph:
+    node: BlockNode
+    renderer: visit_block_graph
+    typst: review.framed / bibpaper / figure
+    status: render
+    note: 画像を生成してから figure として描画する。生成の実地確認は未了
+
+  box:
+    node: BlockNode
+    renderer: visit_block_box
+    typst: review.framed / bibpaper / figure
+    status: render
+
+  insn:
+    node: BlockNode
+    renderer: visit_block_insn
+    typst: review.framed / bibpaper / figure
+    status: render
+
+  point:
+    node: BlockNode
+    renderer: visit_block_point
+    typst: review.framed / bibpaper / figure
+    status: render
+
+  term:
+    node: BlockNode
+    renderer: visit_block_term
+    typst: review.framed / bibpaper / figure
+    status: render
+
+  comment:
+    node: BlockNode
+    renderer: visit_block_comment
+    typst: (control)
+    status: render
+    note: draft時のみ出力する
+
+  blankline:
+    node: BlockNode
+    renderer: visit_block_blankline
+    typst: (control)
+    status: render
+
+  pagebreak:
+    node: BlockNode
+    renderer: visit_block_pagebreak
+    typst: (control)
+    status: render
+
+  label:
+    node: BlockNode
+    renderer: visit_block_label
+    typst: (control)
+    status: render
+
+  printendnotes:
+    node: BlockNode
+    renderer: visit_block_printendnotes
+    typst: (control)
+    status: render
+
+  hr:
+    node: BlockNode
+    renderer: visit_block_hr
+    typst: (control)
+    status: render
+
+  bpo:
+    node: BlockNode
+    renderer: visit_block_bpo
+    typst: (control)
+    status: ignore
+    reason: 文字単位の分割指定。Typstの行分割に相当がなく、出力しても意味を持たない
+
+  parasep:
+    node: BlockNode
+    renderer: visit_block_parasep
+    typst: (control)
+    status: ignore
+    reason: 段落の区切り飾り。既定テーマは段落間隔で表現するため描画しない
+
+  olnum:
+    node: DirectiveNode
+    status: lowered
+    reason: directive は Stage B の lowering で除去され、描画時には存在しない
+
+  noindent:
+    node: DirectiveNode
+    status: lowered
+    reason: directive は Stage B の lowering で除去され、描画時には存在しない
+
+  firstlinenum:
+    node: DirectiveNode
+    status: lowered
+    reason: directive は Stage B の lowering で除去され、描画時には存在しない
+
+  tsize:
+    node: DirectiveNode
+    status: lowered
+    reason: directive は Stage B の lowering で除去され、描画時には存在しない
+
+  beginchild:
+    node: DirectiveNode
+    status: lowered
+    reason: directive は Stage B の lowering で除去され、描画時には存在しない
+
+  endchild:
+    node: DirectiveNode
+    status: lowered
+    reason: directive は Stage B の lowering で除去され、描画時には存在しない
+
+  texequation:
+    node: TexEquationNode
+    renderer: visit_tex_equation
+    typst: review.equation
+    status: render
+
+inlines:
+  ami:
+    renderer: render_inline_ami
+    status: render
+
+  b:
+    renderer: render_inline_b
+    status: render
+
+  balloon:
+    renderer: render_inline_balloon
+    status: render
+
+  bib:
+    renderer: render_inline_bib
+    status: render
+
+  bibref:
+    renderer: render_inline_bibref
+    status: render
+
+  bou:
+    renderer: render_inline_bou
+    status: render
+
+  br:
+    renderer: render_inline_br
+    status: render
+
+  chap:
+    renderer: render_inline_chap
+    status: render
+
+  chapref:
+    renderer: render_inline_chapref
+    status: render
+
+  code:
+    renderer: render_inline_code
+    status: render
+
+  column:
+    renderer: render_inline_column
+    status: render
+
+  comment:
+    renderer: render_inline_comment
+    status: render
+
+  del:
+    renderer: render_inline_del
+    status: render
+
+  dtp:
+    renderer: render_inline_dtp
+    status: ignore
+    reason: InDesign 向けの組版指示。他のレンダラも同様に出力しない
+
+  em:
+    renderer: render_inline_em
+    status: render
+
+  embed:
+    renderer: render_inline_embed
+    status: render
+    note: 対象builderに typst が含まれるときだけ素通し
+
+  endnote:
+    renderer: render_inline_endnote
+    status: render
+
+  eq:
+    renderer: render_inline_eq
+    status: render
+
+  eqref:
+    renderer: render_inline_eqref
+    status: render
+
+  fn:
+    renderer: render_inline_fn
+    status: render
+    note: 初出は本文つき、以降はラベル参照
+
+  hd:
+    renderer: render_inline_hd
+    status: render
+
+  hidx:
+    renderer: render_inline_hidx
+    status: render
+    note: 索引マーカーだけを置き、本文には何も出さない
+
+  href:
+    renderer: render_inline_href
+    status: render
+
+  i:
+    renderer: render_inline_i
+    status: render
+
+  icon:
+    renderer: render_inline_icon
+    status: render
+
+  idx:
+    renderer: render_inline_idx
+    status: render
+    note: 本文を出しつつ索引マーカーを置く
+
+  img:
+    renderer: render_inline_img
+    status: render
+
+  imgref:
+    renderer: render_inline_imgref
+    status: render
+
+  ins:
+    renderer: render_inline_ins
+    status: render
+
+  insert:
+    renderer: render_inline_insert
+    status: render
+
+  kw:
+    renderer: render_inline_kw
+    status: render
+
+  labelref:
+    renderer: render_inline_labelref
+    status: render
+
+  list:
+    renderer: render_inline_list
+    status: render
+
+  listref:
+    renderer: render_inline_listref
+    status: render
+
+  m:
+    renderer: render_inline_m
+    status: render
+
+  pageref:
+    renderer: render_inline_pageref
+    status: render
+    note: ページ番号だけは Typst 側が解決する(採番方針の唯一の例外)
+
+  raw:
+    renderer: render_inline_raw
+    status: render
+    note: 対象builderに typst が含まれるときだけ素通し
+
+  ref:
+    renderer: render_inline_ref
+    status: render
+
+  ruby:
+    renderer: render_inline_ruby
+    status: render
+
+  sec:
+    renderer: render_inline_sec
+    status: render
+
+  secref:
+    renderer: render_inline_secref
+    status: render
+
+  sectitle:
+    renderer: render_inline_sectitle
+    status: render
+
+  strike:
+    renderer: render_inline_strike
+    status: render
+
+  strong:
+    renderer: render_inline_strong
+    status: render
+
+  sub:
+    renderer: render_inline_sub
+    status: render
+
+  sup:
+    renderer: render_inline_sup
+    status: render
+
+  table:
+    renderer: render_inline_table
+    status: render
+
+  tableref:
+    renderer: render_inline_tableref
+    status: render
+
+  tcy:
+    renderer: render_inline_tcy
+    status: render
+
+  title:
+    renderer: render_inline_title
+    status: render
+
+  tt:
+    renderer: render_inline_tt
+    status: render
+
+  ttb:
+    renderer: render_inline_ttb
+    status: render
+
+  tti:
+    renderer: render_inline_tti
+    status: render
+
+  u:
+    renderer: render_inline_u
+    status: render
+
+  uchar:
+    renderer: render_inline_uchar
+    status: render
+
+  w:
+    renderer: render_inline_w
+    status: render
+    note: 辞書展開。リンク先を持たない
+
+  wb:
+    renderer: render_inline_wb
+    status: render
+    note: 辞書展開の太字。リンク先を持たない
