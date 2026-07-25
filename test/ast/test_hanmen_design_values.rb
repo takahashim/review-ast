@@ -36,8 +36,7 @@ class HanmenDesignValuesTest < Test::Unit::TestCase
     ['box-pad-y',       '--box-pad-y',       %w[box pad-y],           'box-pad-x / pad-y', 1],
     ['box-rule',        '--box-rule',        %w[box rule],            'box-rule / arc',  0],
     ['box-arc',         '--box-arc',         %w[box arc],             'box-rule / arc',  1],
-    # crop.bleed is Typst + doc only; design.css has no crop block.
-    ['crop.bleed',      nil,                 %w[crop bleed],          'crop.bleed',      0]
+    ['crop.bleed',      '--bleed',           %w[crop bleed],          'crop.bleed',      0]
   ].freeze
 
   # The size ladder: CSS carries the multiplier inside calc(), Typst as a bare

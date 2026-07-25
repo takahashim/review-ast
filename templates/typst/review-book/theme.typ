@@ -166,7 +166,8 @@
   // if the Latin looks small, pick a face with a larger x-height instead of
   // scaling.
   fonts: (
-    body: ("Latin Modern Roman", "CMU Serif", "Times New Roman",
+    body: ("XCharter", "Charter", "Georgia", "Noto Serif",
+           "Latin Modern Roman", "CMU Serif", "Times New Roman",
            "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif CJK JP", "IPAexMincho"),
     heading: ("Helvetica Neue", "Helvetica", "Arial",
               "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans CJK JP", "IPAexGothic"),

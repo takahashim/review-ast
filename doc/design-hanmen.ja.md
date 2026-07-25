@@ -92,7 +92,7 @@
   - Typst にフォールバック単位の大きさ補正の機構がなく、同寸だけが3系統に無損失に写せる。倍率を語彙に残すと、その値を使った時点で紙面一致が壊れる
   - CSS での再現(`@font-face` の `size-adjust` による合成フォント)は `var()` が使えず迂遠で、設計値ファイルの中で最も説明を要する箇所になっていた
 - 同寸で欧文が小さく見える問題は、倍率ではなく書体選択で解く。見劣りの主因は x-height なので、x-height の大きい欧文を和文と組む。これはどのエンジンでも同じに写せ、契約を壊さない
-- 既定フォールバック列の筆頭 Latin Modern は x-height が小さく、同寸で最も見劣りする部類である。列の見直しは保留事項(9章)
+- 欧文本文の既定フォールバック列は「x-height が大きく本文向き → 可用性」の順に並べる:XCharter(TeX 同梱)→ Charter(macOS 標準)→ Georgia(macOS/Windows 標準)→ Noto Serif(Linux/CI・オープン)→ Latin Modern / CMU Serif / Times New Roman(TeX・最終手段)。同寸で見劣りしていた Latin Modern(x-height が小さい)を筆頭から外し、環境をまたいで x-height の大きい欧文が当たるようにした。design.css(`--font-latin-serif`)と theme.typ(`fonts.body`)で同じ列を持つ。LaTeX の欧文書体は review-jsbook/jlreq(gem)の既定で、review-ast の設計値ファイルの外にあるため、揃えるにはプリアンブル/sty で書体を設定する(書籍または gem 側の作業)
 
 ### 2.9 版面の外
 
@@ -141,7 +141,7 @@
 | 囲み | box-rule / arc | 罫の太さ・角丸 | 0.5mm / 1mm | — | ✓ | ✓ | ✓ |
 | 色 | code-bg ほか | コード・囲み・注記の配色 | 各ファイル | — | ✓ | ✓ | ✓ |
 | 用紙 | crop.sheet | トンボを載せる用紙 | auto | 2.10 | ✓ | | ✓ |
-| 用紙 | crop.bleed | 裁ち落とし | 3mm | 2.10 | ✓ | | ✓ |
+| 用紙 | crop.bleed | 裁ち落とし | 3mm | 2.10 | ✓ | ✓ | ✓ |
 | 用紙 | crop.mark-length ほか | トンボ長・太さ・色 | 各ファイル | 2.10 | | | ✓ |
 
 - アキと囲みの既定値の由来:float-sep は `\intextsep`(TeX 12pt)、caption-sep は `\above/\belowcaptionskip`(TeX 5pt)、囲みは tcolorbox の size/normal 既定値、色の一部は xcolor の混色指定(`black!10!white` など)
@@ -229,7 +229,8 @@
 
 ### 5.5 トンボと入稿
 
-- `@page { marks: crop; bleed: 3mm }` で Vivliostyle がトンボと裁ち落としを描ける。ただし現状の実装ではこの指定はコメントアウトされており、トンボは出していない(9章)
+- トンボと裁ち落としは入稿用の上書き `style-vivliostyle-print.css` が `@page { marks: crop cross; bleed: var(--bleed) }` で有効にする。既定の `style-vivliostyle.css`(media=ebook 相当)は出さない。入稿版の設定ファイル(config-vivliostyle-print.yml)で design → 実装 → 入稿上書きの順に読み込む
+- CSS の @page marks はトンボの長さ・太さ・色を制御できない(Vivliostyle の既定で描かれる)。CSS 側で持てる crop の設計値は裁ち落とし量(`--bleed`)だけで、長さ・太さ・色は Typst テーマの領分である(3章の表で crop.mark-length ほかが T のみなのはこのため)
 - 仕上がりを標準用紙の中央に置く形(2.10 の後者)を CSS 側でどう実現するかは未確定(保留。9章)
 
 ## 6. Typst(review-book theme)での指定
@@ -310,11 +311,9 @@
 
 ### 9.1 やれば片付くもの
 
-- 実装の非対称(3章の表の空欄):figure まわりのアキ(float-sep / caption-sep)と headheight が theme.typ に未定義。トンボ詳細値が CSS 側に未定義。地・小口の陽指定(foot-space / fore-edge)が CSS・Typst の設計値ファイルに未実装(review-jlreq のみ対応済み)
 - 隠しノンブル・通しノンブル(4.4)の Typst 側の対応。印刷所要件なので入稿実務としては早めに必要になる。CSS 側の隠しノンブル(ノド中央)はマージンボックスの制約で再現できない見込みであり、対応するかどうか自体が未確定
-- CSS のトンボの有効化(5.5。marks / bleed の指定は書いてあるがコメントアウトされている)
 - CSS 側で「標準用紙の中央に仕上がり」を実現する方法(5.5)
-- 文書とファイルの値の自動突き合わせ、および三系統の紙面比較(7.3、8章)
+- 三系統の紙面比較(7.3)。行数・字詰め・四辺位置を突き合わせる(文書と設計値ファイルの自動突き合わせは test/ast/test_hanmen_design_values.rb で実施済み)
 - 欧文フォールバック列の見直し。同寸を既定にしたので、x-height の大きい欧文書体の選定が実益を持つ(2.8)
 - 柱・ノンブルの級数(running-head-size / folio-size)の review-jlreq クラスオプション化。jlreq のページスタイルに `running_head_font` / `nombre_font` キーが既にあり、`\ModifyPageStyle` への薄い写像で実装できる(無指定なら発行せず現行の本文同寸のままで後方互換)。本体(kmuto/review)への上流提案となる。
   - review-jsbook 側は fancyhdr のため対象外とし、sty の編集で行う
@@ -326,37 +325,18 @@
 - 縦組み。Typst が未対応であり、三系統の語彙として成立しない。Typstが対応したら再検討する
 - 段組。現時点の対象書籍(技術書)で需要が薄く、余白導出の規約(2.3)が二段組と干渉するため、必要になった時点で設計する
 
-### 9.3 着手順
+### 9.3 着手順（残りの作業）
 
-- 9.1 の項目を実ファイル単位の作業に分け、規模・依存・外部要件で並べたもの。ID は作業単位、フェーズは着手順を示す
-- 前提として、Typst のトンボは実装済みであり(6.5)、9.1 のトンボ関連はすべて CSS 側の課題である。Typst 側の入稿の残りはノンブルのみ
+- 9.1 の項目を実ファイル単位の作業に分け、規模・依存・外部要件で並べたもの。完了分は外し、残りだけを載せる
+- 完了済み:対称性を埋める一式(theme.typ の figure アキ・柱高さ、CSS・Typst の foot-space/fore-edge 陽指定)、設計値の静的照合テスト、CSS のトンボ有効化(入稿用 print CSS + `--bleed`)、欧文フォールバック列の見直し(CSS・Typst)
 
-フェーズ1(対称性を埋める。小・低リスク・効果は語彙の一貫性)
-
-- S1: `theme.typ` に float-sep / caption-sep / headheight を追加し、図表の前後アキ・キャプションとのアキ・柱の高さの描画へ配線する(3章の表の T 列空欄)
-- S2: `style-vivliostyle.css` の余白導出を `var()` フォールバックの入れ子にし、foot-space / fore-edge の陽指定を受ける(5.2。現状は gutter・head-space からの導出のみ)
-- S3: Typst の余白導出関数に foot-space / fore-edge の任意上書きを足す(S2 の Typst 版)
-- R2: 3章の既定値と theme.typ / design.css / cls の値を突き合わせる静的テスト。値が揃うこの段で入れると以降の変更をドリフトから守れる(8章)
-
-フェーズ2(トンボの基礎と意匠。小〜中)
-
-- P1: `style-vivliostyle.css` の marks / bleed を有効化し、crop 詳細値(bleed・mark 長・色)を design.css に足す(5.5。現状はコメントアウト)
-- R1: 欧文フォールバック列の筆頭を x-height の大きい書体に見直す。同寸決定(2.8)の実益を出す、3系統の design 値のみの変更
-
-フェーズ3(印刷実務と上流。大・外部要件/レビュー待ち)
+残り(入稿・上流)
 
 - P2: Typst の隠しノンブル・通しノンブル対応(4.4)。印刷所要件で早めに要る
-- P3: review-jlreq の running-head-size / folio-size をクラスオプション化し、kmuto/review へ提案する(9.1 末尾。jsbook 側は sty 編集)。P2 と並行してよい
+- P3: review-jlreq の running-head-size / folio-size をクラスオプション化し、kmuto/review へ提案する(9.1 末尾。jsbook 側は sty 編集)。外部レビューがクリティカルパス
 
-フェーズ4(研究・自動化。大・不確実)
+残り(研究・自動化。大・不確実)
 
 - R4: CSS で「標準用紙の中央に仕上がり」を実現する方法の設計と実装(5.5、2.10 後者。Typst・LaTeX は対応済み)
 - R5: CSS の隠しノンブル(ノド中央)の可否判定。再現不可なら 9.2 へ移す(実装でなく決定)
-- R3: 三系統の紙面自動比較(7.3)。行数・字詰め・四辺位置。3系統をビルドして突き合わせる最も重い基盤なので最後
-
-依存
-
-- R2 は S1〜S3 の後(値が揃ってから)
-- R3 は P1・S2・S3 の後(トンボと余白が確定してから比較に意味が出る)
-- P3 は kmuto/review のレビューがクリティカルパス。着手は早めでも完了は非同期
-- R5 は判定次第で 9.2 送りになりうる
+- R3: 三系統の紙面自動比較(7.3)。行数・字詰め・四辺位置。3系統をビルドして突き合わせる最も重い基盤なので最後。P2 の後(トンボ・余白が確定してから比較に意味が出る)
