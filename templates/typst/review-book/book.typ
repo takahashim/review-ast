@@ -29,18 +29,27 @@
 
 // Derive the margins from the text block.
 //
-// Only the head space and the gutter are stated; the foot and the fore-edge
-// are decided here. Widening the gutter narrows the fore-edge by the same
-// amount -- the text block itself never moves (the same approach as
-// style-vivliostyle-design.css).
+// Each axis takes one stated side and derives the other; with neither the axis
+// centres (§2.3, the same rule as style-vivliostyle.css). The head space and
+// the gutter are stated by default, but a foot-space / fore-edge design states
+// the opposite side instead (set the default side to none to drop it). Widening
+// the gutter narrows the fore-edge by the same amount -- the text block never
+// moves.
 #let derived-margins(theme, paper-size) = {
   let block-size = text-block-size(theme)
   let (pw, ph) = paper-size
+  let m = theme.margins
+  let head = m.at("head-space", default: none)
+  let foot = m.at("foot-space", default: none)
+  let gutter = m.at("gutter", default: none)
+  let fore = m.at("fore-edge", default: none)
+  let v-centre = (ph - block-size.height) / 2
+  let h-centre = (pw - block-size.width) / 2
   (
-    inside: theme.margins.gutter,
-    outside: pw - theme.margins.gutter - block-size.width,
-    top: theme.margins.head-space,
-    bottom: ph - theme.margins.head-space - block-size.height,
+    top: if head != none { head } else if foot != none { ph - foot - block-size.height } else { v-centre },
+    bottom: if foot != none { foot } else if head != none { ph - head - block-size.height } else { v-centre },
+    inside: if gutter != none { gutter } else if fore != none { pw - fore - block-size.width } else { h-centre },
+    outside: if fore != none { fore } else if gutter != none { pw - gutter - block-size.width } else { h-centre },
   )
 }
 
