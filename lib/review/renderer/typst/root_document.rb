@@ -11,6 +11,7 @@ require_relative 'erb_template'
 require_relative 'front_matter'
 require_relative 'index'
 require_relative 'metadata'
+require_relative 'pagination'
 require_relative 'theme_reference'
 
 module ReVIEW
@@ -34,9 +35,10 @@ module ReVIEW
           @index = Index.new(config, typst_config)
           @colophon = Colophon.new(config, @metadata)
           @theme = ThemeReference.new(typst_config, warn: warn)
+          @pagination = Pagination.new(typst_config)
         end
 
-        attr_reader :metadata, :front_matter, :index, :colophon, :theme
+        attr_reader :metadata, :front_matter, :index, :colophon, :theme, :pagination
 
         # @param template [String] The ERB source
         # @param chapters [ChapterSet]

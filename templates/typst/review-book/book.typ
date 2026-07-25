@@ -110,10 +110,11 @@
 // Turn crop marks on or off without editing the theme file, so the same theme
 // can produce a screen PDF and a press PDF. `color` overrides the mark colour,
 // which is what a conformance mode needs (see crop.color in theme.typ).
-#let with-crop(theme, enabled, color: none) = {
+#let with-crop(theme, enabled, color: none, hiddenfolio: none) = {
   let t = theme
   let updated = theme.crop + (enabled: enabled)
   if color != none { updated.insert("color", color) }
+  if hiddenfolio != none { updated.insert("hiddenfolio", hiddenfolio) }
   t.insert("crop", updated)
   t
 }
@@ -168,6 +169,35 @@
   centre-v(m.x + tw / 2, m.y + th + b)
   centre-h(m.x - b - l, m.y + th / 2)
   centre-h(m.x + tw + b, m.y + th / 2)
+}
+
+// The hidden folio (隠しノンブル): a small page number the printer reads to
+// collate signatures, placed in the bleed at the spine so the finished trim
+// cuts it off. Only meaningful with crop marks, so it rides in the same
+// background. The nikko-pc preset (= shippo) stacks the digits vertically at
+// the spine edge, centred on the trim height (review-jsbook hiddenfolio=nikko-pc).
+// The sheet is symmetric around the trim (equal crop margins), so the page's
+// vertical centre is the trim's; `horizon` places the stack there.
+#let hidden-folio(theme) = context {
+  let preset = theme.crop.at("hiddenfolio", default: none)
+  if preset != "nikko-pc" and preset != "shippo" { return none }
+
+  let (tw, th) = trim-size(theme)
+  let m = crop-margins(theme)
+  // The page number as shown, so it follows serial pagination / the start page.
+  let digits = str(counter(page).display(numbering-state.get())).clusters()
+  let stack = box(text(size: 7pt, font: theme.fonts.heading, fill: luma(0),
+    std.stack(dir: ttb, ..digits.map(d => box(width: 1em, align(center, d))))))
+
+  // Left binding puts the spine on the left of a recto (odd) page; right
+  // binding mirrors it. The stack sits just outside the trim on the spine side.
+  let odd = calc.odd(here().page())
+  let spine-left = if theme.binding == "right" { not odd } else { odd }
+  if spine-left {
+    place(right + horizon, dx: -(tw + m.x), stack)
+  } else {
+    place(left + horizon, dx: m.x + tw, stack)
+  }
 }
 
 // ---------------------------------------------------------------- document
@@ -229,7 +259,7 @@
     footer: none,
     header-ascent: theme.margins.headsep,
     footer-descent: theme.margins.footskip,
-    background: if crop-on { crop-marks(theme) },
+    background: if crop-on { crop-marks(theme) + hidden-folio(theme) },
   )
 
   // Make the line feed deterministic. Typst's leading is the gap between
@@ -353,17 +383,21 @@
 // page numbering and heading rules differ per part (the lyceum lesson recorded
 // in doc/typst-review-book.md / appendix C).
 
-#let frontmatter(body) = {
-  numbering-state.update("i")
+// serial / start mirror review-jsbook's serial_pagination / startpage; they are
+// set by the generated root file from the typst: config (doc/design-hanmen §4.4).
+// Serial pagination runs one arabic counter across the whole book, so the front
+// matter is arabic too and the main matter does not restart.
+#let frontmatter(serial: false, start: 1, body) = {
+  numbering-state.update(if serial { "1" } else { "i" })
   set page(footer: folio(), header: none)
-  counter(page).update(1)
+  counter(page).update(start)
   body
 }
 
-#let mainmatter(body) = {
+#let mainmatter(serial: false, body) = {
   numbering-state.update("1")
   set page(footer: folio(), header: running-head())
-  counter(page).update(1)
+  if not serial { counter(page).update(1) }
   body
 }
 

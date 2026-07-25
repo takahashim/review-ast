@@ -225,6 +225,7 @@
     stroke: 0.3pt,
     color: none,        // none = registration black (CMYK)
     trim: none,         // state only when paper is not in the dimension table
+    hiddenfolio: none,  // "nikko-pc" (= "shippo") for the printer's hidden folio
   ),
 
   renderers: (
