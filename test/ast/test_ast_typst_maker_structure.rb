@@ -39,10 +39,12 @@ class TestAstTypstMakerStructure < Test::Unit::TestCase
       assert_include(File.read(File.join(chapters, 'part-2.typ')), '#review.part(')
       assert_include(File.read(File.join(chapters, 'part1.typ')), '#review.part(')
 
+      # The front and main matter each open with a native page transition; the
+      # appendix and back matter continue the main matter's numbering, so all
+      # their chapters are just included after it.
       root = File.read(File.join(dir, 'book-typst', 'book.typ'))
-      %w[book.frontmatter book.mainmatter book.appendix book.backmatter].each do |part|
-        assert_include(root, "#show: #{part}")
-      end
+      assert_include(root, '#set page(numbering: "i", footer: book.folio())')
+      assert_include(root, '#set page(numbering: "1", header: book.running-head())')
     end
   end
 

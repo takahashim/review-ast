@@ -1,0 +1,17 @@
+# Typst package manifest. review-book is shipped inside the review-ast gem
+# (templates/typst/review-book) and can also be used on its own as a Typst
+# package: copy this directory somewhere, or install it under a package
+# namespace (e.g. ~/.local/share/typst/packages/local/review-book/0.1.0) and
+# import "@local/review-book:0.1.0".
+#
+# `version` must match `version` in lib.typ (a test enforces this). It is not
+# published to Typst Universe yet; that is a later phase, once the API settles.
+[package]
+name = "review-book"
+version = "0.1.0"
+entrypoint = "lib.typ"
+authors = ["kmuto", "takahashim"]
+license = "LGPL-2.1-only"
+description = "A Typst book library for Japanese book typesetting (JIS B5, jlreq-style page design), shared with the Re:VIEW toolchain."
+compiler = "0.13.0"
+exclude = ["examples", "README.md"]

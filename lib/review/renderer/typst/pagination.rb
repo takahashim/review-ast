@@ -35,6 +35,19 @@ module ReVIEW
         rescue ArgumentError, TypeError
           1
         end
+
+        # The Typst numbering pattern the front matter uses. Serial pagination
+        # is arabic throughout; otherwise the front matter is roman and the main
+        # matter turns arabic.
+        def front_numbering
+          serial? ? '1' : 'i'
+        end
+
+        # Whether the main matter restarts the page counter at 1. Serial
+        # pagination keeps counting instead.
+        def restart_main?
+          !serial?
+        end
       end
     end
   end

@@ -62,7 +62,7 @@
 
 ### 3.1 Switching the book parts
 
-- Front matter, main matter, appendix and back matter are switched at the top level of the root file — `#show: book.frontmatter` and friends in sequence, never functions wrapping the includes
+- Front matter, main matter, appendix and back matter are switched at the top level of the root file with native `set page(numbering: ...)` / `set heading(numbering: ...)` / `counter(...).update`, never functions wrapping the includes. Keeping no library state of its own lets the folio, the native `outline` and the index all read the same `page.numbering`
 - Why: a `set` inside a function does not escape to its caller, so the wrapping style cannot vary the per-part page setup (folio format, running heads)
 
 ### 3.2 Part title pages
