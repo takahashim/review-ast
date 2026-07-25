@@ -51,8 +51,10 @@ module ReVIEW
       class TypstMaker
         include ReVIEW::Loggable
 
-        # Typst releases have changed syntax between minor versions; the library
-        # is written against this one.
+        # The oldest Typst the review-book library is known to compile against.
+        # Typst has changed syntax between minor versions, so this is a floor the
+        # preflight enforces, not a pin: newer releases work too (CI builds
+        # against a current one -- see .github/workflows/typst.yml).
         SUPPORTED_TYPST = Gem::Version.new('0.13.0')
 
         attr_reader :config, :basedir
