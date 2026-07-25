@@ -147,6 +147,16 @@
     gutter: 26mm,                // gutter (binding side)
     headsep: 10mm,               // running head to text block
     footskip: 10mm,              // text block to folio
+    headheight: 5mm,             // running head height (§2.9)
+  ),
+
+  // --- figure spacing (§2 "アキ") -----------------------------------------
+  // Space around a float and between a float and its caption. The defaults
+  // mirror the LaTeX edition: \intextsep (TeX 12pt) and \abovecaptionskip
+  // (TeX 5pt). Both are set in Q-derived millimetres, not pt (§2.4).
+  spacing: (
+    float-sep: 4.217mm,          // float to body text (\intextsep)
+    caption-sep: 1.757mm,        // float to caption (\above/\belowcaptionskip)
   ),
 
   // --- fonts --------------------------------------------------------------

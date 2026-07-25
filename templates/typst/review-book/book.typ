@@ -270,6 +270,13 @@
 
   show link: set text(fill: theme.colors.accent)
 
+  // Figure spacing from the theme (§2 "アキ"): the gap is the space between a
+  // float and its caption (caption-sep); the block spacing is the space to the
+  // surrounding body text (float-sep, \intextsep). Without this a figure would
+  // use Typst's defaults and the paragraph spacing set above.
+  set std.figure(gap: theme.spacing.caption-sep)
+  show std.figure: set block(above: theme.spacing.float-sep, below: theme.spacing.float-sep)
+
   body
 }
 
@@ -306,7 +313,9 @@
   let content = (t.renderers.running-head)(info, t)
   if content == none { return none }
 
-  block(width: 100%, content)
+  // Reserve a fixed running-head height (§2.9 headheight) so the text block
+  // position does not shift with the running head's content.
+  block(width: 100%, height: t.margins.headheight, content)
 }
 
 // The folio sits on the outside edge of a two-sided book, so it stays visible
