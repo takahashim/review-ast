@@ -324,15 +324,26 @@ module ReVIEW
         end
 
         # A reference with a supplied display string: a link to the label, never
-        # a Typst `ref` (which would generate its own number).
+        # a Typst `ref` (which would generate its own number). A nil target
+        # produces `target: none`, which review.reference renders as the display
+        # text with no link -- Typst aborts the whole document on link(label)
+        # to a label that was never defined, so a reference we cannot anchor
+        # must degrade to plain text rather than to a dangling link.
         def reference(target, text, escape: true)
           body = escape ? escape_typst(text.to_s) : text.to_s
-          "#review.reference(target: #{typst_string(target)}, text-content: [#{body}])"
+          target_arg = target.nil? ? 'none' : typst_string(target)
+          "#review.reference(target: #{target_arg}, text-content: [#{body}])"
         end
 
+        # nil for an unnumbered heading (nonum/notoc/nodisp): the section label
+        # is built from the number path, which such a heading does not have, so
+        # the renderer emits no label to point at. Numbered headings keep their
+        # sec:<chapter>:<path> anchor.
         def heading_label(data)
-          chapter_id = data.chapter_id || @render_context.chapter_id
-          section_label(chapter_id, Array(data.headline_number).compact)
+          numbers = Array(data.headline_number).compact
+          return nil if numbers.empty?
+
+          section_label(data.chapter_id || @render_context.chapter_id, numbers)
         end
 
         # The number a heading reference shows, with the chapter prefix when the
