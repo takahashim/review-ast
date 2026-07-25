@@ -1,0 +1,103 @@
+name: typst
+
+# The one suite that needs a document engine installed.
+#
+# test.yml runs `rake test` on a plain runner, where the Typst integration tests
+# omit themselves for want of the `typst` executable -- so a change that broke
+# the generated Typst, or the book library it calls, would pass there unnoticed.
+# This workflow installs the toolchain those tests need and runs them.
+#
+# It is kept out of test.yml's Ruby matrix on purpose: the value is in compiling
+# a book at all, which one Ruby proves as well as four, and installing Typst
+# four times over does not pay for itself.
+#
+# No path filter: the generated Typst depends on the AST, the renderer base and
+# the review gem, so a change almost anywhere can move its output.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: true
+
+      - uses: typst-community/setup-typst@v5
+        with:
+          typst-version: '0.15.1'
+
+      # poppler-utils: pdfinfo and pdftotext read the produced PDF back to check
+      # page size, front matter and the theme's effect. Without them those tests
+      # omit themselves, which would hide what this workflow exists to catch.
+      #
+      # fonts-noto-cjk: the default theme asks for CJK faces. Typst falls back
+      # silently when they are missing, so the sample books would compile
+      # without ever setting Japanese text.
+      - name: Install poppler-utils and CJK fonts
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils fonts-noto-cjk
+
+      # veraPDF is the second stage of the PDF/A and PDF/UA check. Typst's own
+      # export check knows only what Typst can see; veraPDF reads the finished
+      # file. The test skips this stage silently when the binary is absent, so
+      # without it a conformance regression would pass here unnoticed -- the
+      # same trap as the missing CJK fonts above.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # The installer is IzPack: unattended mode takes an XML file holding the
+      # answers a human would click through. Only the CLI pack is wanted, and
+      # the path to the XML has to be absolute -- a relative one is not
+      # resolved. The URL is the latest stable build, so a veraPDF release that
+      # reorders the packs would need this list updated.
+      - name: Install veraPDF
+        run: |
+          curl -sSL -o verapdf-installer.zip https://software.verapdf.org/releases/verapdf-installer.zip
+          unzip -q verapdf-installer.zip
+          cat > "$RUNNER_TEMP/verapdf-install.xml" <<XML
+          <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+          <AutomatedInstallation langpack="eng">
+          <com.izforge.izpack.panels.htmlhello.HTMLHelloPanel id="welcome"/>
+          <com.izforge.izpack.panels.target.TargetPanel id="install_dir">
+          <installpath>$RUNNER_TEMP/verapdf</installpath>
+          </com.izforge.izpack.panels.target.TargetPanel>
+          <com.izforge.izpack.panels.packs.PacksPanel id="sdk_pack_select">
+          <pack index="0" name="veraPDF GUI" selected="false"/>
+          <pack index="1" name="veraPDF CLI" selected="true"/>
+          <pack index="2" name="veraPDF Documentation" selected="false"/>
+          <pack index="3" name="veraPDF Sample Plugins" selected="false"/>
+          </com.izforge.izpack.panels.packs.PacksPanel>
+          <com.izforge.izpack.panels.install.InstallPanel id="install"/>
+          <com.izforge.izpack.panels.finish.FinishPanel id="finish"/>
+          </AutomatedInstallation>
+          XML
+          verapdf-greenfield-*/verapdf-install "$RUNNER_TEMP/verapdf-install.xml"
+          "$RUNNER_TEMP/verapdf/verapdf" --version
+          echo "$RUNNER_TEMP/verapdf" >> "$GITHUB_PATH"
+
+      - name: Build books with Typst
+        run: bundle exec ruby -Itest test/ast/test_ast_typst_maker.rb
+
+      # The sample books cover far more Re:VIEW commands than the fixtures do,
+      # and they are the reference this output target is developed against.
+      #
+      # BUNDLE_GEMFILE points back at the project: each sample carries its own
+      # Gemfile for a reader building it standalone with plain Re:VIEW, but that
+      # bundle has neither review-ast nor an installed review, and only the
+      # project's bundle -- the one CI installed -- can run the maker.
+      - name: Build the sample books
+        env:
+          BUNDLE_GEMFILE: ${{ github.workspace }}/Gemfile
+        run: |
+          for book in samples/syntax-book samples/md-syntax-book; do
+            (cd "$book" && bundle exec review-ast-typstmaker config.yml)
+          done
