@@ -85,6 +85,20 @@ class TestAstTypstMaker < Test::Unit::TestCase
     end
   end
 
+  # The hidden folio (隠しノンブル) the printer reads to collate signatures;
+  # it rides with the crop marks, so the theme reference carries the preset.
+  def test_nikko_pc_hidden_folio_reaches_the_generated_root
+    Dir.mktmpdir do |dir|
+      write_book(dir, extra_config: "typst:\n  keep_workdir: true\n  crop: true\n  hiddenfolio: nikko-pc\n")
+
+      output = IO.popen([BIN, File.join(dir, 'config.yml'), { err: %i[child out] }], &:read)
+      root = File.read(File.join(dir, 'book-typst', 'book.typ'))
+
+      assert(Dir[File.join(dir, '*-typst.pdf')].any?, output)
+      assert_include(root, 'book.with-crop(theme, true, hiddenfolio: "nikko-pc")', output)
+    end
+  end
+
   # The book furniture the other makers get from a LaTeX class or the EPUB
   # pipeline is generated here instead, so its absence would be silent.
   def test_builds_front_and_back_matter

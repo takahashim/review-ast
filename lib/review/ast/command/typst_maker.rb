@@ -46,6 +46,7 @@ module ReVIEW
       #     pdf_standard: ~       # e.g. "ua-1", passed to --pdf-standard
       #     math: ~               # "mitex" to typeset LaTeX math with mitex
       #     crop: ~               # true to add crop marks and bleed
+      #     hiddenfolio: ~        # "nikko-pc" for the printer's hidden folio (crop only)
       #     serial_pagination: false  # one arabic counter across the whole book
       #     startpage: 1          # the number the first page carries
       #     keep_workdir: false   # keep the generated .typ tree

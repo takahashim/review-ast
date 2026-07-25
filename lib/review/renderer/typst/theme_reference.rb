@@ -27,13 +27,35 @@ module ReVIEW
         # @return [Code] The Typst expression naming the theme
         def expression
           case @typst_config['crop']
-          when nil then Code.new('theme')
-          when true then Code.new("book.with-crop(theme, true#{crop_colour})")
+          when nil then no_crop_expression
+          when true then Code.new("book.with-crop(theme, true#{crop_colour}#{hidden_folio})")
           else Code.new('book.with-crop(theme, false)')
           end
         end
 
         private
+
+        def no_crop_expression
+          if @typst_config['hiddenfolio']
+            @warn&.call('typst.hiddenfolio is set but typst.crop is not, so no hidden folio ' \
+                        'is drawn: it lives in the bleed, which only exists with crop marks.')
+          end
+          Code.new('theme')
+        end
+
+        # The hidden folio the printer reads to collate signatures. nikko-pc
+        # (= shippo) is supported; other presets warn and are ignored.
+        def hidden_folio
+          preset = @typst_config['hiddenfolio']
+          return '' unless preset
+
+          unless %w[nikko-pc shippo].include?(preset.to_s)
+            @warn&.call("typst.hiddenfolio: #{preset} is not a known preset; " \
+                        'nikko-pc (= shippo) is supported. No hidden folio is drawn.')
+            return ''
+          end
+          ", hiddenfolio: #{preset.to_s.inspect}"
+        end
 
         # Crop marks are drawn in registration black, which is a CMYK colour.
         # Typst ships no CMYK ICC profile, so any conformance mode rejects the
