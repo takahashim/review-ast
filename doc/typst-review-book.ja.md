@@ -22,11 +22,53 @@
   - 後注(endnote)と `//bibpaper` の実体は `book.*` 側にあり、`review.*` は委譲だけしている
   - 装飾インライン(コード・ルビ・アイコン・罫など)は委譲せず `review.*` 内で体裁まで決めている(インラインコードの書体だけはテーマの `fonts.code` を参照する)
 
-### 1.4 番号は生成しない
+### 1.4 番号は生成しない(生成器経路)
 
-- 番号は呼び出し側が確定済みの表示文字列として渡す。ライブラリとテーマは装飾はしても再構成しない
+- `review.*` 経路では、番号は呼び出し側(TypstRenderer)が確定済みの表示文字列として渡す。ライブラリとテーマは装飾はしても再構成しない
 - 理由:HTML、EPUB、Typst PDF の番号を一致させるため
 - 唯一の例外はページ参照。ページ番号だけはレイアウト後にしか決まらないため、Typst の `query` と page counter で解決する
+- これは生成器経路の契約であり、Typst 直書きの著者は Typst のネイティブ採番を使える(1.5)。両者が両立するのは、テーマの見出しレンダラが見出し要素 `it` をそのまま描き、供給された番号(`numbering: none`)でもネイティブ採番でも同じに扱うためである
+
+### 1.5 直書き文書での自動採番
+
+- Re:VIEW を通さず、このライブラリを Typst 書籍ライブラリとして直に使える。`templates/typst/review-book/` を vendoring し、ネイティブ要素(`= 見出し`、`#figure`、`#table`)を書けばテーマが整形する。図表と参照(`@label`)は Typst の標準機構で採番・解決され、`language: "ja"` により「図」「表」のサプリメントも付く
+- 見出しの自動採番は `set heading(numbering: ...)` で有効にする。既製の日本語スキーム `book.heading-numbering`(レベル1=「第N章」、以降=「1.1」「1.1.1」)を用意してある
+
+```typst
+#import "/review-book/lib.typ": book, default-theme
+#show: book.document.with(metadata: (title: [手書き本], language: "ja"), theme: default-theme)
+#set heading(numbering: book.heading-numbering)
+= 最初の章
+@fig1 を参照する。
+#figure(rect(width: 3cm, height: 1cm), caption: [サンプル図]) <fig1>
+== 節
+```
+
+- 書籍の付き物(表紙・大扉・目次・奥付・囲み記事・コラム)は `book.*` を呼ぶ。ネイティブ要素にない部分だけを補う
+- 番号を著者が明示したいとき(または Re:VIEW のように外から与えるとき)は `book.chapter(number: ...)` 等を使う。この場合レベルの見出しは `numbering: none` になり、ネイティブ採番とは混ざらない
+
+#### 前付・本文・付録・後付
+
+- LaTeX の frontmatter / mainmatter / appendix / backmatter に相当する `book.frontmatter` / `book.mainmatter` / `book.appendix` / `book.backmatter` を `#show:` で切り替える。ページ番号(前付=ローマ数字、本文=アラビア)に加えて、見出しの採番も matter ごとに変わる
+- `book.appendix` は LaTeX の `\appendix` と同じく、章番号をリセットして字に切り替える。既製スキーム `book.appendix-numbering`(レベル1=「付録A」、以降=「A.1」)を自動で適用する。`book.backmatter` は見出しを無番号に戻す
+- 本文の採番スキームは著者が `set heading(numbering: book.heading-numbering)` で選ぶ。前付は採番を有効にする前なので無番号のまま
+
+```typst
+#show: book.frontmatter
+= まえがき                               // 無番号
+#show: book.mainmatter
+#set heading(numbering: book.heading-numbering)
+= 最初の章                               // 第1章
+== 節                                    // 1.1
+#show: book.appendix
+= 付録の章                               // 付録A(自動でスキーム切替・カウンタ再開)
+== 付録の節                              // A.1
+#show: book.backmatter
+= あとがき                               // 無番号
+```
+
+- これらは matter の show rule 内で `set heading(numbering: ...)` するため、Re:VIEW 経路の見出し(`numbering: none` + 供給番号)には影響しない。ネイティブ採番の見出しだけに効く
+- 版面の設計値(判型・字詰め・級数・書体・トンボ)は `theme.typ`(design-hanmen 参照)。直書き文書もテーマを差し替えるだけで同じ版面を得る
 
 ## 2. review.* の呼び出し契約
 
