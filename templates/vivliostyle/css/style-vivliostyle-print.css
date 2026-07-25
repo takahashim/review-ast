@@ -17,8 +17,9 @@
  * ========================================================================= */
 
 @page {
-  marks: crop cross;   /* 角トンボ（二重）＋ センタートンボ */
-  bleed: 3mm;          /* \recls@tombobleed の既定値 */
+  marks: crop cross;   /* 角トンボ（二重）＋ センタートンボ。長さ・太さ・色は
+                          CSS の @page marks では制御できない（Vivliostyle 既定） */
+  bleed: var(--bleed); /* 裁ち落とし量。設計値は design.css の --bleed */
 }
 
 /* NOTE: 表紙の塗り足し指定はここには要らない。

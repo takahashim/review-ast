@@ -109,4 +109,10 @@
   --box-pad-y: 3mm;              /* top/bottom 2mm + boxsep 1mm */
   --box-rule: 0.5mm;             /* boxrule */
   --box-arc: 1mm;                /* arc */
+
+  /* --- トンボ・裁ち落とし（入稿用。§2.10） -------------------------------
+     入稿版は style-vivliostyle-print.css を読み込むと有効になる。CSS の
+     @page marks はトンボの長さ・太さ・色を制御できないため、CSS 側で持てる
+     crop の設計値は裁ち落とし量だけである（他は Typst テーマの領分）。 */
+  --bleed: 3mm;                  /* \recls@tombobleed の既定値 */
 }

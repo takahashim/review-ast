@@ -83,9 +83,9 @@
      ここは両者が等しいときの既定として置いてある。 */
   margin: var(--top) var(--inside) var(--bottom);
 
-  /* 入稿用にトンボ・裁ち落としを出す場合は以下を有効化する。
-     ただし隠しノンブル（hiddenfolio=nikko-pc）は CSS では再現できない。 */
-  /* marks: crop cross; bleed: 3mm; */
+  /* 入稿用のトンボ・裁ち落としは style-vivliostyle-print.css を後から
+     読み込むと有効になる（§5.5）。ここ（既定 = media=ebook 相当）では
+     出さない。隠しノンブル（hiddenfolio）は CSS では再現できない。 */
 
   /* ノンブル: 版面の下、中央。footskip ぶん本文から下げるため
      マージンボックスの上端に寄せる */

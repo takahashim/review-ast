@@ -1,0 +1,11 @@
+inherit: ["config-vivliostyle.yml"]
+# 入稿版: style-vivliostyle-print.css を最後に読み込んでトンボと裁ち落としを出す。
+# design → 実装 → 入稿上書き の順。cover: false で表紙を spine から外す
+# （表紙は別入稿。style-vivliostyle-print.css の NOTE 参照）。
+stylesheet: ["style-vivliostyle-design.css", "style-vivliostyle.css", "style-vivliostyle-print.css"]
+epubmaker:
+  stylesheet: ["style-vivliostyle-design.css", "style-vivliostyle.css", "style-vivliostyle-print.css"]
+vivliostyle:
+  output: syntax-book-vivliostyle-print.pdf
+  cover: false
+  timeout: 300
