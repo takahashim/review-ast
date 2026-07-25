@@ -11,15 +11,20 @@
  *
  * 制約:
  *   - PDF の TrimBox / BleedBox は設定されない（MediaBox と同値になる）
- *   - 用紙は A4 ではなく「仕上がり＋トンボ領域」になる
- *     （B5 仕上がりなら 214.1x289.3mm）
- *   - 隠しノンブル（hiddenfolio）は CSS では再現できない
+ *   - 用紙は「仕上がり＋トンボ領域」を既定とし、--crop-offset で一律に広げられる
+ *     （既定 auto なら B5 仕上がりで 214.1x289.3mm）。ただし判型名の標準用紙に
+ *     仕上がりを中央配置する形（A5→B5 のような軸ごとに違う中央化）は
+ *     crop-offset が全辺一律（auto | LENGTH）なため CSS では表せない。§5.5
+ *   - 隠しノンブル（hiddenfolio）は CSS では再現できない（§9.2）
  * ========================================================================= */
 
 @page {
-  marks: crop cross;   /* 角トンボ（二重）＋ センタートンボ。長さ・太さ・色は
-                          CSS の @page marks では制御できない（Vivliostyle 既定） */
-  bleed: var(--bleed); /* 裁ち落とし量。設計値は design.css の --bleed */
+  marks: crop cross;    /* 角トンボ（二重）＋ センタートンボ。長さ・太さ・色は
+                           CSS の @page marks では制御できない（Vivliostyle 既定） */
+  bleed: var(--bleed);  /* 裁ち落とし量。設計値は design.css の --bleed */
+  crop-offset: var(--crop-offset, auto); /* 仕上がりを一律その距離ぶん大きい
+                           用紙の中央に置く（Vivliostyle 拡張。§5.5）。design.css
+                           に --crop-offset が無くても auto にフォールバックする */
 }
 
 /* NOTE: 表紙の塗り足し指定はここには要らない。

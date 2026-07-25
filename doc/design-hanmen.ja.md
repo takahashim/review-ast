@@ -105,6 +105,7 @@
 - トンボと裁ち落とし(bleed、既定3mm)、仕上がりを載せる用紙(sheet)
 - sheet は2通り:仕上がり+塗り足し+トンボ長が載るだけの用紙(auto)、または判型名で標準用紙を指定してその中央に仕上がりを置く
 - 日本の印刷所は後者(A5 仕上がりを B5 用紙の中央に、のような形)を求めることが多い。review-jsbook の `media=print` と同じ考え方である
+- CSS(Vivliostyle)は前者(auto)と、`--crop-offset` で一律ぶん大きい用紙の中央に置く形までを表せる。後者の判型名指定(軸ごとに余りが違う中央化)は crop-offset が全辺一律のため表せない(5.5、9.2)。Typst・LaTeX は判型名の後者に対応する
 - トンボの既定色はレジストレーションブラック(CMYK)
 
 ## 3. 設計値の一覧
@@ -140,7 +141,8 @@
 | 囲み | box-pad-x / pad-y | 囲みの内側アキ | 5mm / 3mm | — | ✓ | ✓ | ✓ |
 | 囲み | box-rule / arc | 罫の太さ・角丸 | 0.5mm / 1mm | — | ✓ | ✓ | ✓ |
 | 色 | code-bg ほか | コード・囲み・注記の配色 | 各ファイル | — | ✓ | ✓ | ✓ |
-| 用紙 | crop.sheet | トンボを載せる用紙 | auto | 2.10 | ✓ | | ✓ |
+| 用紙 | crop.sheet | トンボを載せる用紙(判型名で中央配置) | auto | 2.10 | ✓ | | ✓ |
+| 用紙 | crop-offset(CSS のみ) | 仕上がりを一律ぶん大きい用紙の中央に | auto | 2.10 | | ✓ | |
 | 用紙 | crop.bleed | 裁ち落とし | 3mm | 2.10 | ✓ | ✓ | ✓ |
 | 用紙 | crop.mark-length ほか | トンボ長・太さ・色 | 各ファイル | 2.10 | | | ✓ |
 
@@ -231,7 +233,7 @@
 
 - トンボと裁ち落としは入稿用の上書き `style-vivliostyle-print.css` が `@page { marks: crop cross; bleed: var(--bleed) }` で有効にする。既定の `style-vivliostyle.css`(media=ebook 相当)は出さない。入稿版の設定ファイル(config-vivliostyle-print.yml)で design → 実装 → 入稿上書きの順に読み込む
 - CSS の @page marks はトンボの長さ・太さ・色を制御できない(Vivliostyle の既定で描かれる)。CSS 側で持てる crop の設計値は裁ち落とし量(`--bleed`)だけで、長さ・太さ・色は Typst テーマの領分である(3章の表で crop.mark-length ほかが T のみなのはこのため)
-- 仕上がりを標準用紙の中央に置く形(2.10 の後者)を CSS 側でどう実現するかは未確定(保留。9章)
+- 仕上がりを大きい用紙の中央に置くには `--crop-offset`(既定 auto)に距離を与える。Vivliostyle の `crop-offset`(文法は `auto | LENGTH`)が仕上がりを一律その距離ぶん大きい用紙の中央に置く。ただし判型名の標準用紙(2.10 の後者。A5→B5 のように横17mm・縦23.5mm と軸で余りが違う中央化)は全辺一律の crop-offset では表せない。正確に判型名の用紙へ載せたいときは、auto の入稿 PDF を後段の面付け(Ghostscript / pdfjam など)で当該用紙に配置する。Typst・LaTeX(review-jsbook の media=print)は判型名指定に対応する
 
 ## 6. Typst(review-book theme)での指定
 
@@ -311,7 +313,6 @@
 
 ### 9.1 やれば片付くもの
 
-- CSS 側で「標準用紙の中央に仕上がり」を実現する方法(5.5)
 - 三系統の紙面比較(7.3)。行数・字詰め・四辺位置を突き合わせる(文書と設計値ファイルの自動突き合わせは test/ast/test_hanmen_design_values.rb で実施済み)
 - 欧文フォールバック列の見直し。同寸を既定にしたので、x-height の大きい欧文書体の選定が実益を持つ(2.8)
 - 柱・ノンブルの級数(running-head-size / folio-size)の review-jlreq クラスオプション化。jlreq のページスタイルに `running_head_font` / `nombre_font` キーが既にあり、`\ModifyPageStyle` への薄い写像で実装できる(無指定なら発行せず現行の本文同寸のままで後方互換)。本体(kmuto/review)への上流提案となる。
@@ -320,6 +321,7 @@
 
 ### 9.2 対象外と決めたもの
 
+- CSS(Vivliostyle)で仕上がりを判型名の標準用紙の中央に置く形(2.10 の後者)。crop-offset の文法が `auto | LENGTH` の全辺一律で、軸ごとに余りが違う中央化(A5→B5 など)ができない。一律に大きい用紙へ載せる形は `--crop-offset` で表せる(5.5)。判型名の用紙が要るときは auto の入稿 PDF を後段の面付けで当該用紙に配置する
 - CSS(Vivliostyle)側の隠しノンブル(ノド中央)。CSS Paged Media のマージンボックスは版面外周(マージン領域)に固定で、綴じ側へ寄せる任意オフセットも裁ち落とし・綴じ内領域への配置もできず、90°回転(縦組み・transform)も Vivliostyle のマージンボックスでは実測上効かない(overflow-wrap 等のテキストレイアウト系を捨てるのと同じ制約)。ノド中央に番号を置くだけの近似はできるが、nikko-pc / marusho-ink の隠しノンブルとしては折丁の照合に使えず、規格外の番号を刷り込むと現場をかえって惑わせるため出さない。Typst 側の nikko-pc と通しノンブルは対応済み。
 - jsbook 互換(和欧比率 1.081)。理由は 2.8 の通り。
 - 縦組み。Typst が未対応であり、三系統の語彙として成立しない。Typstが対応したら再検討する
@@ -331,6 +333,7 @@
 - 完了済み:対称性を埋める一式(theme.typ の figure アキ・柱高さ、CSS・Typst の foot-space/fore-edge 陽指定)、設計値の静的照合テスト、CSS のトンボ有効化(入稿用 print CSS + `--bleed`)、欧文フォールバック列の見直し(CSS・Typst)、Typst の通しノンブル(serial_pagination / startpage)と隠しノンブル(nikko-pc = shippo)
 - 隠しノンブルの残りプリセット default(小口側の水平番号)・marusho-ink(nikko-pc + 5mm bleed)は、必要になった時点で追加する
 - 決定済み:R5(CSS の隠しノンブル(ノド中央)の可否)は再現不可と判定し、対象外(9.2)へ移した
+- 完了・決定済み:R4(CSS で「標準用紙の中央に仕上がり」)。一律に大きい用紙へ載せる形を `--crop-offset`(print CSS)で実装し、判型名の非対称中央化は CSS 対象外(9.2)とした
 
 残り(上流)
 
@@ -338,5 +341,4 @@
 
 残り(研究・自動化。大・不確実)
 
-- R4: CSS で「標準用紙の中央に仕上がり」を実現する方法の設計と実装(5.5、2.10 後者。Typst・LaTeX は対応済み)
 - R3: 三系統の紙面自動比較(7.3)。行数・字詰め・四辺位置。3系統をビルドして突き合わせる最も重い基盤なので最後。P2 の後(トンボ・余白が確定してから比較に意味が出る)
