@@ -234,6 +234,7 @@
 - トンボと裁ち落としは入稿用の上書き `style-vivliostyle-print.css` が `@page { marks: crop cross; bleed: var(--bleed) }` で有効にする。既定の `style-vivliostyle.css`(media=ebook 相当)は出さない。入稿版の設定ファイル(config-vivliostyle-print.yml)で design → 実装 → 入稿上書きの順に読み込む
 - CSS の @page marks はトンボの長さ・太さ・色を制御できない(Vivliostyle の既定で描かれる)。CSS 側で持てる crop の設計値は裁ち落とし量(`--bleed`)だけで、長さ・太さ・色は Typst テーマの領分である(3章の表で crop.mark-length ほかが T のみなのはこのため)
 - 仕上がりを大きい用紙の中央に置くには `--crop-offset`(既定 auto)に距離を与える。Vivliostyle の `crop-offset`(文法は `auto | LENGTH`)が仕上がりを一律その距離ぶん大きい用紙の中央に置く。ただし判型名の標準用紙(2.10 の後者。A5→B5 のように横17mm・縦23.5mm と軸で余りが違う中央化)は全辺一律の crop-offset では表せない。正確に判型名の用紙へ載せたいときは、auto の入稿 PDF を後段の面付け(Ghostscript / pdfjam など)で当該用紙に配置する。Typst・LaTeX(review-jsbook の media=print)は判型名指定に対応する
+- 隠しノンブルは入稿用の上書きが `@page :right { @left-middle }` / `@page :left { @right-middle }`(横組み左綴じなので綴じ側は recto=左・verso=右)にノド天地中央のページ番号を出す。回転は `transform: rotate(-90deg)`(`text-orientation: sideways` は Vivliostyle が尊重せず正立のままになる。実測)。級数は `--hidden-folio-size`(既定 2.5mm、LaTeX の \scriptsize 相当)。柱・ノンブルを落とす面のルールは @top-*/@bottom-center しか触らないので隠しノンブルは全ページに残る(折丁照合用として正しい)。nikko-pc の「ノド天地中央・回転」はこれで再現でき、vivlio-pdf の実ビルドで確認した。厳密な mm オフセットや裁ち落とし内配置はマージンボックスの固定位置では表せない(機能は足りる)
 
 ## 6. Typst(review-book theme)での指定
 
@@ -322,7 +323,6 @@
 ### 9.2 対象外と決めたもの
 
 - CSS(Vivliostyle)で仕上がりを判型名の標準用紙の中央に置く形(2.10 の後者)。crop-offset の文法が `auto | LENGTH` の全辺一律で、軸ごとに余りが違う中央化(A5→B5 など)ができない。一律に大きい用紙へ載せる形は `--crop-offset` で表せる(5.5)。判型名の用紙が要るときは auto の入稿 PDF を後段の面付けで当該用紙に配置する
-- CSS(Vivliostyle)側の隠しノンブル(ノド中央)。CSS Paged Media のマージンボックスは版面外周(マージン領域)に固定で、綴じ側へ寄せる任意オフセットも裁ち落とし・綴じ内領域への配置もできず、90°回転(縦組み・transform)も Vivliostyle のマージンボックスでは実測上効かない(overflow-wrap 等のテキストレイアウト系を捨てるのと同じ制約)。ノド中央に番号を置くだけの近似はできるが、nikko-pc / marusho-ink の隠しノンブルとしては折丁の照合に使えず、規格外の番号を刷り込むと現場をかえって惑わせるため出さない。Typst 側の nikko-pc と通しノンブルは対応済み。
 - jsbook 互換(和欧比率 1.081)。理由は 2.8 の通り。
 - 縦組み。Typst が未対応であり、三系統の語彙として成立しない。Typstが対応したら再検討する
 - 段組。現時点の対象書籍(技術書)で需要が薄く、余白導出の規約(2.3)が二段組と干渉するため、必要になった時点で設計する
@@ -332,7 +332,7 @@
 - 9.1 の項目を実ファイル単位の作業に分け、規模・依存・外部要件で並べたもの。完了分は外し、残りだけを載せる
 - 完了済み:対称性を埋める一式(theme.typ の figure アキ・柱高さ、CSS・Typst の foot-space/fore-edge 陽指定)、設計値の静的照合テスト、CSS のトンボ有効化(入稿用 print CSS + `--bleed`)、欧文フォールバック列の見直し(CSS・Typst)、Typst の通しノンブル(serial_pagination / startpage)と隠しノンブル(nikko-pc = shippo)
 - 隠しノンブルの残りプリセット default(小口側の水平番号)・marusho-ink(nikko-pc + 5mm bleed)は、必要になった時点で追加する
-- 決定済み:R5(CSS の隠しノンブル(ノド中央)の可否)は再現不可と判定し、対象外(9.2)へ移した
+- 対応済み:R5(CSS の隠しノンブル)。入稿用 print CSS の @left-middle/@right-middle にノド天地中央・90°回転(transform: rotate)でページ番号を出す。vivlio-pdf の実ビルドで recto=左・verso=右・回転・全ページ残存を確認。厳密な mm オフセットと裁ち落とし内配置のみ範囲外(マージンボックスは固定位置)
 - 完了・決定済み:R4(CSS で「標準用紙の中央に仕上がり」)。一律に大きい用紙へ載せる形を `--crop-offset`(print CSS)で実装し、判型名の非対称中央化は CSS 対象外(9.2)とした
 
 残り(上流)
