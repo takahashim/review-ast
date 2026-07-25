@@ -34,6 +34,7 @@ module ReVIEW
       #     output: mybook-vivliostyle.pdf
       class VivliostyleMaker < EPUBMaker
         def produce(yamlfile, bookname = nil)
+          require_vivlio_pdf
           super
           build_pdf(bookname || @config['bookname'])
         end
@@ -41,7 +42,6 @@ module ReVIEW
         private
 
         def build_pdf(bookname)
-          require_vivlio_pdf
           vconfig = VivliostyleConfig.new(@config['vivliostyle'])
 
           epubfile = File.absolute_path("#{bookname}.epub")

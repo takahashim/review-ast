@@ -96,6 +96,23 @@ class TestTypstRenderer < Test::Unit::TestCase
     assert_include(result, 'target: "fig:ch01:fig1"')
   end
 
+  # An unnumbered heading defines no label (its label is built from the number
+  # path it lacks), so a reference to it must be target: none -- a link to a
+  # never-defined label aborts the whole Typst build.
+  def test_reference_to_unnumbered_heading_has_no_link
+    result = render(<<~RE)
+      = 章
+
+      ==[nonum] 番号なし節
+
+      == 普通の節
+
+      @<hd>{番号なし節}と@<hd>{普通の節}
+    RE
+    assert_include(result, 'target: none, text-content: [「番号なし節」]')
+    assert_include(result, 'target: "sec:ch01:1", text-content: [「1.1 普通の節」]')
+  end
+
   def test_numberless_image_has_no_number
     result = render("= 章\n\n//indepimage[fig1][図版]\n")
     figure_line = result.lines.find { |line| line.include?('#review.figure') }
