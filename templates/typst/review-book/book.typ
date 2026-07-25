@@ -202,6 +202,28 @@
 
 // ---------------------------------------------------------------- document
 
+// The folio sits on the outside edge of a two-sided book, so it stays visible
+// when the reader thumbs through; a single-sided book centres it.
+//
+// The number is formatted by the page's own `numbering` (set via
+// `set page(numbering: ...)`), so the folio, the table of contents (native
+// outline) and the index all read the same source and cannot disagree.
+#let folio() = context {
+  let t = theme-state.get()
+  let number = (t.renderers.page-number)(counter(page).display(), t)
+  let placement = if not t.two-sided {
+    center
+  } else {
+    let odd = calc.odd(here().page())
+    if t.binding == "right" {
+      if odd { left } else { right }
+    } else {
+      if odd { right } else { left }
+    }
+  }
+  align(placement, number)
+}
+
 // Wrap the whole document. Applied as `#show: book.document.with(...)`.
 #let document(
   metadata: (:),
@@ -254,12 +276,14 @@
       bottom: margins.bottom + extra.y,
     ),
     binding: if theme.binding == "right" { right } else { left },
-    // The front matter turns on the folio (footer) and a page numbering; the
-    // cover and title page keep footer: none. The caller (the generated root or
-    // a hand-written document) issues those transitions -- see §1.5.
-    numbering: none,
+    // Sensible defaults so a minimal hand-written document already gets page
+    // numbers: an arabic folio, no running head. The cover and title page set
+    // footer: none themselves; the front matter overrides the numbering to
+    // roman and the main matter turns on the running head (§1.5). The Re:VIEW
+    // root issues those same overrides, so its output is unchanged.
+    numbering: "1",
     header: none,
-    footer: none,
+    footer: folio(),
     header-ascent: theme.margins.headsep,
     footer-descent: theme.margins.footskip,
     background: if crop-on { crop-marks(theme) + hidden-folio(theme) },
@@ -358,28 +382,6 @@
   // Reserve a fixed running-head height (§2.9 headheight) so the text block
   // position does not shift with the running head's content.
   block(width: 100%, height: t.margins.headheight, content)
-}
-
-// The folio sits on the outside edge of a two-sided book, so it stays visible
-// when the reader thumbs through; a single-sided book centres it.
-//
-// The number is formatted by the page's own `numbering` (set via
-// `set page(numbering: ...)`), so the folio, the table of contents (native
-// outline) and the index all read the same source and cannot disagree.
-#let folio() = context {
-  let t = theme-state.get()
-  let number = (t.renderers.page-number)(counter(page).display(), t)
-  let placement = if not t.two-sided {
-    center
-  } else {
-    let odd = calc.odd(here().page())
-    if t.binding == "right" {
-      if odd { left } else { right }
-    } else {
-      if odd { right } else { left }
-    }
-  }
-  align(placement, number)
 }
 
 // ---------------------------------------------------- heading numbering schemes

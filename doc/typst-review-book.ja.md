@@ -31,7 +31,8 @@
 
 ### 1.5 直書き文書での自動採番
 
-- Re:VIEW を通さず、このライブラリを Typst 書籍ライブラリとして直に使える。`templates/typst/review-book/` を vendoring し、ネイティブ要素(`= 見出し`、`#figure`、`#table`)を書けばテーマが整形する。図表と参照(`@label`)は Typst の標準機構で採番・解決され、`language: "ja"` により「図」「表」のサプリメントも付く
+- Re:VIEW を通さず、このライブラリを Typst 書籍ライブラリとして直に使える。`templates/typst/review-book/` を丸ごとコピー(vendoring)し、ネイティブ要素(`= 見出し`、`#figure`、`#table`)を書けばテーマが整形する。図表と参照(`@label`)は Typst の標準機構で採番・解決され、`language: "ja"` により「図」「表」のサプリメントも付く
+- `book.document` は既定でアラビアのノンブル(小口側の folio)を出す。最小の文書でもページ番号が出るので、ページ設定を書かずに始められる。前付のローマ数字や柱は下記のように必要なところで上書きする
 - 見出しの自動採番は `set heading(numbering: ...)` で有効にする。既製の日本語スキーム `book.heading-numbering`(レベル1=「第N章」、以降=「1.1」「1.1.1」)を用意してある
 
 ```typst
