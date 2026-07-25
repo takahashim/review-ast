@@ -44,8 +44,8 @@ class TestTypstStandalone < Test::Unit::TestCase
       File.write(File.join(dir, 'book.typ'), <<~TYP)
         #import "/review-book/lib.typ": book, default-theme
         #show: book.document.with(metadata: (title: [手書き本], language: "ja"), theme: default-theme)
-        // front matter: roman folio, unnumbered headings
-        #set page(numbering: "i", footer: book.folio())
+        // front matter: roman folio (the default is arabic), unnumbered headings
+        #set page(numbering: "i")
         = まえがき
         // main matter: arabic folio, running head, chapter numbering
         #set page(numbering: "1", header: book.running-head())

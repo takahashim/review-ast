@@ -54,10 +54,10 @@
 - ライブラリが提供するのは部品だけ:`book.folio`(小口側のノンブル。footer に置く)、`book.running-head`(柱。header に置く)、採番スキーム `book.heading-numbering`(第N章 / 1.1)と `book.appendix-numbering`(付録A / A.1)
 
 ```typst
-// 前付: 小口ノンブル(ローマ)、柱なし、見出しは無番号
-#set page(numbering: "i", footer: book.folio())
+// 前付: ノンブルをローマに上書き(既定はアラビア)、柱なし、見出しは無番号
+#set page(numbering: "i")
 = まえがき
-// 本文: ノンブル(アラビア)、柱あり、章番号を有効化
+// 本文: ノンブルをアラビアに戻し、柱あり、章番号を有効化
 #set page(numbering: "1", header: book.running-head())
 #counter(page).update(1)
 #set heading(numbering: book.heading-numbering)
