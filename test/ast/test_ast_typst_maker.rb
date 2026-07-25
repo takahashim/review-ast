@@ -58,6 +58,33 @@ class TestAstTypstMaker < Test::Unit::TestCase
     end
   end
 
+  # serial_pagination / startpage reach the generated root (they mirror
+  # review-jsbook's class options; doc/design-hanmen §4.4). The default is
+  # roman front matter restarting at arabic 1, which the .with() args flip.
+  def test_serial_pagination_reaches_the_generated_root
+    Dir.mktmpdir do |dir|
+      write_book(dir, extra_config: "typst:\n  keep_workdir: true\n  serial_pagination: true\n  startpage: 3\n")
+
+      output = IO.popen([BIN, File.join(dir, 'config.yml'), { err: %i[child out] }], &:read)
+      root = File.read(File.join(dir, 'book-typst', 'book.typ'))
+
+      assert_include(root, '#show: book.frontmatter.with(serial: true, start: 3)', output)
+      assert_include(root, '#show: book.mainmatter.with(serial: true)', output)
+    end
+  end
+
+  def test_default_pagination_is_roman_front_matter_from_page_one
+    Dir.mktmpdir do |dir|
+      write_book(dir, extra_config: "typst:\n  keep_workdir: true\n")
+
+      IO.popen([BIN, File.join(dir, 'config.yml'), { err: %i[child out] }], &:read)
+      root = File.read(File.join(dir, 'book-typst', 'book.typ'))
+
+      assert_include(root, '#show: book.frontmatter.with(serial: false, start: 1)')
+      assert_include(root, '#show: book.mainmatter.with(serial: false)')
+    end
+  end
+
   # The book furniture the other makers get from a LaTeX class or the EPUB
   # pipeline is generated here instead, so its absence would be silent.
   def test_builds_front_and_back_matter

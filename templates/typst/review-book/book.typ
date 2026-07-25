@@ -353,17 +353,21 @@
 // page numbering and heading rules differ per part (the lyceum lesson recorded
 // in doc/typst-review-book.md / appendix C).
 
-#let frontmatter(body) = {
-  numbering-state.update("i")
+// serial / start mirror review-jsbook's serial_pagination / startpage; they are
+// set by the generated root file from the typst: config (doc/design-hanmen §4.4).
+// Serial pagination runs one arabic counter across the whole book, so the front
+// matter is arabic too and the main matter does not restart.
+#let frontmatter(serial: false, start: 1, body) = {
+  numbering-state.update(if serial { "1" } else { "i" })
   set page(footer: folio(), header: none)
-  counter(page).update(1)
+  counter(page).update(start)
   body
 }
 
-#let mainmatter(body) = {
+#let mainmatter(serial: false, body) = {
   numbering-state.update("1")
   set page(footer: folio(), header: running-head())
-  counter(page).update(1)
+  if not serial { counter(page).update(1) }
   body
 }
 
