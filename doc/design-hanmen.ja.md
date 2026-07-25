@@ -92,7 +92,7 @@
   - Typst にフォールバック単位の大きさ補正の機構がなく、同寸だけが3系統に無損失に写せる。倍率を語彙に残すと、その値を使った時点で紙面一致が壊れる
   - CSS での再現(`@font-face` の `size-adjust` による合成フォント)は `var()` が使えず迂遠で、設計値ファイルの中で最も説明を要する箇所になっていた
 - 同寸で欧文が小さく見える問題は、倍率ではなく書体選択で解く。見劣りの主因は x-height なので、x-height の大きい欧文を和文と組む。これはどのエンジンでも同じに写せ、契約を壊さない
-- 既定フォールバック列の筆頭 Latin Modern は x-height が小さく、同寸で最も見劣りする部類である。列の見直しは保留事項(9章)
+- 欧文本文の既定フォールバック列は「x-height が大きく本文向き → 可用性」の順に並べる:XCharter(TeX 同梱)→ Charter(macOS 標準)→ Georgia(macOS/Windows 標準)→ Noto Serif(Linux/CI・オープン)→ Latin Modern / CMU Serif / Times New Roman(TeX・最終手段)。同寸で見劣りしていた Latin Modern(x-height が小さい)を筆頭から外し、環境をまたいで x-height の大きい欧文が当たるようにした。design.css(`--font-latin-serif`)と theme.typ(`fonts.body`)で同じ列を持つ。LaTeX の欧文書体は review-jsbook/jlreq(gem)の既定で、review-ast の設計値ファイルの外にあるため、揃えるにはプリアンブル/sty で書体を設定する(書籍または gem 側の作業)
 
 ### 2.9 版面の外
 
@@ -328,11 +328,10 @@
 ### 9.3 着手順（残りの作業）
 
 - 9.1 の項目を実ファイル単位の作業に分け、規模・依存・外部要件で並べたもの。完了分は外し、残りだけを載せる
-- 完了済み:対称性を埋める一式(theme.typ の figure アキ・柱高さ、CSS・Typst の foot-space/fore-edge 陽指定)、設計値の静的照合テスト、CSS のトンボ有効化(入稿用 print CSS + `--bleed`)
+- 完了済み:対称性を埋める一式(theme.typ の figure アキ・柱高さ、CSS・Typst の foot-space/fore-edge 陽指定)、設計値の静的照合テスト、CSS のトンボ有効化(入稿用 print CSS + `--bleed`)、欧文フォールバック列の見直し(CSS・Typst)
 
-残り(意匠・入稿・上流)
+残り(入稿・上流)
 
-- R1: 欧文フォールバック列の筆頭を x-height の大きい書体に見直す。同寸決定(2.8)の実益を出す、3系統の design 値のみの変更
 - P2: Typst の隠しノンブル・通しノンブル対応(4.4)。印刷所要件で早めに要る
 - P3: review-jlreq の running-head-size / folio-size をクラスオプション化し、kmuto/review へ提案する(9.1 末尾。jsbook 側は sty 編集)。外部レビューがクリティカルパス
 

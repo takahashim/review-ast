@@ -75,8 +75,15 @@
      採らない。Typst にフォールバック単位の大きさ補正がなく、倍率を使うと
      LaTeX・Vivliostyle・Typst の紙面一致が保てないため。
      同寸で欧文が小さく見えるときは、倍率ではなく x-height の大きい欧文書体を
-     選んで解決すること。 */
-  --font-latin-serif: "Latin Modern Roman", "CMU Serif", "Times New Roman";
+     選んで解決する。列は「x-height が大きく本文向き → 可用性」の順:
+       XCharter … 本文向け・大きい x-height（TeX 同梱、筆頭）
+       Charter  … XCharter の素で近い字面（macOS 標準）
+       Georgia  … 大きい x-height（macOS/Windows 標準）
+       Noto Serif … オープン・大きい x-height（Linux/CI、Noto 明朝と揃う）
+     以降の Latin Modern / CMU Serif / Times New Roman は TeX・最終手段。
+     いずれも同寸で和文と釣り合う欧文を、環境をまたいで確保するための列。 */
+  --font-latin-serif: "XCharter", "Charter", "Georgia", "Noto Serif",
+                      "Latin Modern Roman", "CMU Serif", "Times New Roman";
   --font-latin-sans: "Helvetica Neue", Helvetica, Arial;
   /* 和文と組ませず単独で使うので、こちらは総称を末尾に持つ */
   --font-mono: "Latin Modern Mono", "DejaVu Sans Mono", "Menlo", monospace;
