@@ -58,9 +58,9 @@ class TestAstTypstMaker < Test::Unit::TestCase
     end
   end
 
-  # serial_pagination / startpage reach the generated root (they mirror
-  # review-jsbook's class options; doc/design-hanmen §4.4). The default is
-  # roman front matter restarting at arabic 1, which the .with() args flip.
+  # serial_pagination / startpage reach the generated root as native page
+  # transitions (they mirror review-jsbook's class options; design-hanmen §4.4).
+  # Serial pagination is arabic from the start page with no main-matter restart.
   def test_serial_pagination_reaches_the_generated_root
     Dir.mktmpdir do |dir|
       write_book(dir, extra_config: "typst:\n  keep_workdir: true\n  serial_pagination: true\n  startpage: 3\n")
@@ -68,11 +68,14 @@ class TestAstTypstMaker < Test::Unit::TestCase
       output = IO.popen([BIN, File.join(dir, 'config.yml'), { err: %i[child out] }], &:read)
       root = File.read(File.join(dir, 'book-typst', 'book.typ'))
 
-      assert_include(root, '#show: book.frontmatter.with(serial: true, start: 3)', output)
-      assert_include(root, '#show: book.mainmatter.with(serial: true)', output)
+      assert_include(root, '#set page(numbering: "1", footer: book.folio())', output)
+      assert_include(root, '#counter(page).update(3)', output)
+      # No restart at the main matter -- the counter keeps running.
+      assert_not_include(root, '#counter(page).update(1)', output)
     end
   end
 
+  # The default is roman front matter restarting at arabic 1 in the main matter.
   def test_default_pagination_is_roman_front_matter_from_page_one
     Dir.mktmpdir do |dir|
       write_book(dir, extra_config: "typst:\n  keep_workdir: true\n")
@@ -80,8 +83,9 @@ class TestAstTypstMaker < Test::Unit::TestCase
       IO.popen([BIN, File.join(dir, 'config.yml'), { err: %i[child out] }], &:read)
       root = File.read(File.join(dir, 'book-typst', 'book.typ'))
 
-      assert_include(root, '#show: book.frontmatter.with(serial: false, start: 1)')
-      assert_include(root, '#show: book.mainmatter.with(serial: false)')
+      assert_include(root, '#set page(numbering: "i", footer: book.folio())')
+      assert_include(root, '#set page(numbering: "1", header: book.running-head())')
+      assert_include(root, '#counter(page).update(1)')
     end
   end
 

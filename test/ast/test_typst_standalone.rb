@@ -44,16 +44,22 @@ class TestTypstStandalone < Test::Unit::TestCase
       File.write(File.join(dir, 'book.typ'), <<~TYP)
         #import "/review-book/lib.typ": book, default-theme
         #show: book.document.with(metadata: (title: [手書き本], language: "ja"), theme: default-theme)
-        #show: book.frontmatter
+        // front matter: roman folio, unnumbered headings
+        #set page(numbering: "i", footer: book.folio())
         = まえがき
-        #show: book.mainmatter
+        // main matter: arabic folio, running head, chapter numbering
+        #set page(numbering: "1", header: book.running-head())
+        #counter(page).update(1)
         #set heading(numbering: book.heading-numbering)
         = 最初の章
         == 節
-        #show: book.appendix
+        // appendix: reset the chapter counter and letter it
+        #counter(heading).update(0)
+        #set heading(numbering: book.appendix-numbering)
         = 付録の章
         == 付録の節
-        #show: book.backmatter
+        // back matter: unnumbered again
+        #set heading(numbering: none)
         = あとがき
       TYP
 

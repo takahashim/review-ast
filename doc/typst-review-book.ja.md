@@ -49,25 +49,31 @@
 
 #### 前付・本文・付録・後付
 
-- LaTeX の frontmatter / mainmatter / appendix / backmatter に相当する `book.frontmatter` / `book.mainmatter` / `book.appendix` / `book.backmatter` を `#show:` で切り替える。ページ番号(前付=ローマ数字、本文=アラビア)に加えて、見出しの採番も matter ごとに変わる
-- `book.appendix` は LaTeX の `\appendix` と同じく、章番号をリセットして字に切り替える。既製スキーム `book.appendix-numbering`(レベル1=「付録A」、以降=「A.1」)を自動で適用する。`book.backmatter` は見出しを無番号に戻す
-- 本文の採番スキームは著者が `set heading(numbering: book.heading-numbering)` で選ぶ。前付は採番を有効にする前なので無番号のまま
+- LaTeX の frontmatter / mainmatter / appendix / backmatter に相当する切り替えは、専用の関数ではなく Typst のネイティブな `set`/`counter` で行う。ライブラリは独自の状態を持たず、ページ番号は `set page(numbering: ...)` に、見出し番号は `set heading(numbering: ...)` に素直に乗る。だから folio・目次(ネイティブ `outline`)・索引が同じ `page.numbering` を読み、表示ページ番号が食い違わない
+- ライブラリが提供するのは部品だけ:`book.folio`(小口側のノンブル。footer に置く)、`book.running-head`(柱。header に置く)、採番スキーム `book.heading-numbering`(第N章 / 1.1)と `book.appendix-numbering`(付録A / A.1)
 
 ```typst
-#show: book.frontmatter
-= まえがき                               // 無番号
-#show: book.mainmatter
+// 前付: 小口ノンブル(ローマ)、柱なし、見出しは無番号
+#set page(numbering: "i", footer: book.folio())
+= まえがき
+// 本文: ノンブル(アラビア)、柱あり、章番号を有効化
+#set page(numbering: "1", header: book.running-head())
+#counter(page).update(1)
 #set heading(numbering: book.heading-numbering)
 = 最初の章                               // 第1章
 == 節                                    // 1.1
-#show: book.appendix
-= 付録の章                               // 付録A(自動でスキーム切替・カウンタ再開)
+// 付録: 章カウンタをリセットして字送りに(LaTeX の \appendix 相当)
+#counter(heading).update(0)
+#set heading(numbering: book.appendix-numbering)
+= 付録の章                               // 付録A
 == 付録の節                              // A.1
-#show: book.backmatter
-= あとがき                               // 無番号
+// 後付: 無番号に戻す
+#set heading(numbering: none)
+= あとがき
 ```
 
-- これらは matter の show rule 内で `set heading(numbering: ...)` するため、Re:VIEW 経路の見出し(`numbering: none` + 供給番号)には影響しない。ネイティブ採番の見出しだけに効く
+- 通しノンブル(全編アラビア・カウンタ非リセット)や開始ページも、`set page(numbering: "1")` と `counter(page).update(n)` の置き方で表せる。Re:VIEW 生成器(book.typ.erb)は typst config の serial_pagination / startpage からこの遷移を出す
+- これらは native の `set heading(numbering: ...)` なので、Re:VIEW 経路の見出し(`numbering: none` + 供給番号)には影響しない。ネイティブ採番の見出しだけに効く
 - 版面の設計値(判型・字詰め・級数・書体・トンボ)は `theme.typ`(design-hanmen 参照)。直書き文書もテーマを差し替えるだけで同じ版面を得る
 
 ## 2. review.* の呼び出し契約
@@ -104,8 +110,8 @@
 
 ### 3.1 区分の切替
 
-- 区分(前付・本文・付録・後付)の切替は root ファイルのトップレベルで行う。`#show: book.frontmatter` の形で並べ、include を関数で包まない
-- 理由:関数内の `set` は呼び出し元へ波及しないため、包む方式では区分ごとのページ設定(ノンブル形式、柱の有無)を変えられない
+- 区分(前付・本文・付録・後付)の切替は root ファイルのトップレベルで、ネイティブな `set page(numbering: ...)` / `set page(header: ...)` / `counter(page).update` / `counter(heading).update` / `set heading(numbering: ...)` を並べて行う。専用の関数では包まない
+- 理由:関数内の `set` は呼び出し元へ波及しない。トップレベルの `set` は以降すべてに効くので、区分ごとのページ設定(ノンブル形式、柱の有無)と見出し採番を切り替えられる。独自状態を持たないぶん、folio・目次・索引が同じ `page.numbering` を読み、表示ページ番号が食い違わない(§1.5)
 
 ### 3.2 パートの扉
 

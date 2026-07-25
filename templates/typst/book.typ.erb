@@ -37,7 +37,9 @@
 <% if book.front_matter.titlepage? %>
 #review.titlepage(title: <%= book.metadata.title.content %><% if book.metadata.subtitle %>, subtitle: <%= book.metadata.subtitle.content %><% end %>, authors: ((name: <%= book.metadata.author_line.content %>),)<% if book.metadata.publisher %>, publisher: <%= book.metadata.publisher.content %><% end %>)
 <% end %>
-#show: book.frontmatter.with(serial: <%= book.pagination.serial? %>, start: <%= book.pagination.start %>)
+// Front matter: turn on the folio, its page numbering, and the start page.
+#set page(numbering: "<%= book.pagination.front_numbering %>", footer: book.folio())
+#counter(page).update(<%= book.pagination.start %>)
 <% if book.front_matter.toc? %>
 #review.toc(title: <%= book.front_matter.toc_title.content %><% if book.front_matter.toc_depth %>, depth: <%= book.front_matter.toc_depth %><% end %>)
 <% end %>
@@ -45,22 +47,20 @@
 #include "/chapters/<%= file.basename %>.typ"
 <% end %>
 <% unless chapters.chaps.empty? %>
-#show: book.mainmatter.with(serial: <%= book.pagination.serial? %>)
-<% chapters.chaps.each do |file| %>
+// Main matter: arabic page numbering and the running head.<% if book.pagination.restart_main? %> Restart at 1.<% end %>
+#set page(numbering: "1", header: book.running-head())
+<% if book.pagination.restart_main? %>#counter(page).update(1)
+<% end %><% chapters.chaps.each do |file| %>
 #include "/chapters/<%= file.basename %>.typ"
 <% end %>
 <% end %>
-<% unless chapters.appendix.empty? %>
-#show: book.appendix
+<%# Appendix and back matter continue the main matter's page numbering, and the %>
+<%# renderer supplies their heading numbers, so no page-side transition is needed. %>
 <% chapters.appendix.each do |file| %>
 #include "/chapters/<%= file.basename %>.typ"
 <% end %>
-<% end %>
-<% unless chapters.postdef.empty? %>
-#show: book.backmatter
 <% chapters.postdef.each do |file| %>
 #include "/chapters/<%= file.basename %>.typ"
-<% end %>
 <% end %>
 <% if book.index.wanted? %>
 #review.print-index(title: <%= book.index.title.content %>)

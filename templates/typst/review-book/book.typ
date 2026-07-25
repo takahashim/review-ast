@@ -18,7 +18,6 @@
 // threading them through every call.
 #let theme-state = state("review-book-theme", default-theme)
 #let meta-state = state("review-book-meta", (:))
-#let numbering-state = state("review-book-page-numbering", "1")
 
 #let renderer(name) = theme-state.get().renderers.at(name)
 
@@ -184,8 +183,9 @@
 
   let (tw, th) = trim-size(theme)
   let m = crop-margins(theme)
-  // The page number as shown, so it follows serial pagination / the start page.
-  let digits = str(counter(page).display(numbering-state.get())).clusters()
+  // The page number as shown (the page's own numbering), so it follows serial
+  // pagination / the start page.
+  let digits = str(counter(page).display()).clusters()
   let stack = box(text(size: 7pt, font: theme.fonts.heading, fill: luma(0),
     std.stack(dir: ttb, ..digits.map(d => box(width: 1em, align(center, d))))))
 
@@ -254,6 +254,9 @@
       bottom: margins.bottom + extra.y,
     ),
     binding: if theme.binding == "right" { right } else { left },
+    // The front matter turns on the folio (footer) and a page numbering; the
+    // cover and title page keep footer: none. The caller (the generated root or
+    // a hand-written document) issues those transitions -- see §1.5.
     numbering: none,
     header: none,
     footer: none,
@@ -359,9 +362,13 @@
 
 // The folio sits on the outside edge of a two-sided book, so it stays visible
 // when the reader thumbs through; a single-sided book centres it.
+//
+// The number is formatted by the page's own `numbering` (set via
+// `set page(numbering: ...)`), so the folio, the table of contents (native
+// outline) and the index all read the same source and cannot disagree.
 #let folio() = context {
   let t = theme-state.get()
-  let number = (t.renderers.page-number)(counter(page).display(numbering-state.get()), t)
+  let number = (t.renderers.page-number)(counter(page).display(), t)
   let placement = if not t.two-sided {
     center
   } else {
@@ -392,55 +399,30 @@
 }
 
 // The appendix scheme: chapters become letters ("付録A"), their sections the
-// letter path ("A.1"), as in the LaTeX edition. book.appendix installs it.
+// letter path ("A.1"), as in the LaTeX edition. The appendix transition sets
+// it after resetting the heading counter (§1.5).
 #let appendix-numbering(..nums) = {
   let n = nums.pos()
   let letter = numbering("A", n.first())
   if n.len() == 1 { "付録" + letter } else { (letter, ..n.slice(1).map(str)).join(".") }
 }
 
-// ------------------------------------------------------------- book parts
+// ---------------------------------------------------------- book structure
 //
-// Each part is applied at the TOP LEVEL of the root file, not as a wrapper
-// around an include. A `set` inside a function only affects the content that
-// function returns, so wrapping each part in its own function call is what lets
-// page numbering and heading rules differ per part (the lyceum lesson recorded
-// in doc/typst-review-book.md / appendix C).
-
-// serial / start mirror review-jsbook's serial_pagination / startpage; they are
-// set by the generated root file from the typst: config (doc/design-hanmen §4.4).
-// Serial pagination runs one arabic counter across the whole book, so the front
-// matter is arabic too and the main matter does not restart.
-#let frontmatter(serial: false, start: 1, body) = {
-  numbering-state.update(if serial { "1" } else { "i" })
-  set page(footer: folio(), header: none)
-  counter(page).update(start)
-  body
-}
-
-#let mainmatter(serial: false, body) = {
-  numbering-state.update("1")
-  set page(footer: folio(), header: running-head())
-  if not serial { counter(page).update(1) }
-  body
-}
-
-// The appendix restarts the chapter counter and letters it ("付録A"), like
-// LaTeX's \appendix. This only reaches a hand-written document's native
-// headings: a Re:VIEW heading carries numbering: none and its supplied number,
-// so the set rule and the counter reset pass it by.
-#let appendix(body) = {
-  counter(heading).update(0)
-  set heading(numbering: appendix-numbering)
-  body
-}
-
-// Back matter (afterword, colophon) is unnumbered, so a heading here does not
-// keep the appendix lettering.
-#let backmatter(body) = {
-  set heading(numbering: none)
-  body
-}
+// The matters (front / main / appendix / back) are not functions here: they are
+// plain native transitions the caller issues at the top level of the root --
+// `set page(numbering: ...)`, `set page(header: ...)`, `counter(page).update`,
+// `counter(heading).update`, `set heading(numbering: ...)`. A `set` at the top
+// level applies to everything after it, which is what makes the page and
+// heading numbering differ per matter without any library-specific state.
+//
+// The generated root (book.typ.erb) emits the page-side transitions the Re:VIEW
+// path needs; a hand-written document issues both the page-side and the
+// heading-side ones (doc/typst-review-book §1.5). The building blocks the
+// caller reaches for are:
+//   book.folio            -- the outer-edge page number (footer content)
+//   book.running-head     -- the running head (header content)
+//   book.heading-numbering / book.appendix-numbering -- heading number schemes
 
 // --------------------------------------------------------------- headings
 
