@@ -373,6 +373,21 @@
 
 // --------------------------------------------------------------- headings
 
+// A heading numbering scheme for a hand-written document (not the Re:VIEW
+// path, which supplies its own numbers). A book styled by this library can
+// turn on native Typst numbering with
+//
+//   #set heading(numbering: book.heading-numbering)
+//
+// and write plain `= 章` / `== 節` headings: the theme's heading renderer
+// shows whatever number the heading carries, so a supplied number (Re:VIEW,
+// numbering: none) and an auto number look the same. Level 1 is a Japanese
+// chapter ("第1章"), deeper levels are the dotted path ("1.1", "1.1.1").
+#let heading-numbering(..nums) = {
+  let n = nums.pos()
+  if n.len() == 1 { "第" + str(n.first()) + "章" } else { n.map(str).join(".") }
+}
+
 // A chapter heading. `number` is display text supplied by the caller; the
 // numbering itself is never computed here.
 // The heading body is plain content, never a context block. Typst reads the
