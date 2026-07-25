@@ -89,8 +89,15 @@ jobs:
 
       # The sample books cover far more Re:VIEW commands than the fixtures do,
       # and they are the reference this output target is developed against.
+      #
+      # BUNDLE_GEMFILE points back at the project: each sample carries its own
+      # Gemfile for a reader building it standalone with plain Re:VIEW, but that
+      # bundle has neither review-ast nor an installed review, and only the
+      # project's bundle -- the one CI installed -- can run the maker.
       - name: Build the sample books
+        env:
+          BUNDLE_GEMFILE: ${{ github.workspace }}/Gemfile
         run: |
           for book in samples/syntax-book samples/md-syntax-book; do
-            (cd "$book" && bundle exec ruby "$GITHUB_WORKSPACE/bin/review-ast-typstmaker" config.yml)
+            (cd "$book" && bundle exec review-ast-typstmaker config.yml)
           done
