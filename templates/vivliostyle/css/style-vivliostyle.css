@@ -42,11 +42,27 @@
   --hanmen-width: calc(var(--line-length) * var(--fontsize));
   --hanmen-height: calc(var(--number-of-lines) * var(--baselineskip));
 
-  /* 小口と地は、判型から版面と反対側の余白を引いた残り。
-     ノドを広げれば小口が狭くなり、版面の位置と大きさは変わらない。 */
-  --edge: calc(var(--papersize-width) - var(--hanmen-width) - var(--gutter));
-  --bottom-space: calc(var(--papersize-height) - var(--head-space)
-                       - var(--hanmen-height));
+  /* 天/地・ノド/小口は「一方を指定、他方は導出、両方無指定なら中央」(§2.3, §5.2)。
+     設計値ファイルが与えた側(既定は天とノド)を使い、反対側はそこから導く。
+     どちらの軸も両方未指定なら中央寄せ((判型 − 版面) / 2)に落ちる。
+     var() のフォールバックがこの優先順位を表す。ノドを広げれば小口が同じだけ
+     狭くなり、版面の位置と大きさは変わらない。 */
+  --top: var(--head-space,
+              calc(var(--papersize-height)
+                   - var(--foot-space, calc((var(--papersize-height) - var(--hanmen-height)) / 2))
+                   - var(--hanmen-height)));
+  --bottom: var(--foot-space,
+                 calc(var(--papersize-height)
+                      - var(--head-space, calc((var(--papersize-height) - var(--hanmen-height)) / 2))
+                      - var(--hanmen-height)));
+  --inside: var(--gutter,
+                 calc(var(--papersize-width)
+                      - var(--fore-edge, calc((var(--papersize-width) - var(--hanmen-width)) / 2))
+                      - var(--hanmen-width)));
+  --outside: var(--fore-edge,
+                  calc(var(--papersize-width)
+                       - var(--gutter, calc((var(--papersize-width) - var(--hanmen-width)) / 2))
+                       - var(--hanmen-width)));
 
   /* NOTE: 行送りを級数で割った「比」は作らない。
      calc(長さ / 長さ) は CSS.supports が true を返すのに Vivliostyle の
@@ -57,15 +73,15 @@
 
 /* ============================================================================
  * 1. ページ設定
- *    左右の余白は設計ファイルの --gutter（ノド）だけで決まり、小口は
- *    残りとして導出される。既定では両者が等しく左右対称になる。
+ *    余白は解決済みの --top / --bottom / --inside / --outside を使う（:root で
+ *    指定側から導出済み）。既定では左右が等しく対称になる。
  * ========================================================================= */
 
 @page {
   size: var(--papersize-width) var(--papersize-height);
   /* 左右は下の :left / :right がノド・小口に振り分ける。
      ここは両者が等しいときの既定として置いてある。 */
-  margin: var(--head-space) var(--gutter) var(--bottom-space);
+  margin: var(--top) var(--inside) var(--bottom);
 
   /* 入稿用にトンボ・裁ち落としを出す場合は以下を有効化する。
      ただし隠しノンブル（hiddenfolio=nikko-pc）は CSS では再現できない。 */
@@ -98,8 +114,8 @@
  * 本文（body の overflow-wrap）のような緊急折り返しは柱には掛けられない。
  * 通常の分割位置がある柱は既定の規則で折り返される。 */
 @page :left {
-  margin-left: var(--edge);
-  margin-right: var(--gutter);
+  margin-left: var(--outside);
+  margin-right: var(--inside);
 
   @top-left {
     content: string(chaptertitle);
@@ -115,8 +131,8 @@
 }
 
 @page :right {
-  margin-left: var(--gutter);
-  margin-right: var(--edge);
+  margin-left: var(--inside);
+  margin-right: var(--outside);
 
   @top-right {
     content: string(sectiontitle);
