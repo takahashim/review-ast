@@ -3,3 +3,5 @@
 source 'https://rubygems.org'
 
 gemspec
+
+gem "vivlio-pdf", github: "takahashim/vivlio-pdf"
