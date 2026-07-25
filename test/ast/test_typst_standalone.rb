@@ -29,15 +29,52 @@ class TestTypstStandalone < Test::Unit::TestCase
         == 節
       TYP
 
-      pdf = File.join(dir, 'book.pdf')
-      output = IO.popen(['typst', 'compile', '--root', dir, File.join(dir, 'book.typ'), pdf],
-                        err: %i[child out], &:read)
-      assert(File.exist?(pdf), "the standalone book did not compile:\n#{output}")
-
-      text = IO.popen(['pdftotext', pdf, '-'], &:read).gsub(/\s+/, '')
+      text = compile(dir)
       assert_include(text, '第1章', 'the chapter is not numbered 第N章')
       assert_include(text, '1.1節', 'the section is not numbered N.N')
       assert_include(text, '図1', 'the figure / its reference is not numbered')
     end
+  end
+
+  # The book matters number their headings the way the LaTeX edition does:
+  # front/back matter unnumbered, main matter 第N章, appendix lettered 付録A.
+  def test_the_matters_number_headings_like_the_latex_edition
+    Dir.mktmpdir do |dir|
+      FileUtils.cp_r(LIBRARY, File.join(dir, 'review-book'))
+      File.write(File.join(dir, 'book.typ'), <<~TYP)
+        #import "/review-book/lib.typ": book, default-theme
+        #show: book.document.with(metadata: (title: [手書き本], language: "ja"), theme: default-theme)
+        #show: book.frontmatter
+        = まえがき
+        #show: book.mainmatter
+        #set heading(numbering: book.heading-numbering)
+        = 最初の章
+        == 節
+        #show: book.appendix
+        = 付録の章
+        == 付録の節
+        #show: book.backmatter
+        = あとがき
+      TYP
+
+      text = compile(dir)
+      assert_include(text, '第1章', 'main matter chapter should be 第N章')
+      assert_include(text, '付録A', 'appendix chapter should be lettered 付録A')
+      assert_include(text, 'A.1', 'appendix section should be A.1')
+      # Front and back matter carry no chapter number.
+      assert_not_include(text, '第2章', 'the appendix must not continue the chapter count')
+    end
+  end
+
+  private
+
+  # Compiles the standalone book in +dir+ and returns its whitespace-stripped
+  # text, failing if it does not compile.
+  def compile(dir)
+    pdf = File.join(dir, 'book.pdf')
+    output = IO.popen(['typst', 'compile', '--root', dir, File.join(dir, 'book.typ'), pdf],
+                      err: %i[child out], &:read)
+    assert(File.exist?(pdf), "the standalone book did not compile:\n#{output}")
+    IO.popen(['pdftotext', pdf, '-'], &:read).gsub(/\s+/, '')
   end
 end

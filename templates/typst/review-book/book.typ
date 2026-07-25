@@ -345,6 +345,30 @@
   align(placement, number)
 }
 
+// ---------------------------------------------------- heading numbering schemes
+//
+// For a hand-written document (not the Re:VIEW path, which supplies its own
+// numbers). A book styled by this library turns on native Typst numbering with
+//
+//   #set heading(numbering: book.heading-numbering)
+//
+// and writes plain `= 章` / `== 節` headings: the theme's heading renderer
+// shows whatever number the heading carries, so a supplied number (Re:VIEW,
+// numbering: none) and an auto number look the same. Level 1 is a Japanese
+// chapter ("第1章"), deeper levels are the dotted path ("1.1", "1.1.1").
+#let heading-numbering(..nums) = {
+  let n = nums.pos()
+  if n.len() == 1 { "第" + str(n.first()) + "章" } else { n.map(str).join(".") }
+}
+
+// The appendix scheme: chapters become letters ("付録A"), their sections the
+// letter path ("A.1"), as in the LaTeX edition. book.appendix installs it.
+#let appendix-numbering(..nums) = {
+  let n = nums.pos()
+  let letter = numbering("A", n.first())
+  if n.len() == 1 { "付録" + letter } else { (letter, ..n.slice(1).map(str)).join(".") }
+}
+
 // ------------------------------------------------------------- book parts
 //
 // Each part is applied at the TOP LEVEL of the root file, not as a wrapper
@@ -367,26 +391,24 @@
   body
 }
 
-#let appendix(body) = { body }
+// The appendix restarts the chapter counter and letters it ("付録A"), like
+// LaTeX's \appendix. This only reaches a hand-written document's native
+// headings: a Re:VIEW heading carries numbering: none and its supplied number,
+// so the set rule and the counter reset pass it by.
+#let appendix(body) = {
+  counter(heading).update(0)
+  set heading(numbering: appendix-numbering)
+  body
+}
 
-#let backmatter(body) = { body }
+// Back matter (afterword, colophon) is unnumbered, so a heading here does not
+// keep the appendix lettering.
+#let backmatter(body) = {
+  set heading(numbering: none)
+  body
+}
 
 // --------------------------------------------------------------- headings
-
-// A heading numbering scheme for a hand-written document (not the Re:VIEW
-// path, which supplies its own numbers). A book styled by this library can
-// turn on native Typst numbering with
-//
-//   #set heading(numbering: book.heading-numbering)
-//
-// and write plain `= 章` / `== 節` headings: the theme's heading renderer
-// shows whatever number the heading carries, so a supplied number (Re:VIEW,
-// numbering: none) and an auto number look the same. Level 1 is a Japanese
-// chapter ("第1章"), deeper levels are the dotted path ("1.1", "1.1.1").
-#let heading-numbering(..nums) = {
-  let n = nums.pos()
-  if n.len() == 1 { "第" + str(n.first()) + "章" } else { n.map(str).join(".") }
-}
 
 // A chapter heading. `number` is display text supplied by the caller; the
 // numbering itself is never computed here.

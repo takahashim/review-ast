@@ -46,6 +46,28 @@
 
 - 書籍の付き物(表紙・大扉・目次・奥付・囲み記事・コラム)は `book.*` を呼ぶ。ネイティブ要素にない部分だけを補う
 - 番号を著者が明示したいとき(または Re:VIEW のように外から与えるとき)は `book.chapter(number: ...)` 等を使う。この場合レベルの見出しは `numbering: none` になり、ネイティブ採番とは混ざらない
+
+#### 前付・本文・付録・後付
+
+- LaTeX の frontmatter / mainmatter / appendix / backmatter に相当する `book.frontmatter` / `book.mainmatter` / `book.appendix` / `book.backmatter` を `#show:` で切り替える。ページ番号(前付=ローマ数字、本文=アラビア)に加えて、見出しの採番も matter ごとに変わる
+- `book.appendix` は LaTeX の `\appendix` と同じく、章番号をリセットして字に切り替える。既製スキーム `book.appendix-numbering`(レベル1=「付録A」、以降=「A.1」)を自動で適用する。`book.backmatter` は見出しを無番号に戻す
+- 本文の採番スキームは著者が `set heading(numbering: book.heading-numbering)` で選ぶ。前付は採番を有効にする前なので無番号のまま
+
+```typst
+#show: book.frontmatter
+= まえがき                               // 無番号
+#show: book.mainmatter
+#set heading(numbering: book.heading-numbering)
+= 最初の章                               // 第1章
+== 節                                    // 1.1
+#show: book.appendix
+= 付録の章                               // 付録A(自動でスキーム切替・カウンタ再開)
+== 付録の節                              // A.1
+#show: book.backmatter
+= あとがき                               // 無番号
+```
+
+- これらは matter の show rule 内で `set heading(numbering: ...)` するため、Re:VIEW 経路の見出し(`numbering: none` + 供給番号)には影響しない。ネイティブ採番の見出しだけに効く
 - 版面の設計値(判型・字詰め・級数・書体・トンボ)は `theme.typ`(design-hanmen 参照)。直書き文書もテーマを差し替えるだけで同じ版面を得る
 
 ## 2. review.* の呼び出し契約
