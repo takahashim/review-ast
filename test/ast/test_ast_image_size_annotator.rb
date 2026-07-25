@@ -117,6 +117,18 @@ class ImageSizeAnnotatorTest < Test::Unit::TestCase
                  annotate(%Q(<img src="#{src}" style="" />))
   end
 
+  # Hand-authored raw HTML may single-quote the style; a second (double-quoted)
+  # attribute would still be a duplicate and break the XHTML.
+  def test_merges_into_a_single_quoted_style
+    src = image('shot.png', width: 600, height: 400, dpi: 300)
+
+    result = annotate(%Q(<img src="#{src}" style='border: 1px solid' />))
+
+    assert_equal %Q(<img src="#{src}" style='--natural: 50.800mm; border: 1px solid' />),
+                 result
+    assert_nothing_raised { REXML::Document.new("<r>#{result}</r>") }
+  end
+
   def test_leaves_alone_what_it_cannot_measure
     [
       '<img src="https://example.com/remote.png" />',

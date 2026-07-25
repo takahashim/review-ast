@@ -20,7 +20,7 @@ Current scope:
 
 - AST compiler and node model (`ReVIEW::AST`)
 - Re:VIEW source round-trip (`review-ast-dump2re`)
-- Renderers (`ReVIEW::Renderer`): HTML, LaTeX, IDGXML, plaintext, TOP
+- Renderers (`ReVIEW::Renderer`): HTML, LaTeX, IDGXML, plaintext, TOP, Typst
 - Commands:
   - `review-ast-dump` — dump AST as JSON
   - `review-ast-dump2re` — regenerate Re:VIEW source from the AST
@@ -28,6 +28,8 @@ Current scope:
   - `review-ast-pdfmaker` / `review-ast-idgxmlmaker` / `review-ast-textmaker` — book makers
   - `review-ast-vivliostylemaker` — PDF through Vivliostyle (CSS paged media)
     instead of LaTeX; needs Chrome/Chromium and the `vivlio-pdf` gem
+  - `review-ast-typstmaker` — PDF through Typst instead of LaTeX; needs the
+    `typst` binary
 
 EPUB maker and Markdown input exist in the upstream `ast-renderer` branch and can
 be brought in as follow-ups.

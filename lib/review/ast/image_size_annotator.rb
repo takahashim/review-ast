@@ -40,7 +40,10 @@ module ReVIEW
       TAG_END = %r{(\s*/?>)\z}
       # //image's metric passes any k="v" through to the tag, so an image can
       # already carry a style of its own (`//image[id][cap][html::style="..."]`).
-      STYLE_ATTRIBUTE = /(\sstyle=")([^"]*)(")/
+      # Either quote style is accepted and reused: the renderer writes double
+      # quotes, but hand-authored raw HTML may use single quotes, and a second
+      # style attribute would make the XHTML non-well-formed.
+      STYLE_ATTRIBUTE = /(\sstyle=)(["'])(.*?)\2/
 
       def initialize(root, property: DEFAULT_PROPERTY)
         @root = root
@@ -82,8 +85,10 @@ module ReVIEW
 
         tag.sub(STYLE_ATTRIBUTE) do
           matched = Regexp.last_match
-          existing = matched[2].strip
-          existing.empty? ? "#{matched[1]}#{declaration}#{matched[3]}" : "#{matched[1]}#{declaration}; #{existing}#{matched[3]}"
+          quote = matched[2]
+          existing = matched[3].strip
+          merged = existing.empty? ? declaration : "#{declaration}; #{existing}"
+          "#{matched[1]}#{quote}#{merged}#{quote}"
         end
       end
 
