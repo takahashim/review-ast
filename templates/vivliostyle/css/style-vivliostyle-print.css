@@ -1,0 +1,28 @@
+@charset "UTF-8";
+
+/* ============================================================================
+ * 入稿用の上書き: トンボと裁ち落とし
+ *
+ * style-vivliostyle.css の後に読み込むこと。読み込み順は入稿用の設定ファイル
+ * （config-vivliostyle-print.yml など）の stylesheet の並びで制御する。
+ *
+ * LaTeX 版の media=print に相当する:
+ *   gentombow.sty / \settombowbleed{3mm} / hiddenfolio=nikko-pc
+ *
+ * 制約:
+ *   - PDF の TrimBox / BleedBox は設定されない（MediaBox と同値になる）
+ *   - 用紙は A4 ではなく「仕上がり＋トンボ領域」になる
+ *     （B5 仕上がりなら 214.1x289.3mm）
+ *   - 隠しノンブル（hiddenfolio）は CSS では再現できない
+ * ========================================================================= */
+
+@page {
+  marks: crop cross;   /* 角トンボ（二重）＋ センタートンボ */
+  bleed: 3mm;          /* \recls@tombobleed の既定値 */
+}
+
+/* NOTE: 表紙の塗り足し指定はここには要らない。
+   入稿用の設定で vivliostyle: cover: false を指定していれば、
+   review-ast-vivliostylemaker が表紙を spine から外してから組むため、
+   入稿版の PDF に表紙ページ自体が存在しない（表紙は別入稿）。
+   表紙を含めて入稿する場合だけ、裁ち落とし用の指定を足すこと。 */

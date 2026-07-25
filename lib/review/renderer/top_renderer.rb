@@ -20,38 +20,65 @@ module ReVIEW
       include ReVIEW::Renderer::TextRendererCommon
 
       # Japanese titles for different block types (matching TOPBuilder)
+      # TOPBuilder's @titles, kept in the same order. These are the markers a
+      # DTP operator reads, so a wrong one is a wrong instruction, not a
+      # cosmetic difference: notice/caution/warning were each shifted by one
+      # (注意/警告/危険 rendered as 注記/注意/警告), and twenty commands had no
+      # entry at all and fell back to their command name.
       TITLES = {
-        list: 'リスト',
-        # TOPBuilder has no separate titles for the numbered variants: listnum
-        # reuses @titles['list'] and emlistnum reuses @titles['emlist'], so the
-        # block markers read the same whether or not lines are numbered.
-        listnum: 'リスト',
         emlist: 'インラインリスト',
+        # listnum/emlistnum reuse the plain list titles; TOPBuilder has no
+        # separate entry for the numbered variants.
         emlistnum: 'インラインリスト',
         cmd: 'コマンド',
         quote: '引用',
-        source: 'ソースコード',
+        centering: '中央揃え',
+        flushright: '右寄せ',
+        note: 'ノート',
+        memo: 'メモ',
+        important: '重要',
+        info: '情報',
+        planning: 'プランニング',
+        shoot: 'トラブルシュート',
+        term: '用語解説',
+        notice: '注意',
+        caution: '警告',
+        warning: '危険',
+        point: 'ここがポイント',
+        reference: '参考',
+        link: 'リンク',
+        best: 'ベストプラクティス',
+        practice: '練習問題',
+        security: 'セキュリティ',
+        expert: 'エキスパートに訊け',
+        tip: 'TIP',
+        box: '書式',
+        insn: '書式',
+        column: 'コラム',
+        xcolumn: 'コラムパターン2',
+        world: 'Worldコラム',
+        hood: 'Under The Hoodコラム',
+        edition: 'Editionコラム',
+        insideout: 'InSideOutコラム',
+        ref: '参照',
+        sup: '補足',
+        read: 'リード',
+        lead: 'リード',
+        list: 'リスト',
+        listnum: 'リスト',
+        image: '図',
+        texequation: 'TeX式',
         table: '表',
+        bpo: 'bpo',
+        source: 'ソースコードリスト',
+        # Not in @titles: these come from other IDGXML/TOP paths but the
+        # renderer dispatches block titles through this table.
         emtable: 'インライン表',
         imgtable: '画像付き表',
-        image: '図',
         indepimage: '独立図',
         numberlessimage: '番号なし図',
         icon: 'アイコン',
-        note: 'ノート',
-        memo: 'メモ',
-        tip: 'TIP',
-        info: 'インフォ',
-        warning: '警告',
-        important: '重要',
-        caution: '注意',
-        notice: '注記',
-        lead: 'リード',
-        read: 'リード',
-        flushright: '右寄せ',
-        centering: '中央揃え',
-        texequation: 'TeX式',
-        column: 'コラム'
+        endnote: '後注'
       }.freeze
 
       # Configure's default, used when the book config does not set one.
@@ -100,8 +127,13 @@ module ReVIEW
       end
 
       def visit_paragraph(node)
-        content = render_children(node).chomp
+        content = join_paragraph_lines(render_children(node).chomp)
         return '' if content.empty?
+
+        # //noindent has no typographic effect in a text dump, so TOP passes it
+        # to the DTP operator as a note (TOPBuilder#noindent). PLAINTEXTBuilder
+        # drops it, which is why only this renderer emits the marker.
+        return "◆→DTP連絡:次の1行インデントなし←◆\n#{content}\n" if node.noindent?
 
         "#{content}\n"
       end
@@ -115,8 +147,11 @@ module ReVIEW
             result += visit_unordered_list_item(item)
           end
         when :ol
+          # //olnum sets where the numbering starts; without start_number every
+          # list restarted at 1 and silently renumbered the author's items.
+          start = node.start_number || 1
           node.children.each_with_index do |item, index|
-            result += visit_ordered_list_item(item, index + 1)
+            result += visit_ordered_list_item(item, start + index)
           end
         when :dl
           node.children.each do |item|
@@ -197,9 +232,11 @@ module ReVIEW
                  '' # No term available
                end
 
-        # Handle definition content (all children are definition content)
+        # Handle definition content (all children are definition content).
+        # TOPBuilder#dd deletes the newlines inside a definition so it prints on
+        # one line; keeping them broke the leading tab across the wrapped lines.
         definition = if node.children && !node.children.empty?
-                       node.children.map { |child| visit(child) }.join
+                       node.children.map { |child| visit(child) }.join.delete("\n")
                      end
 
         # TOPBuilder#dt brackets the term on both sides ("★#{line}☆"); the
@@ -290,6 +327,9 @@ module ReVIEW
       end
 
       def visit_table(node)
+        # //imgtable is a table by numbering but an image by content.
+        return render_imgtable(node) if node.table_type == :imgtable
+
         result = +''
         @table_row_separator_count = 0
 
@@ -299,11 +339,14 @@ module ReVIEW
         # Add caption if present
         caption = render_caption_inline(node.caption_node)
         unless caption.empty?
+          # An id-less table (//emtable) prints its caption bare: TOPBuilder
+          # routes it through PLAINTEXTBuilder#table_header, which does not add
+          # the ■ that block captions elsewhere in this format carry.
           result += if node.id
                       # Use I18n formatting to match TOPBuilder
                       format_table_caption(node.id, caption, node.definition_number)
                     else
-                      "■#{caption}\n"
+                      "#{caption}\n"
                     end
           result += "\n"
         end
@@ -487,59 +530,52 @@ module ReVIEW
       def visit_tex_equation(node)
         result = +''
         result += "\n◆→開始:#{TITLES[:texequation]}←◆\n"
+        result += "#{equation_caption(node)}\n" if equation_caption(node) && caption_top?('equation')
         result += node.content if node.respond_to?(:content)
         result += render_children(node) unless node.respond_to?(:content)
-        result += "\n◆→終了:#{TITLES[:texequation]}←◆\n\n"
+        result += "\n"
+        result += "#{equation_caption(node)}\n" if equation_caption(node) && !caption_top?('equation')
+        result += "◆→終了:#{TITLES[:texequation]}←◆\n\n"
         result
       end
 
-      def visit_block_emtable(node)
-        result = +''
-        @table_row_separator_count = 0
+      # The numbered caption line ("式1.1　…") a //texequation with an id gets,
+      # matching TOPBuilder#texequation_header. Nil when the equation has no id,
+      # which is the unnumbered case.
+      def equation_caption(node)
+        return nil unless node.id? && node.definition_number
 
-        result += "\n"
-        result += "◆→開始:#{TITLES[:emtable]}←◆\n"
-
-        # Add caption if present
-        caption = render_caption_inline(node.caption_node)
-        unless caption.empty?
-          result += "■#{caption}\n"
-          result += "\n"
-        end
-
-        # Process table content
-        result += render_children(node)
-
-        result += "◆→終了:#{TITLES[:emtable]}←◆\n"
-        result += "\n"
-
-        result
+        dn = node.definition_number
+        text_formatter.format_caption_plain('equation', dn.chapter_number, dn.number, render_caption_inline(node.caption_node))
       end
 
-      def visit_block_imgtable(node)
+      def render_imgtable(node)
         result = +''
 
         result += "\n"
         result += "◆→開始:#{TITLES[:table]}←◆\n"
 
-        # Add caption if present
-        caption = render_caption_inline(node.caption_node)
-        unless caption.empty?
-          result += if node.id
-                      # Use I18n formatting to match TOPBuilder
-                      format_table_caption(node.id, caption, node.definition_number)
-                    else
-                      "■#{caption}\n"
-                    end
-          result += "\n"
-        end
+        # The caption sits above or below the image per caption_position, as in
+        # TOPBuilder#imgtable.
+        caption = imgtable_caption(node)
+        result += caption if caption && caption_top?('table')
 
         result += image_marker(node)
+
+        result += caption if caption && !caption_top?('table')
 
         result += "◆→終了:#{TITLES[:table]}←◆\n"
         result += "\n"
 
         result
+      end
+
+      # The caption line for an //imgtable, or nil when it has none.
+      def imgtable_caption(node)
+        caption = render_caption_inline(node.caption_node)
+        return nil if caption.empty?
+
+        node.id ? format_table_caption(node.id, caption, node.definition_number) : "#{caption}\n"
       end
 
       def render_inline_element(type, content, node) # rubocop:disable Metrics/CyclomaticComplexity
@@ -586,6 +622,22 @@ module ReVIEW
           "#{content}◆→DTP連絡:「#{content}」は下付き←◆"
         when :br
           "\n"
+        when :kw
+          render_kw(node, content)
+        when :title
+          chapter_title_of(node)
+        when :chap
+          # The chapter number alone ("第1章"), not the @<chapref> form.
+          data = resolved_data_of(node)
+          text_formatter.format_chapter_number_full(data.chapter_number, data.chapter_type).to_s
+        when :sec
+          section_number_of(node)
+        when :sectitle
+          section_title_of(node)
+        when :uchar
+          [content.to_i(16)].pack('U')
+        when :icon
+          render_icon(node, content)
         when :href
           render_href(node, content)
         when :url # rubocop:disable Lint/DuplicateBranch
@@ -608,6 +660,8 @@ module ReVIEW
       end
 
       def visit_footnote(node)
+        return '' if endnote_definition?(node)
+
         content = render_children(node).chomp
         # The number is stamped on the definition node (definition_number).
         footnote_number = node.definition_number&.number || 1
@@ -617,6 +671,20 @@ module ReVIEW
 
       def visit_reference(node)
         format_resolved_reference(node.resolved_data)
+      end
+
+      # TOP wraps its endnotes in block markers and labels each 【後注n】, where
+      # the shared (plaintext) form is a bare "(n)". TOPBuilder overrides
+      # endnote_begin/endnote_end/endnote_item for exactly this.
+      def visit_block_printendnotes(_node)
+        return '' if endnote_nodes.empty?
+
+        result = "◆→開始:#{TITLES[:endnote]}←◆\n"
+        endnote_nodes.each do |en|
+          result += "【後注#{en.definition_number.number}】#{render_children(en)}\n"
+        end
+        result += "◆→終了:#{TITLES[:endnote]}←◆\n"
+        result
       end
 
       private
@@ -705,6 +773,25 @@ module ReVIEW
         caption_node ? render_children(caption_node) : ''
       end
 
+      # @<icon> names an image file, so TOP prints its path. An unbound icon
+      # warns and falls back to the id, as TOPBuilder#inline_icon does -- the
+      # marker still appears so the missing image is visible in the output.
+      def render_icon(node, content)
+        return "◆→画像 #{node.image_path.sub(%r{\A\./}, '')}←◆" if node.image_path
+
+        warn "image not bound: #{node.args&.first || content}"
+        "◆→画像 #{node.args&.first || content}←◆"
+      end
+
+      def render_kw(node, content)
+        args = node.args || []
+        if args.length >= 2
+          "★#{args[0]}☆（#{args[1].strip}）"
+        else
+          "★#{args[0] || content}☆"
+        end
+      end
+
       def render_href(node, content)
         args = node.args || []
         if args.length >= 2
@@ -785,6 +872,8 @@ module ReVIEW
           # For endnote, use 【後注】 markup
           number = data.item_number || data.item_id
           "【後注#{number}】"
+        when :chapter
+          chapter_reference_text(data)
         else
           # For other types, return plain text as-is
           plain_text

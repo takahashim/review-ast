@@ -1,4 +1,8 @@
 source 'https://rubygems.org'
 
 gem 'rake'
-gem 'review', '~> 5.11.0'
+gem 'review-ast', path: '../..'
+
+# Vivliostyle PDF (rake vivliostyle) 用。ローカルのチェックアウトを使うときは
+#   bundle config set --local local.vivlio-pdf ~/git/vivlio-pdf
+gem 'vivlio-pdf', github: 'takahashim/vivlio-pdf', branch: 'main'

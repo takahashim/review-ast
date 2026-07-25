@@ -15,6 +15,7 @@ Gem::Specification.new do |gem|
   gem.executables = %w[review-ast-dump review-ast-dump2re review-ast-compile
                        review-ast-pdfmaker review-ast-idgxmlmaker review-ast-textmaker
                        review-ast-epubmaker review-ast-webmaker
+                       review-ast-vivliostylemaker
                        review-ast-typstmaker]
   gem.require_paths = ['lib']
   gem.required_ruby_version = '>= 3.1'

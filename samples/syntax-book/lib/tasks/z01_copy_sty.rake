@@ -1,8 +1,10 @@
 REVIEW_TEMPLATE = ENV['REVIEW_TEMPLATE'] || 'review-jsbook'
 
-desc 'copy sty/* files from current Re:VIEW source code (in git repos)'
+desc 'copy sty/cls files from the review gem into sty/'
 task :copy_sty do
-  review_rootdir = '../..'
+  # pdfmaker はクラスファイルをプロジェクトの sty/ からしかコピーしないので、
+  # review gem の同梱テンプレートからビルド前に写す。rake clean で消える。
+  review_rootdir = Gem::Specification.find_by_name('review').gem_dir
   template_dir = File.join(review_rootdir, "templates/latex/#{REVIEW_TEMPLATE}")
   Dir.glob(File.join(template_dir, '*.cls')) do |file|
     FileUtils.cp(file, 'sty')

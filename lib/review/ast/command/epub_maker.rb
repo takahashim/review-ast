@@ -7,6 +7,7 @@
 # the GNU LGPL, Lesser General Public License version 2.1.
 
 require 'review/epubmaker'
+require 'review/ast/stylesheet_resolver'
 require_relative 'ast_html_converter'
 
 module ReVIEW
@@ -26,6 +27,16 @@ module ReVIEW
       # rendered-equivalent, not byte-identical).
       class EPUBMaker < ReVIEW::EPUBMaker
         private
+
+        # The base maker copies stylesheets from the book root only; resolve
+        # them through the AST search path (root, css/, bundled) instead.
+        def copy_stylesheet(basetmpdir)
+          ReVIEW::AST::StylesheetResolver.new(@config['stylesheet']).copy_to(basetmpdir) do |name|
+            @producer.contents.push(ReVIEW::EPUBMaker::Content.new(file: name))
+          end
+        rescue ReVIEW::AST::StylesheetResolver::Error => e
+          error! e.message
+        end
 
         def build_chap(chap, base_path, basetmpdir, ispart)
           @converter = ast_converter

@@ -24,7 +24,9 @@ require 'rake/clean'
 BOOK = ENV['REVIEW_BOOK'] || 'syntax-book'
 BOOK_PDF = BOOK + '.pdf'
 BOOK_EPUB = BOOK + '.epub'
+BOOK_VIVLIO_PDF = BOOK + '-vivliostyle.pdf'
 CONFIG_FILE = ENV['REVIEW_CONFIG_FILE'] || 'config.yml'
+VIVLIO_CONFIG_FILE = ENV['REVIEW_VIVLIO_CONFIG_FILE'] || 'config-vivliostyle.yml'
 CATALOG_FILE = ENV['REVIEW_CATALOG_FILE'] || 'catalog.yml'
 WEBROOT = ENV['REVIEW_WEBROOT'] || 'webroot'
 TEXTROOT = BOOK + '-text'
@@ -37,13 +39,13 @@ IDGXML_OPTIONS = ENV['REVIEW_IDGXML_OPTIONS'] || ''
 TEXT_OPTIONS = ENV['REVIEW_TEXT_OPTIONS'] || ''
 
 def build(mode, chapter)
-  sh("review-compile --target=#{mode} --footnotetext --stylesheet=style.css #{chapter} > tmp")
+  sh("review-ast-compile --target=#{mode} --footnotetext --stylesheet=style.css #{chapter} > tmp")
   mode_ext = { 'html' => 'html', 'latex' => 'tex', 'idgxml' => 'xml', 'top' => 'txt', 'plaintext' => 'txt' }
   FileUtils.mv('tmp', chapter.gsub(/re\z/, mode_ext[mode]))
 end
 
 def build_all(mode)
-  sh("review-compile --target=#{mode} --footnotetext --stylesheet=style.css")
+  sh("review-ast-compile --target=#{mode} --footnotetext --stylesheet=style.css")
 end
 
 task default: :html_all
@@ -80,41 +82,49 @@ task web: WEBROOT
 
 desc 'generate text file (without decoration)'
 task plaintext: TEXTROOT do
-  sh "review-textmaker #{TEXT_OPTIONS} -n #{CONFIG_FILE}"
+  sh "review-ast-textmaker #{TEXT_OPTIONS} -n #{CONFIG_FILE}"
 end
 
 desc 'generate (decorated) text file'
 task text: TOPROOT do
-  sh "review-textmaker #{TEXT_OPTIONS} #{CONFIG_FILE}"
+  sh "review-ast-textmaker #{TEXT_OPTIONS} #{CONFIG_FILE}"
 end
 
 desc 'generate IDGXML file'
 task idgxml: IDGXMLROOT do
-  sh "review-idgxmlmaker #{IDGXML_OPTIONS} #{CONFIG_FILE}"
+  sh "review-ast-idgxmlmaker #{IDGXML_OPTIONS} #{CONFIG_FILE}"
 end
 
 desc 'generate EPUB file'
 task epub: BOOK_EPUB
 
+desc 'generate PDF file via Vivliostyle (needs Chrome/Chromium)'
+task vivliostyle: BOOK_VIVLIO_PDF
+
 IMAGES = FileList['images/**/*']
 OTHERS = ENV['REVIEW_DEPS'] || []
 SRC = FileList['./**/*.re', '*.rb'] + [CONFIG_FILE, CATALOG_FILE] + IMAGES + FileList[OTHERS]
-SRC_EPUB = FileList['*.css']
+SRC_EPUB = FileList['*.css', 'css/*.css']
 SRC_PDF = FileList['layouts/*.erb', 'sty/**/*.sty']
 
 file BOOK_PDF => SRC + SRC_PDF do
   FileUtils.rm_rf([BOOK_PDF, BOOK, BOOK + '-pdf'])
-  sh "review-pdfmaker #{PDF_OPTIONS} #{CONFIG_FILE}"
+  sh "review-ast-pdfmaker #{PDF_OPTIONS} #{CONFIG_FILE}"
 end
 
 file BOOK_EPUB => SRC + SRC_EPUB do
   FileUtils.rm_rf([BOOK_EPUB, BOOK, BOOK + '-epub'])
-  sh "review-epubmaker #{EPUB_OPTIONS} #{CONFIG_FILE}"
+  sh "review-ast-epubmaker #{EPUB_OPTIONS} #{CONFIG_FILE}"
+end
+
+file BOOK_VIVLIO_PDF => SRC + SRC_EPUB do
+  FileUtils.rm_rf([BOOK_VIVLIO_PDF, BOOK + '.epub', BOOK + '-vivliostyle'])
+  sh "review-ast-vivliostylemaker #{VIVLIO_CONFIG_FILE}"
 end
 
 file WEBROOT => SRC do
   FileUtils.rm_rf([WEBROOT])
-  sh "review-webmaker #{WEB_OPTIONS} #{CONFIG_FILE}"
+  sh "review-ast-webmaker #{WEB_OPTIONS} #{CONFIG_FILE}"
 end
 
 file TEXTROOT => SRC do
@@ -125,4 +135,4 @@ file IDGXMLROOT => SRC do
   FileUtils.rm_rf([IDGXMLROOT])
 end
 
-CLEAN.include([BOOK, BOOK_PDF, BOOK_EPUB, BOOK + '-pdf', BOOK + '-epub', WEBROOT, 'images/_review_math', 'images/_review_math_text', TEXTROOT, IDGXMLROOT])
+CLEAN.include([BOOK, BOOK_PDF, BOOK_EPUB, BOOK_VIVLIO_PDF, BOOK + '-pdf', BOOK + '-epub', BOOK + '-vivliostyle', WEBROOT, 'images/_review_math', 'images/_review_math_text', TEXTROOT, IDGXMLROOT])

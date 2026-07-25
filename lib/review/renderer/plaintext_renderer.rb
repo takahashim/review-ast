@@ -56,11 +56,7 @@ module ReVIEW
       end
 
       def visit_paragraph(node)
-        content = render_children(node)
-        # Join lines to single paragraph like PLAINTEXTBuilder's join_lines_to_paragraph
-        lines = content.split("\n")
-        result = lines.join
-        "#{result}\n"
+        "#{join_paragraph_lines(render_children(node))}\n"
       end
 
       def visit_list(node)
@@ -425,6 +421,8 @@ module ReVIEW
       end
 
       def visit_footnote(node)
+        return '' if endnote_definition?(node)
+
         content = render_children(node)
         # The number is stamped on the definition node (definition_number).
         footnote_number = node.definition_number&.number || '??'
@@ -451,6 +449,15 @@ module ReVIEW
       end
 
       # Inline rendering methods
+
+      # Deleted text is dropped, not just undecorated: plain text has no way to
+      # show a strikethrough, so PLAINTEXTBuilder#inline_del returns nothing and
+      # the reader sees the text as it stands after the deletion. (@<ins> is the
+      # other half of that pair and keeps its content.)
+      def render_inline_del(_type, _content, _node)
+        ''
+      end
+
       def render_inline_fn(_type, _content, node)
         # The number comes from the resolved @<fn> reference data.
         ref = node.children.first
@@ -535,7 +542,10 @@ module ReVIEW
         end
 
         data = ref_node.resolved_data
-        data.item_number.to_s
+        # The trailing space is PLAINTEXTBuilder#inline_bib's: with no brackets
+        # around the number it is what keeps "1" from running into the word
+        # after it.
+        "#{data.item_number} "
       end
 
       def render_inline_hd(_type, _content, node)
@@ -569,14 +579,25 @@ module ReVIEW
         text_formatter.format_chapter_number_full(data.chapter_number, data.chapter_type).to_s
       end
 
+      def render_inline_title(_type, _content, node)
+        chapter_title_of(node)
+      end
+
+      def render_inline_sec(_type, _content, node)
+        section_number_of(node)
+      end
+
+      def render_inline_sectitle(_type, _content, node)
+        section_title_of(node)
+      end
+
       def render_inline_chapref(_type, _content, node)
         ref_node = node.children.first
         unless ref_node.reference_node? && ref_node.resolved?
           raise 'BUG: Reference should be resolved at AST construction time'
         end
 
-        data = ref_node.resolved_data
-        text_formatter.format_reference(:chapter, data)
+        chapter_reference_text(ref_node.resolved_data)
       end
 
       def render_inline_default(_type, content, _node)
@@ -605,17 +626,15 @@ module ReVIEW
       alias_method :render_inline_maru, :render_inline_default
       alias_method :render_inline_idx, :render_inline_default
       alias_method :render_inline_ins, :render_inline_default
-      alias_method :render_inline_del, :render_inline_default
+      # No del alias: render_inline_del drops the content rather than keeping it.
       alias_method :render_inline_tcy, :render_inline_default
 
       # Helper methods
       def render_caption_inline(caption_node)
         return '' unless caption_node
 
-        content = render_children(caption_node)
-        # Join lines like visit_paragraph does
-        lines = content.split("\n")
-        lines.join
+        # A caption's source line breaks fold the same way a paragraph's do.
+        join_paragraph_lines(render_children(caption_node))
       end
 
       # The numbering prefix for a headline, as Builder#headline_prefix produces

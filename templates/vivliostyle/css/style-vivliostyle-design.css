@@ -1,0 +1,112 @@
+@charset "UTF-8";
+
+/* ============================================================================
+ * 版面設計 — この本の紙面を決める値
+ *
+ * 紙面を調整したいときは、まずこのファイルだけを見ればよい。
+ * 「どの要素をどう組むか」の実装は style-vivliostyle.css にあり、
+ * 版面の大きさや余白はここの値から自動的に導出される。
+ *
+ * 項目名は Re:VIEW の版面設計ツール（review-init --web）と config.yml の
+ * texdocumentclass に合わせてある。LaTeX 版と同じ言葉で突き合わせられる。
+ *
+ * 単位について:
+ *   Q は 0.25mm。日本語組版で級数（文字の大きさ）と歯送り（行送り）に使う
+ *   単位で、CSS の正式な単位でもある。
+ *   pt は使わない。TeX の pt（1/72.27インチ）と CSS の pt（1/72インチ）は
+ *   0.37% 違い、取り違えると紙面がずれるため。LaTeX 版の pt 指定をここに
+ *   持ち込むときは Q か mm に直すこと。
+ * ========================================================================= */
+
+:root {
+  /* --- 判型 ------------------------------------------------------------ */
+  --papersize-width: 182mm;      /* JIS B5 */
+  --papersize-height: 257mm;
+
+  /* --- 基本の組み ------------------------------------------------------
+     字詰めと行数が版面の大きさを決める。版面幅・版面高はこの4つから
+     導出され、地と小口の余白も自動で追随する。 */
+  --fontsize: 13Q;               /* 本文の級数（= 3.25mm、jsbook の 10pt 相当） */
+  --baselineskip: 21.65Q;        /* 行送り（jsbook の 15.4pt 相当）。
+                                    設計として選び直すなら 22Q など丸い値に */
+  --line-length: 40;             /* 字詰め（1行の字数） */
+  --number-of-lines: 35;         /* 1ページの行数 */
+
+  /* --- 余白 ------------------------------------------------------------
+     天とノドだけを指定する。地と小口は版面の大きさから導出されるので、
+     ノドを広げれば小口が同じだけ狭くなり、版面そのものは動かない。 */
+  --head-space: 30mm;            /* 天（用紙上端から版面まで） */
+  --gutter: 26mm;                /* ノド（綴じ側）。
+                                    既定値は左右がちょうど対称になる値。
+                                    左右を取り違えて入稿しても紙面が破綻しない
+                                    ようにするための意図的な仕様なので、
+                                    綴じ代が要るときだけ広げること。 */
+
+  /* --- 柱とノンブル ---------------------------------------------------- */
+  --headheight: 5mm;             /* 柱の高さ */
+  --headsep: 10mm;               /* 柱と版面のアキ */
+  --footskip: 10mm;              /* 版面とノンブルのアキ */
+  --running-head-size: var(--fontsize);
+  --folio-size: var(--fontsize);
+  --running-head-rule: 0.4pt solid #000;   /* 柱の罫線。none にすれば消える */
+
+  /* --- 級数表 ----------------------------------------------------------
+     本文級数の倍率で表す。本文級数を変えれば全体が追随する。
+     右のコメントは既定値（本文 13Q のとき）と、対応する LaTeX の命令。 */
+  --size-xxlarge: calc(var(--fontsize) * 2.5);  /* 32.5Q \Huge  章見出し・大扉 */
+  --size-xlarge: calc(var(--fontsize) * 2);     /* 26Q   \huge  章番号・部番号 */
+  --size-large: calc(var(--fontsize) * 1.4);    /* 18.2Q \Large 節見出し */
+  --size-medium: calc(var(--fontsize) * 1.2);   /* 15.6Q \large 小見出し・コラム */
+  --size-normal: var(--fontsize);               /* 13Q   \normalsize */
+  --size-small: calc(var(--fontsize) * 0.9);    /* 11.7Q \small キャプション・表 */
+  --size-xsmall: calc(var(--fontsize) * 0.8);   /* 10.4Q \footnotesize コード・脚注 */
+
+  /* --- 書体 -------------------------------------------------------------
+     欧文リストと和文リストは「欧文, 和文」の順に連結して使う。
+     総称ファミリ（serif / sans-serif）は連結後の末尾にしか置いてはならない。
+     総称は必ず何かのフォントに解決されるため途中に置くと、どの和文書体を
+     使うかを明示リストではなく OS の総称マッピングが決めてしまい、
+     環境によって組版結果が変わる。 */
+  --font-mincho: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho",
+                 "Noto Serif CJK JP", "Noto Serif JP", "IPAexMincho", serif;
+  --font-gothic: "Hiragino Kaku Gothic ProN", "Yu Gothic", "YuGothic",
+                 "Noto Sans CJK JP", "Noto Sans JP", "IPAexGothic", sans-serif;
+  /* 和欧は同寸で組む（jlreq の既定に合わせる）。jsbook 流の欧文 1.081 倍補正は
+     採らない。Typst にフォールバック単位の大きさ補正がなく、倍率を使うと
+     LaTeX・Vivliostyle・Typst の紙面一致が保てないため。
+     同寸で欧文が小さく見えるときは、倍率ではなく x-height の大きい欧文書体を
+     選んで解決すること。 */
+  --font-latin-serif: "Latin Modern Roman", "CMU Serif", "Times New Roman";
+  --font-latin-sans: "Helvetica Neue", Helvetica, Arial;
+  /* 和文と組ませず単独で使うので、こちらは総称を末尾に持つ */
+  --font-mono: "Latin Modern Mono", "DejaVu Sans Mono", "Menlo", monospace;
+
+  --font-body: var(--font-latin-serif), var(--font-mincho);
+  /* 見出し: review-style.sty が \headfont を gt+sf+bf に再定義している */
+  --font-heading: var(--font-latin-sans), var(--font-gothic);
+  --font-running-head: var(--font-heading);
+  --font-folio: var(--font-body);
+
+  /* --- 色 ---------------------------------------------------------------
+     コードブロックと囲みの配色。LaTeX 版の tcolorbox 指定に対応する */
+  --code-bg: #e6e6e6;            /* black!10!white */
+  --code-border: #b3b3b3;        /* black!30!white */
+  --cmd-bg: #333333;             /* black!80!white */
+  --cmd-fg: #ffffff;
+  --caption-marker: #b3b3b3;     /* black!30!white */
+  --rule: #000000;
+
+  /* --- 図表まわりのアキ -------------------------------------------------
+     図・表は LaTeX では float 環境（floatplacement=H でその場に固定）で、
+     前後のアキは \intextsep、キャプションとの間は \above/\belowcaptionskip。
+     本文の行送りとは別の値なので独立して持つ。 */
+  --float-sep: 4.217mm;          /* \intextsep = 12pt(TeX) */
+  --caption-sep: 1.757mm;        /* \above/\belowcaptionskip = 5pt(TeX) */
+
+  /* --- 囲みの寸法 -------------------------------------------------------
+     tcolorbox の size/normal 既定値に対応 */
+  --box-pad-x: 5mm;              /* left/right 4mm + boxsep 1mm */
+  --box-pad-y: 3mm;              /* top/bottom 2mm + boxsep 1mm */
+  --box-rule: 0.5mm;             /* boxrule */
+  --box-arc: 1mm;                /* arc */
+}

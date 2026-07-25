@@ -8,6 +8,7 @@
 
 require 'fileutils'
 require 'review/webmaker'
+require 'review/ast/stylesheet_resolver'
 require 'review/ast/web_assets'
 require 'review/ast/web_toc_builder'
 require_relative 'ast_html_converter'
@@ -81,12 +82,17 @@ module ReVIEW
           end
         end
 
-        # Ship the modern default stylesheet alongside the user's own; the layout
-        # links it under its fixed name. Runs after the base copy of config styles.
+        # Copy the user's stylesheets through the AST search path (root, css/,
+        # bundled) instead of the base maker's root-only copy, and ship the
+        # modern default stylesheet alongside them; the layout links it under
+        # its fixed name.
         def copy_stylesheet(basetmpdir)
-          super
+          ReVIEW::AST::StylesheetResolver.new(@config['stylesheet']).
+            copy_to(basetmpdir, preserve: false)
           FileUtils.cp(ReVIEW::AST::WebAssets::STYLESHEET,
                        File.join(basetmpdir, ReVIEW::AST::WebAssets::STYLESHEET_NAME))
+        rescue ReVIEW::AST::StylesheetResolver::Error => e
+          error! e.message
         end
       end
     end

@@ -1060,6 +1060,25 @@ AST 対 AST の自己整合性であってオラクル比較ではないため�
   未修正の乖離は無い。なお同スイープの `//bibpaper` は bib ファイルを要するためハーネス側の制約で
   エラーになり、集計から除いている。
 
+- 実装済み(手順 5: コーパス全体での残差の解消 / JM-000089)
+  - 手順 1 は構文スイープ(単発の構文断片)で検証していたが、samples の実文書でコーパス全章を
+    走らせると差が残っていた。断片では出ない組み合わせ(章をまたぐ参照、`chapterlink`、
+    複数行段落)が原因。命令単位で 13 件を修正。
+    - TOP のみ: `@<kw>` の `★…☆（…）`、`@<uchar>` の文字化、`@<icon>` のパス、`//noindent` の
+      DTP 連絡、`//texequation` の採番キャプション、`//olnum` の開始番号、`//emtable` キャプションの
+      余分な `■`、`//imgtable` の画像行。最後の 2 つは `visit_block_imgtable`/`visit_block_emtable` が
+      dead code だったことによる(TableNode は全て `visit_table` にディスパッチされる)。
+    - 両形式: `//endnote` の二重出力(定義位置と `//printendnotes` の両方。LaTeX/HTML には
+      既にガードがあった)、`@<title>`/`@<sec>`/`@<sectitle>` が `@<chapref>`/`@<hd>` の形に
+      素通ししていた件、`chapterlink` の未対応。
+    - plaintext のみ: `@<del>` が削除文字列を残していた(ビルダーは落とす)、`@<bib>` の末尾空白。
+  - 段落の行畳み込みは「同じ判断の複製」型: 段落内の改行はソースの整形であって内容ではなく、
+    ビルダーは `split_paragraph`/`join_lines_to_paragraph` で畳む。LaTeX にのみ正しい実装があり、
+    plaintext は `join_lines_by_lang` を無視する版、TOP は畳み込み自体が無かった。
+    `Base#join_paragraph_lines` に一本化。
+  - 検証: 全テスト緑(1223 tests)、rubocop クリーン。コーパス(syntax-book 6 章 + debug-book 4 章)の
+    実質差は、上記「許容している残差」に該当するもののみになった。
+
 ### 意図的に許容している残差(plaintext / TOP)
 
 この 2 形式はバイト一致を目標にしない(方針決定済み)。意味的に正しければよく、次の差は許容する。
@@ -1069,6 +1088,10 @@ AST 対 AST の自己整合性であってオラクル比較ではないため�
   AST の方が情報を保っているため、こちらを採る。
 - 空行の位置: ビルダーは `blank`/`@blank_seen` による連続空行の抑制を持つが、AST は再現していない。
 - 表の罫線幅: 区切り行のダッシュ数と末尾タブの有無。
+- TOP の `@<em>`: 許容差ではなく Re:VIEW 本体側のバグだった。TOPBuilder は装飾系 16 命令のうち
+  15 個を上書きしており、`@<em>` だけが PLAINTEXTBuilder の素通しに落ちていた。本体に
+  `alias_method :inline_em, :inline_i` を追加(ブランチ `fix-top-inline-em`)。AST 側は変更不要で、
+  取り込み後は `▲…☆` で一致する。
 
 上記のため `test_text_renderer_semantics.rb` はバイト一致ではなく情報の有無を検証している。
 LaTeX / HTML / IDGXML の目標(DVI 一致 / rendered-equivalence / byte 一致)は従来どおり変更なし。
@@ -1099,10 +1122,41 @@ CI が検証する範囲を広げた。いずれもリポジトリ内の素材�
 この拡張で見つけて修正したもの: HTML レンダラに `//read`・`//talk`・`//doorquote`・`//point`・`//bpo`・`@<imgref>` のハンドラが無かった件(ビルダーは実装済み)、`//doorquote` の内容が段落分割されていなかった件、IDGXML の `olnum` が源泉番号を使っていた件(正しくは 1 始まりの連番で、`//olnum[N]` のみが起点を変える)、入れ子リスト後に `olnum` がリセットされない件、`@<hd>` の見出しキャプションが未エスケープで XML 不正になっていた件。
 `olnum` の 2 件については `test_idgxml_renderer.rb` の期待値自体が誤っており(ビルダーの実出力と不一致)、ビルダーに合わせて訂正した。
 
-未修正(nightly が現に落ちる。次に着手すべき対象):
+nightly が落ちる 2 件は、いずれも `//table` のセル分割が原因で、Re:VIEW 本体側のバグだった。
+レンダラの出力が正しく、AST 側の修正は不要。本体では修正済み(kmuto/review#1972)なので、
+その修正を含む review をリリース後に取り込めば緑になる。修正版を差した状態で
+`tools/pbt/runner.rb` を html・idgxml とも 500 seed 流し、乖離が無いことを確認済み。
+gemspec が `review ~> 5.11` を要求するため、それまでは nightly は赤のままになる。
 
-- IDGXML の表セル座標(seed 72、94)。区切り行のセル数の扱いが違う。`//table` の区切り行が見出し区切りと認識されない場合、ビルダーはその行にあるセルだけを出し(2×2 で 5 セル)、レンダラは列数に合わせて詰める(6 セル)。どちらが正かは要判断。
-- HTML(seed 167)。`@<raw>{|latex|\,}` を含む表で、トークン列の差として現れる。差分表示上は同じテキストに見えるため、空白位置の差と推測されるが未特定。
+- 先頭セルがインライン展開後に空になると、以降のセルが 1 列左へずれる(nightly html、seed 167)。
+  `ReVIEW::Builder#parse_table_rows` はインライン展開済みの行を `line.strip.split` で分割するため、
+  空になった先頭セルの区切りタブを `strip` が食い、`adjust_n_cols` が代わりに末尾へ空セルを足す。
+  形式に依らず、その形式で空になるインラインが先頭セルにあれば起きる。
+
+  ```
+  //table[t1][cap]{
+  @<raw>{|latex|X}	B
+  ------------
+  C	D
+  //}
+  ```
+
+  latex は `\reviewth{X} & \reviewth{B}` と 2 列に組むが、html は
+  `<tr><th>B</th><th></th></tr>` になり B が 1 列目へ移る。
+  逆に `@<raw>{|html|X}` を先頭に置けば latex 側が同じずれ方をする。
+
+- 桁の揃わない表で、IDGXML の宣言とセル数が食い違う(nightly idgxml、seed 14 ほか計 18)。
+  `IDGXMLBuilder#parse_table_rows` は基底と違って短い行を詰めない。`aid:tcols` は最大列数になる
+  一方、短い行はそのセル数のまま出るため、2 行 3 列の宣言に 5 セルという出力になり、行×列の
+  セルを期待する InDesign 側でずれる。`tableopt` 指定時に起きる。
+
+  ```
+  //table[t2][cap]{
+  A	B
+  ------------
+  C	D	E
+  //}
+  ```
 
 ---
 
@@ -1236,3 +1290,48 @@ review-ast 側には受け口だけが残っている。
   機能し始めた時点で、maker 経由のビルドもそのまま通る見込みである。
 - `Diff::Markdown` の正規化オプション 5 種は、`Diff::Latex` と同様のコンフィグ過剰(lib/diff レビューでの指摘と同種)であり、移植時に実使用分へ縮めてよい。
 - Markdown 方言の拡張(定義リストの入力対応、インライン HTML の EmbedNode 化)は、取り込み完了後の別項目とする。
+
+## 11. //tsize の Vivliostyle への翻訳(アイデア、未実施)
+
+### 動機
+
+`//tsize` は LaTeX では列指定、IDGXML では mm 幅になるが、HTML 系では捨てられ、
+Vivliostyle の表はすべて自動レイアウトになる。固定幅列(LaTeX の p 列)で
+折り返しを制御したい表が CSS 組版で再現できない。
+
+### 設計
+
+情報は AST まで来ている(`TableNode#tsize` が生値を保持し、
+`TableColumnWidthParser.value_for_target` がビルダ限定指定を選別する)ので、
+翻訳は二段で行う。
+
+- HtmlRenderer は epubmaker 経由のときだけ `//tsize` の生値を
+  `<table data-tsize="...">` として透過する。描画に影響しない不活性な属性で、
+  プレーン HTML と webmaker はレガシー HTMLBuilder とのパリティを保つ。
+- VivliostyleMaker が組版前の後処理(ImageSizeAnnotator と同型の
+  TableWidthAnnotator)で data-tsize を `<colgroup>` に変換する。数値形式は mm、
+  `p{長さ}` は CSS 単位のもののみ幅として拾う。全列の幅が揃うときは
+  `table-layout: fixed` と合計幅も与え、「固定幅内で折り返す」p 列の挙動を
+  再現する。l/c/r と罫線位置は colgroup で表現できないので扱わない。
+  対象の選別は `value_for_target` をそのまま使い、`|latex|` 限定は無視、
+  汎用指定と `|vivliostyle|` / `|html|` 指定を拾う。
+
+動作する実装とテストは一度コミットしたうえで取り消してある。ブランチ
+`vivliostyle-maker` の「//tsize を Vivliostyle の表の列幅に翻訳する」と、
+その直後の revert がそれで、再開するときは revert の revert で復元できる。
+
+### 見送りの理由と再開の条件
+
+これまで `//tsize` は HTML 系出力に影響しなかったため、汎用の数値指定
+(`//tsize[10,18,50]`)を書いている既存の本では EPUB / Vivliostyle の紙面が
+変わる。導入するなら非互換の受け皿が要る:
+
+- 既定を off(`vivliostyle: table_tsize: true` で opt-in)にする、または
+- 効果を `|vivliostyle|` 明示指定に限る(汎用指定は従来どおり無視する)、または
+- メジャーバージョン境界で既定 on に切り替える。
+
+### 検証
+
+サンプル表(syntax-book 表2.1)に汎用 tsize を付けた紙面で、列幅の反映と
+固定幅内の折り返し、`|latex|` 限定指定がスキップされることを確認済み。
+単体テストは TableWidthAnnotator の revert 前コミットにある。
