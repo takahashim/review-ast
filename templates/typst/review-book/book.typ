@@ -202,8 +202,9 @@
 
 // ---------------------------------------------------------------- document
 
-// The folio sits on the outside edge of a two-sided book, so it stays visible
-// when the reader thumbs through; a single-sided book centres it.
+// The folio sits at the bottom centre of the page (通常のノンブルは下中央)。
+// The hidden folio (隠しノンブル) is the one that goes by the spine — see
+// hidden-folio() above; do not confuse the two.
 //
 // The number is formatted by the page's own `numbering` (set via
 // `set page(numbering: ...)`), so the folio, the table of contents (native
@@ -211,17 +212,7 @@
 #let folio() = context {
   let t = theme-state.get()
   let number = (t.renderers.page-number)(counter(page).display(), t)
-  let placement = if not t.two-sided {
-    center
-  } else {
-    let odd = calc.odd(here().page())
-    if t.binding == "right" {
-      if odd { left } else { right }
-    } else {
-      if odd { right } else { left }
-    }
-  }
-  align(placement, number)
+  align(center, number)
 }
 
 // Wrap the whole document. Applied as `#show: book.document.with(...)`.
