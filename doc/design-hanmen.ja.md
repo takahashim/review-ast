@@ -332,7 +332,7 @@
 
 残り(入稿・上流)
 
-- P2: Typst の隠しノンブル・通しノンブル対応(4.4)。印刷所要件で早めに要る
+- P2: Typst の隠しノンブル対応(4.4)。通しノンブル(serial_pagination / startpage)は対応済み。残るは隠しノンブルで、印刷所別プリセット(default = 小口側の水平番号、nikko-pc/shippo = 背側の縦積み、marusho-ink = nikko-pc + 5mm bleed)を裁ち落とし領域に精密配置する。crop 有効時のみ。印刷所要件で早めに要る
 - P3: review-jlreq の running-head-size / folio-size をクラスオプション化し、kmuto/review へ提案する(9.1 末尾。jsbook 側は sty 編集)。外部レビューがクリティカルパス
 
 残り(研究・自動化。大・不確実)
