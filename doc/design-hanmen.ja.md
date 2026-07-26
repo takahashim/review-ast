@@ -98,13 +98,14 @@
 
 - 柱とノンブルは版面の外に置き、版面からのアキで位置を決める
 - 設計値:柱の高さ、柱と版面のアキ(headsep、既定10mm)、版面とノンブルのアキ(footskip、既定10mm)
-- 柱は章名を左、節名を右。ノンブルは小口側。描き方(罫の有無など)は体裁の領分で、この文書は位置だけを持つ
+- 柱は章名を左、節名を右。ノンブルは版面下の中央(通常のノンブル。小口側・ノド中央に置くのは隠しノンブルで、別物=5.5)。描き方(罫の有無など)は体裁の領分で、この文書は位置だけを持つ
 
 ### 2.10 印刷用紙
 
 - トンボと裁ち落とし(bleed、既定3mm)、仕上がりを載せる用紙(sheet)
 - sheet は2通り:仕上がり+塗り足し+トンボ長が載るだけの用紙(auto)、または判型名で標準用紙を指定してその中央に仕上がりを置く
 - 日本の印刷所は後者(A5 仕上がりを B5 用紙の中央に、のような形)を求めることが多い。review-jsbook の `media=print` と同じ考え方である
+- CSS(Vivliostyle)は前者(auto)と、`--crop-offset` で一律ぶん大きい用紙の中央に置く形までを表せる。後者の判型名指定(軸ごとに余りが違う中央化)は crop-offset が全辺一律のため表せない(5.5、9.2)。Typst・LaTeX は判型名の後者に対応する
 - トンボの既定色はレジストレーションブラック(CMYK)
 
 ## 3. 設計値の一覧
@@ -140,7 +141,8 @@
 | 囲み | box-pad-x / pad-y | 囲みの内側アキ | 5mm / 3mm | — | ✓ | ✓ | ✓ |
 | 囲み | box-rule / arc | 罫の太さ・角丸 | 0.5mm / 1mm | — | ✓ | ✓ | ✓ |
 | 色 | code-bg ほか | コード・囲み・注記の配色 | 各ファイル | — | ✓ | ✓ | ✓ |
-| 用紙 | crop.sheet | トンボを載せる用紙 | auto | 2.10 | ✓ | | ✓ |
+| 用紙 | crop.sheet | トンボを載せる用紙(判型名で中央配置) | auto | 2.10 | ✓ | | ✓ |
+| 用紙 | crop-offset(CSS のみ) | 仕上がりを一律ぶん大きい用紙の中央に | auto | 2.10 | | ✓ | |
 | 用紙 | crop.bleed | 裁ち落とし | 3mm | 2.10 | ✓ | ✓ | ✓ |
 | 用紙 | crop.mark-length ほか | トンボ長・太さ・色 | 各ファイル | 2.10 | | | ✓ |
 
@@ -223,7 +225,7 @@
 
 ### 5.4 版面の外
 
-- 柱とノンブルはページマージンボックス(`@top-center`、`@bottom-outside` など)に置く
+- 柱とノンブルはページマージンボックス(柱は `@top-left`/`@top-right`、ノンブルは `@bottom-center`)に置く
 - 章名・節名は running element(`string-set` で拾い `content: string(...)` で流し込む)で柱に届ける
 - headsep / footskip は、マージンボックスの寸法とパディングに換算して実現する(直接の対応物はない)
 
@@ -231,7 +233,8 @@
 
 - トンボと裁ち落としは入稿用の上書き `style-vivliostyle-print.css` が `@page { marks: crop cross; bleed: var(--bleed) }` で有効にする。既定の `style-vivliostyle.css`(media=ebook 相当)は出さない。入稿版の設定ファイル(config-vivliostyle-print.yml)で design → 実装 → 入稿上書きの順に読み込む
 - CSS の @page marks はトンボの長さ・太さ・色を制御できない(Vivliostyle の既定で描かれる)。CSS 側で持てる crop の設計値は裁ち落とし量(`--bleed`)だけで、長さ・太さ・色は Typst テーマの領分である(3章の表で crop.mark-length ほかが T のみなのはこのため)
-- 仕上がりを標準用紙の中央に置く形(2.10 の後者)を CSS 側でどう実現するかは未確定(保留。9章)
+- 仕上がりを大きい用紙の中央に置くには `--crop-offset`(既定 auto)に距離を与える。Vivliostyle の `crop-offset`(文法は `auto | LENGTH`)が仕上がりを一律その距離ぶん大きい用紙の中央に置く。ただし判型名の標準用紙(2.10 の後者。A5→B5 のように横17mm・縦23.5mm と軸で余りが違う中央化)は全辺一律の crop-offset では表せない。正確に判型名の用紙へ載せたいときは、auto の入稿 PDF を後段の面付け(Ghostscript / pdfjam など)で当該用紙に配置する。Typst・LaTeX(review-jsbook の media=print)は判型名指定に対応する
+- 隠しノンブルは入稿用の上書きが `@page :right { @left-middle }` / `@page :left { @right-middle }`(横組み左綴じなので綴じ側は recto=左・verso=右)にノド天地中央のページ番号を出す。回転は `transform: rotate(-90deg)`(`text-orientation: sideways` は Vivliostyle が尊重せず正立のままになる。実測)。級数は `--hidden-folio-size`(既定 2.5mm、LaTeX の \scriptsize 相当)。柱・ノンブルを落とす面のルールは @top-*/@bottom-center しか触らないので隠しノンブルは全ページに残る(折丁照合用として正しい)。nikko-pc の「ノド天地中央・回転」はこれで再現でき、vivlio-pdf の実ビルドで確認した。厳密な mm オフセットや裁ち落とし内配置はマージンボックスの固定位置では表せない(機能は足りる)
 
 ## 6. Typst(review-book theme)での指定
 
@@ -298,22 +301,20 @@
 
 - 同じ設計値から3系統で出力し、突き合わせる:1ページの行数と1行の字数(数える)、版面の四辺の位置(重ね合わせ)、ノンブル・柱の位置
 - 判定に使う原稿は、約物や欧文を含まない全角文字のべた組みページを含むこと。禁則やジャスティフィケーションの差で字詰めが揺れると、版面の検証にならない
-- 現状これは手作業である。自動化は保留事項(9章)
+- これは `tools/hanmen-compare`(`rake hanmen:compare`)で自動化した。design.css の設計値を単一ソースに「田」だけのべた組み1ページを三系統の実設計ファイルで組み、各 PDF から行数・字数・版面四辺(mm)・行送りピッチを測って突き合わせる。水平(字詰め・行数・版面の左右)と行送りピッチは一致を判定し、天地(字面の上端/下端)は Vivliostyle(Chrome)が CJK を Type 3 で埋め、pdftotext がその box を em の約2.6倍に報告するため情報として差分だけを出す(フォントの違いではない。Typst に Hiragino・LaTeX に Harano Aji という別フォントを与えても CID 埋め込みなら両方 em 相当で、同じ Hiragino でも Chrome だと約2.6倍になる。em の位置自体はピッチ・行数・左右で担保する)。LaTeX は jlreq の既定行送り(1.7zw)に流れないよう baselineskip も設計値に固定して組む。typst / uplatex+dvipdfmx / vivlio-pdf の揃った環境で走り、無いエンジンはスキップする
 
 ## 8. 検証
 
 - この文書の値の主張は、実装ファイル(theme.typ / design.css)の値と一致していることが正である。文書とファイルの突き合わせは機械化されていない(保留。9章)
 - Typst 側の版面はサンプル書籍のビルド(`typst.yml` CI)で実際に組んで確認している。CJK フォントを CI に入れているのは、フォールバックで日本語を一度も組まずに通る空虚な合格を防ぐため
 - Vivliostyle 側は samples/syntax-book のビルドで確認している(vivliostyle-maker ブランチ)
-- 三系統の紙面突き合わせ(7.3)は未実施である
+- 三系統の紙面突き合わせ(7.3)は `tools/hanmen-compare` で自動化した。実測では字詰め40・行数35・版面の左右(左26.0・右156.0・幅130.0mm)・行送りピッチ(5.41mm)が三系統で一致し、天地の字面上端/下端のみ差が残る(Vivliostyle=Chrome の Type 3 埋め込みを pdftotext が em の約2.6倍で報告するため。フォントではなくエンジンの PDF エンコード差で、em の位置自体はピッチ等で担保)
 
 ## 9. 対象外と保留事項
 
 ### 9.1 やれば片付くもの
 
-- CSS 側の隠しノンブル(ノド中央)はマージンボックスの制約で再現できない見込みであり、対応するかどうか自体が未確定(Typst 側の隠しノンブル nikko-pc と通しノンブルは対応済み)
-- CSS 側で「標準用紙の中央に仕上がり」を実現する方法(5.5)
-- 三系統の紙面比較(7.3)。行数・字詰め・四辺位置を突き合わせる(文書と設計値ファイルの自動突き合わせは test/ast/test_hanmen_design_values.rb で実施済み)
+- 三系統の紙面比較(7.3)。行数・字詰め・四辺位置を突き合わせる。設計値ファイルの静的照合は test/ast/test_hanmen_design_values.rb、実際に組んだ紙面の突き合わせは tools/hanmen-compare で自動化済み
 - 欧文フォールバック列の見直し。同寸を既定にしたので、x-height の大きい欧文書体の選定が実益を持つ(2.8)
 - 柱・ノンブルの級数(running-head-size / folio-size)の review-jlreq クラスオプション化。jlreq のページスタイルに `running_head_font` / `nombre_font` キーが既にあり、`\ModifyPageStyle` への薄い写像で実装できる(無指定なら発行せず現行の本文同寸のままで後方互換)。本体(kmuto/review)への上流提案となる。
   - review-jsbook 側は fancyhdr のため対象外とし、sty の編集で行う
@@ -321,6 +322,7 @@
 
 ### 9.2 対象外と決めたもの
 
+- CSS(Vivliostyle)で仕上がりを判型名の標準用紙の中央に置く形(2.10 の後者)。crop-offset の文法が `auto | LENGTH` の全辺一律で、軸ごとに余りが違う中央化(A5→B5 など)ができない。一律に大きい用紙へ載せる形は `--crop-offset` で表せる(5.5)。判型名の用紙が要るときは auto の入稿 PDF を後段の面付けで当該用紙に配置する
 - jsbook 互換(和欧比率 1.081)。理由は 2.8 の通り。
 - 縦組み。Typst が未対応であり、三系統の語彙として成立しない。Typstが対応したら再検討する
 - 段組。現時点の対象書籍(技術書)で需要が薄く、余白導出の規約(2.3)が二段組と干渉するため、必要になった時点で設計する
@@ -330,13 +332,10 @@
 - 9.1 の項目を実ファイル単位の作業に分け、規模・依存・外部要件で並べたもの。完了分は外し、残りだけを載せる
 - 完了済み:対称性を埋める一式(theme.typ の figure アキ・柱高さ、CSS・Typst の foot-space/fore-edge 陽指定)、設計値の静的照合テスト、CSS のトンボ有効化(入稿用 print CSS + `--bleed`)、欧文フォールバック列の見直し(CSS・Typst)、Typst の通しノンブル(serial_pagination / startpage)と隠しノンブル(nikko-pc = shippo)
 - 隠しノンブルの残りプリセット default(小口側の水平番号)・marusho-ink(nikko-pc + 5mm bleed)は、必要になった時点で追加する
+- 対応済み:R5(CSS の隠しノンブル)。入稿用 print CSS の @left-middle/@right-middle にノド天地中央・90°回転(transform: rotate)でページ番号を出す。vivlio-pdf の実ビルドで recto=左・verso=右・回転・全ページ残存を確認。厳密な mm オフセットと裁ち落とし内配置のみ範囲外(マージンボックスは固定位置)
+- 完了・決定済み:R4(CSS で「標準用紙の中央に仕上がり」)。一律に大きい用紙へ載せる形を `--crop-offset`(print CSS)で実装し、判型名の非対称中央化は CSS 対象外(9.2)とした
+- 対応済み:R3(三系統の紙面自動比較)。tools/hanmen-compare(rake hanmen:compare)で、設計値から三系統のべた組み1ページを組み、行数・字詰め・版面四辺を突き合わせる。水平は一致を判定、天地は情報として差分を出す。実測で水平は三系統一致
 
 残り(上流)
 
-- P3: review-jlreq の running-head-size / folio-size をクラスオプション化し、kmuto/review へ提案する(9.1 末尾。jsbook 側は sty 編集)。外部レビューがクリティカルパス
-
-残り(研究・自動化。大・不確実)
-
-- R4: CSS で「標準用紙の中央に仕上がり」を実現する方法の設計と実装(5.5、2.10 後者。Typst・LaTeX は対応済み)
-- R5: CSS の隠しノンブル(ノド中央)の可否判定。再現不可なら 9.2 へ移す(実装でなく決定)
-- R3: 三系統の紙面自動比較(7.3)。行数・字詰め・四辺位置。3系統をビルドして突き合わせる最も重い基盤なので最後。P2 の後(トンボ・余白が確定してから比較に意味が出る)
+- P3: review-jlreq の running-head-size / folio-size をクラスオプション化し、kmuto/review へ提案する(9.1 末尾。jsbook 側は sty 編集)。外部レビューがクリティカルパス。cls パッチと実ビルド検証は済み、残りは提案文と PR 提出

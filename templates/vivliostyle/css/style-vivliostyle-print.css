@@ -11,15 +11,50 @@
  *
  * 制約:
  *   - PDF の TrimBox / BleedBox は設定されない（MediaBox と同値になる）
- *   - 用紙は A4 ではなく「仕上がり＋トンボ領域」になる
- *     （B5 仕上がりなら 214.1x289.3mm）
- *   - 隠しノンブル（hiddenfolio）は CSS では再現できない
+ *   - 用紙は「仕上がり＋トンボ領域」を既定とし、--crop-offset で一律に広げられる
+ *     （既定 auto なら B5 仕上がりで 214.1x289.3mm）。ただし判型名の標準用紙に
+ *     仕上がりを中央配置する形（A5→B5 のような軸ごとに違う中央化）は
+ *     crop-offset が全辺一律（auto | LENGTH）なため CSS では表せない。§5.5
+ *   - 隠しノンブル（hiddenfolio）はノド天地中央に 90°回転して出せる（下の
+ *     @left-middle/@right-middle）。厳密な nikko-pc の mm オフセットや裁ち落とし
+ *     内配置までは合わせられないが、機能は足りる。§5.5
  * ========================================================================= */
 
 @page {
-  marks: crop cross;   /* 角トンボ（二重）＋ センタートンボ。長さ・太さ・色は
-                          CSS の @page marks では制御できない（Vivliostyle 既定） */
-  bleed: var(--bleed); /* 裁ち落とし量。設計値は design.css の --bleed */
+  marks: crop cross;    /* 角トンボ（二重）＋ センタートンボ。長さ・太さ・色は
+                           CSS の @page marks では制御できない（Vivliostyle 既定） */
+  bleed: var(--bleed);  /* 裁ち落とし量。設計値は design.css の --bleed */
+  crop-offset: var(--crop-offset, auto); /* 仕上がりを一律その距離ぶん大きい
+                           用紙の中央に置く（Vivliostyle 拡張。§5.5）。design.css
+                           に --crop-offset が無くても auto にフォールバックする */
+}
+
+/* 隠しノンブル: ノド側マージンの天地中央に、90°回転した小さいページ番号を出す。
+ * 折丁の照合用なので、柱・ノンブルを落とす面（章扉・目次・奥付）にも残す
+ * （それらのルールは @top-*/@bottom-center しか触らない）。
+ *
+ * 綴じ側は横組み左綴じなので recto（右ページ=奇数）が左＝@left-middle、
+ * verso（左ページ=偶数）が右＝@right-middle。回転は transform: rotate で行う
+ * （text-orientation: sideways は Vivliostyle が尊重せず正立のままになる。実測）。
+ *
+ * ここまでで nikko-pc の「ノド天地中央・回転」は再現できる。厳密な mm オフセット
+ * や裁ち落とし内への配置はマージンボックスの固定位置では表せないが、無線綴じの
+ * 隠しノンブルは元々トリム内なので機能は足りる。§5.5 */
+@page :right {
+  @left-middle {                 /* recto: 綴じ＝左 */
+    content: counter(page);
+    font-family: var(--font-folio);
+    font-size: var(--hidden-folio-size, 2.5mm);
+    transform: rotate(-90deg);
+  }
+}
+@page :left {
+  @right-middle {                /* verso: 綴じ＝右 */
+    content: counter(page);
+    font-family: var(--font-folio);
+    font-size: var(--hidden-folio-size, 2.5mm);
+    transform: rotate(-90deg);
+  }
 }
 
 /* NOTE: 表紙の塗り足し指定はここには要らない。

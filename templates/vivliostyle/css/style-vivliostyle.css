@@ -87,14 +87,16 @@
      読み込むと有効になる（§5.5）。ここ（既定 = media=ebook 相当）では
      出さない。隠しノンブル（hiddenfolio）は CSS では再現できない。 */
 
-  /* ノンブル: 版面の下、中央。footskip ぶん本文から下げるため
-     マージンボックスの上端に寄せる */
+  /* ノンブル: 版面の下、中央。版面下端から footskip ぶん下げる。
+     マージンボックスの上端は版面下端なので padding-top で押し下げる
+     （height: footskip + vertical-align: top だと箱の上端＝版面下端に
+     貼り付いてアキが 0 になる。実測でアキ = footskip の 10mm を確認）。 */
   @bottom-center {
     content: counter(page);
     font-family: var(--font-folio);
     font-size: var(--folio-size);
     line-height: var(--baselineskip);
-    height: var(--footskip);
+    padding-top: var(--footskip);
     vertical-align: top;
   }
 }
