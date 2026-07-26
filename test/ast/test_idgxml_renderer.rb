@@ -761,13 +761,13 @@ EOS
 
     # Default: tab separator
     actual = compile_block(src)
-    expected = %Q(<table><tbody xmlns:aid5="http://ns.adobe.com/AdobeInDesign/5.0/" aid:table="table" aid:trows="2" aid:tcols="3"><td xyh="1,1,1" aid:table="cell" aid:theader="1" aid:crows="1" aid:ccols="1" aid:ccolwidth="9.448">1</td><td xyh="2,1,1" aid:table="cell" aid:theader="1" aid:crows="1" aid:ccols="1" aid:ccolwidth="9.448">2</td><td xyh="3,1,1" aid:table="cell" aid:theader="1" aid:crows="1" aid:ccols="1" aid:ccolwidth="9.448">3  4| 5</td><td xyh="1,2,1" aid:table="cell" aid:crows="1" aid:ccols="1" aid:ccolwidth="9.448">a b</td><td xyh="2,2,1" aid:table="cell" aid:crows="1" aid:ccols="1" aid:ccolwidth="9.448">c  d   |e</td><td xyh="3,2,1" aid:table="cell" aid:crows="1" aid:ccols="1" aid:ccolwidth="9.448"></td></tbody></table>)
+    expected = %Q(<table><tbody xmlns:aid5="http://ns.adobe.com/AdobeInDesign/5.0/" aid:table="table" aid:trows="2" aid:tcols="3"><td xyh="1,1,1" aid:table="cell" aid:theader="1" aid:crows="1" aid:ccols="1" aid:ccolwidth="9.448">1</td><td xyh="2,1,1" aid:table="cell" aid:theader="1" aid:crows="1" aid:ccols="1" aid:ccolwidth="9.448">2</td><td xyh="3,1,1" aid:table="cell" aid:theader="1" aid:crows="1" aid:ccols="1" aid:ccolwidth="9.448">3  4| 5</td><td xyh="1,2,1" aid:table="cell" aid:crows="1" aid:ccols="1" aid:ccolwidth="9.448">a b</td><td xyh="2,2,1" aid:table="cell" aid:crows="1" aid:ccols="1" aid:ccolwidth="9.448">c  d   |e</td></tbody></table>)
     assert_equal expected, actual
 
     # Single tab separator - each tab creates a new cell
     @config['table_row_separator'] = 'singletab'
     actual = compile_block(src)
-    expected = %Q(<table><tbody xmlns:aid5="http://ns.adobe.com/AdobeInDesign/5.0/" aid:table="table" aid:trows="2" aid:tcols="4"><td xyh="1,1,1" aid:table="cell" aid:theader="1" aid:crows="1" aid:ccols="1" aid:ccolwidth="7.086">1</td><td xyh="2,1,1" aid:table="cell" aid:theader="1" aid:crows="1" aid:ccols="1" aid:ccolwidth="7.086">2</td><td xyh="3,1,1" aid:table="cell" aid:theader="1" aid:crows="1" aid:ccols="1" aid:ccolwidth="7.086"></td><td xyh="4,1,1" aid:table="cell" aid:theader="1" aid:crows="1" aid:ccols="1" aid:ccolwidth="7.086">3  4| 5</td><td xyh="1,2,1" aid:table="cell" aid:crows="1" aid:ccols="1" aid:ccolwidth="7.086">a b</td><td xyh="2,2,1" aid:table="cell" aid:crows="1" aid:ccols="1" aid:ccolwidth="7.086">c  d   |e</td><td xyh="3,2,1" aid:table="cell" aid:crows="1" aid:ccols="1" aid:ccolwidth="7.086"></td><td xyh="4,2,1" aid:table="cell" aid:crows="1" aid:ccols="1" aid:ccolwidth="7.086"></td></tbody></table>)
+    expected = %Q(<table><tbody xmlns:aid5="http://ns.adobe.com/AdobeInDesign/5.0/" aid:table="table" aid:trows="2" aid:tcols="4"><td xyh="1,1,1" aid:table="cell" aid:theader="1" aid:crows="1" aid:ccols="1" aid:ccolwidth="7.086">1</td><td xyh="2,1,1" aid:table="cell" aid:theader="1" aid:crows="1" aid:ccols="1" aid:ccolwidth="7.086">2</td><td xyh="3,1,1" aid:table="cell" aid:theader="1" aid:crows="1" aid:ccols="1" aid:ccolwidth="7.086"></td><td xyh="4,1,1" aid:table="cell" aid:theader="1" aid:crows="1" aid:ccols="1" aid:ccolwidth="7.086">3  4| 5</td><td xyh="1,2,1" aid:table="cell" aid:crows="1" aid:ccols="1" aid:ccolwidth="7.086">a b</td><td xyh="2,2,1" aid:table="cell" aid:crows="1" aid:ccols="1" aid:ccolwidth="7.086">c  d   |e</td></tbody></table>)
     assert_equal expected, actual
 
     # Space separator - spaces create cell boundaries
@@ -780,6 +780,26 @@ EOS
     @config['table_row_separator'] = 'verticalbar'
     actual = compile_block(src)
     expected = %Q(<table><tbody xmlns:aid5="http://ns.adobe.com/AdobeInDesign/5.0/" aid:table="table" aid:trows="2" aid:tcols="2"><td xyh="1,1,1" aid:table="cell" aid:theader="1" aid:crows="1" aid:ccols="1" aid:ccolwidth="14.172">1\t2\t\t3  4</td><td xyh="2,1,1" aid:table="cell" aid:theader="1" aid:crows="1" aid:ccols="1" aid:ccolwidth="14.172">5</td><td xyh="1,2,1" aid:table="cell" aid:crows="1" aid:ccols="1" aid:ccolwidth="14.172">a b\tc  d</td><td xyh="2,2,1" aid:table="cell" aid:crows="1" aid:ccols="1" aid:ccolwidth="14.172">e</td></tbody></table>)
+    assert_equal expected, actual
+  end
+
+  # IDGXMLBuilder never pads a short row out to the table width (it has no
+  # adjust_n_cols): a header narrower than the body emits only its own cells, so
+  # the renderer must not emit the padding cells adjust_columns adds for the
+  # LaTeX/HTML builders. Regression for the PBT idgxml sweep (ragged rows).
+  def test_table_ragged_rows_are_not_padded
+    actual = compile_block("//table{\naaa\tbbb\n------------\nc\td\te\n//}\n")
+    expected = %Q(<table><tbody xmlns:aid5="http://ns.adobe.com/AdobeInDesign/5.0/" aid:table="table" aid:trows="2" aid:tcols="3"><td xyh="1,1,1" aid:table="cell" aid:theader="1" aid:crows="1" aid:ccols="1" aid:ccolwidth="9.448">aaa</td><td xyh="2,1,1" aid:table="cell" aid:theader="1" aid:crows="1" aid:ccols="1" aid:ccolwidth="9.448">bbb</td><td xyh="1,2,1" aid:table="cell" aid:crows="1" aid:ccols="1" aid:ccolwidth="9.448">c</td><td xyh="2,2,1" aid:table="cell" aid:crows="1" aid:ccols="1" aid:ccolwidth="9.448">d</td><td xyh="3,2,1" aid:table="cell" aid:crows="1" aid:ccols="1" aid:ccolwidth="9.448">e</td></tbody></table>)
+    assert_equal expected, actual
+  end
+
+  # A trailing empty cell written as `.` is part of the row's own cell count, so
+  # IDGXMLBuilder keeps it (via DUMMYCELLSPLITTER) even though LATEXBuilder pops
+  # it. #natural_cell_count records the pre-pop count, so the renderer keeps the
+  # cell here rather than dropping it as padding. Regression for the PBT sweep.
+  def test_table_trailing_dot_cell_is_kept
+    actual = compile_block("//table{\nA\tB\tC\n------------\n.\tx\t.\n//}\n")
+    expected = %Q(<table><tbody xmlns:aid5="http://ns.adobe.com/AdobeInDesign/5.0/" aid:table="table" aid:trows="2" aid:tcols="3"><td xyh="1,1,1" aid:table="cell" aid:theader="1" aid:crows="1" aid:ccols="1" aid:ccolwidth="9.448">A</td><td xyh="2,1,1" aid:table="cell" aid:theader="1" aid:crows="1" aid:ccols="1" aid:ccolwidth="9.448">B</td><td xyh="3,1,1" aid:table="cell" aid:theader="1" aid:crows="1" aid:ccols="1" aid:ccolwidth="9.448">C</td><td xyh="1,2,1" aid:table="cell" aid:crows="1" aid:ccols="1" aid:ccolwidth="9.448"></td><td xyh="2,2,1" aid:table="cell" aid:crows="1" aid:ccols="1" aid:ccolwidth="9.448">x</td><td xyh="3,2,1" aid:table="cell" aid:crows="1" aid:ccols="1" aid:ccolwidth="9.448"></td></tbody></table>)
     assert_equal expected, actual
   end
 

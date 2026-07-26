@@ -17,21 +17,31 @@ module ReVIEW
     class TableRowNode < Node
       ROW_TYPES = %i[header body]
 
-      def initialize(location:, row_type: :body, **kwargs)
+      def initialize(location:, row_type: :body, natural_cell_count: nil, **kwargs)
         super
         @children = []
         @row_type = row_type.to_sym
+        # The row's own cell count as split from the source, before
+        # TableProcessor#adjust_columns pops trailing empty cells and pads short
+        # rows out to the table width. LaTeX/HTML render the padded row; IDGXML
+        # never pads or pops -- IDGXMLBuilder emits each row's own cells only --
+        # so the IDGXML renderer emits just the first #natural_cell_count cells.
+        # nil until adjust_columns records it; round-tripped so a reloaded tree
+        # renders identically.
+        @natural_cell_count = natural_cell_count
 
         validate_row_type
       end
 
       attr_reader :children, :row_type
+      attr_accessor :natural_cell_count
 
       def self.deserialize_from_hash(hash)
         row_type = hash['row_type']&.to_sym || :body
         node = new(
           location: ReVIEW::AST::JSONSerializer.restore_location(hash),
-          row_type: row_type
+          row_type: row_type,
+          natural_cell_count: hash['natural_cell_count']
         )
         if hash['children']
           hash['children'].each do |child_hash|
@@ -47,6 +57,7 @@ module ReVIEW
       def serialize_properties(hash, options)
         super
         hash[:row_type] = @row_type.to_s
+        hash[:natural_cell_count] = @natural_cell_count unless @natural_cell_count.nil?
       end
 
       def validate_row_type

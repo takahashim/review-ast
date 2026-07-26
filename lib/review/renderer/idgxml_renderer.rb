@@ -1317,7 +1317,16 @@ module ReVIEW
         processed_rows = []
 
         rows.each do |row_node|
-          cells = row_node.children.map do |cell_node|
+          # IDGXMLBuilder never pads a short row: it emits each row's own cells
+          # only (the shared max column count lives in aid:tcols, not in extra
+          # empty <td>). So render just the row's own source cells, dropping the
+          # padding adjust_columns added for the LaTeX/HTML builders; @col still
+          # reaches the true max from the widest (unpadded) row below. A trailing
+          # empty cell written as `.` is part of the source count, so it survives
+          # here -- matching IDGXMLBuilder, which keeps it (via DUMMYCELLSPLITTER)
+          # while LATEXBuilder pops it.
+          own_cells = row_node.natural_cell_count ? row_node.children.first(row_node.natural_cell_count) : row_node.children
+          cells = own_cells.map do |cell_node|
             render_children(cell_node)
           end
 

@@ -70,7 +70,12 @@ shift. The most common trigger in those sweeps is `@<raw>{|latex|…}` in a cell
 non-empty for LaTeX (so the LaTeX sweep never sees it), but empty for HTML/IDGXML,
 so their sweeps do. (Builder: `<th>一致</th><th></th>` vs the renderer's correct
 `<th></th><th>一致</th>`.) So the HTML/IDGXML differential sweeps also leave this
-single class of divergence unmatched by design.
+single class of divergence unmatched by design. To keep it out of the sweeps, the
+PBT generator's cell context (`inline_fragment(cell_safe: true)`, used by
+`inline_cell_table_block`) excludes `@<raw>{|latex|…}` just as the whole generator
+already excludes `@<comment>` — an empty-in-HTML/IDGXML inline in a cell produces
+a builder-only "divergence", not a useful one. (`@<raw>` still appears in ordinary
+prose, so the LaTeX sweep keeps its cell-and-prose coverage of it.)
 
 - Builder: `Builder#parse_table_rows` splits cells correctly, so the shift is in
   the cell-rendering / `adjust_n_cols` path when a cell compiles to `""`.
