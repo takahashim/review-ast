@@ -130,6 +130,10 @@ module ReVIEW
           return if rows.empty?
 
           rows.each do |row|
+            # Record the source cell count before popping/padding so the IDGXML
+            # renderer, whose builder never pads or pops, can emit each row's own
+            # cells (see TableRowNode#natural_cell_count).
+            row.natural_cell_count = row.children.size
             while row.children.last && row.children.last.children.empty?
               row.children.pop
             end

@@ -784,6 +784,9 @@
           "$ref": "#/$defs/location",
           "description": "Source position the node was parsed from."
         },
+        "natural_cell_count": {
+          "type": "integer"
+        },
         "row_type": {
           "type": "string"
         },

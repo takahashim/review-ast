@@ -121,13 +121,22 @@ module ReVIEW
       # @<ins>/@<del>/@<u> produce LaTeX that neither path can typeset, which is
       # not a divergence -- just lost coverage. Special-char words still appear
       # as plain text elsewhere.
-      def inline_fragment
+      # cell_safe excludes inlines that render to "" in HTML/IDGXML. An
+      # empty-rendering *table cell* triggers a builder cell-shift quirk (see
+      # doc/spec-questions.md #2) that the renderer deliberately does not match,
+      # so feeding one into a cell produces a builder-only "divergence", not a
+      # useful one. @<raw>{|latex|...} is non-empty for LaTeX (so the LaTeX sweep
+      # keeps its cell coverage) but empty for HTML/IDGXML, so it is dropped only
+      # from cell context.
+      def inline_fragment(cell_safe: false)
         # NOTE: @<comment> is intentionally excluded. It renders to "" (non-draft),
         # and an empty-rendering *table cell* triggers a LATEXBuilder cell-shift
         # quirk (see doc/spec-questions.md), which is a builder bug, not a renderer
         # one -- feeding it here just produces builder-only failures, not useful
         # divergences.
-        case @r.rand(16)
+        roll = @r.rand(16)
+        roll = 17 if roll == 7 && cell_safe # route @<raw> to the decor default
+        case roll
         when 0 then "@<m>{#{pick(MATH_INLINE)}}" # inline math (brace-free)
         when 1 then "@<ruby>{#{pick(JA_WORDS)},#{safe_word}}" # ruby
         when 2 then "@<idx>{#{safe_word}}"                    # index (invisible)
@@ -157,10 +166,10 @@ module ReVIEW
 
       # A random run of text, optionally sprinkled with inline commands and
       # @<br>{}. Returns a single string (one logical line of content).
-      def phrase(inlines: true)
+      def phrase(inlines: true, cell_safe: false)
         parts = Array.new(1 + @r.rand(4)) do
           if inlines && chance(0.4)
-            inline_fragment
+            inline_fragment(cell_safe: cell_safe)
           else
             chance(0.6) ? pick(JA_WORDS) : pick(EN_WORDS)
           end
@@ -399,7 +408,8 @@ module ReVIEW
 
       # A //table whose cells contain inline commands.
       def inline_cell_table_block
-        rows = ["#{phrase}\t#{phrase}", '------------', "#{phrase}\t#{phrase}"]
+        rows = ["#{phrase(cell_safe: true)}\t#{phrase(cell_safe: true)}", '------------',
+                "#{phrase(cell_safe: true)}\t#{phrase(cell_safe: true)}"]
         ["//table[#{uid}][#{phrase(inlines: false)}]{", *rows, '//}']
       end
 
