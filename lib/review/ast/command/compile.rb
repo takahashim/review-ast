@@ -10,15 +10,29 @@ require 'optparse'
 require 'stringio'
 require 'review/book'
 require 'review/ast/compiler'
+require 'review/ast/chapter_registry_provider'
 require 'review/version'
 require 'review/configure'
+require 'review/yamlloader'
+require 'review/i18n'
 require 'review/loggable'
 require 'review/logger'
 
 module ReVIEW
   module AST
     module Command
-      # Compile - AST-based compilation command
+      # Compile - AST-based counterpart of `review-compile`.
+      #
+      # It accepts review-compile's options and resolves chapters the way it
+      # does: the files named on the command line are looked up in the book
+      # (so cross-chapter references resolve against the catalog), and with no
+      # file argument every chapter and part of the book is compiled into
+      # `<name><ext>` in the current directory. A file that is not part of the
+      # book is still compiled, as a stand-alone chapter.
+      #
+      # One deliberate difference: options given on the command line override
+      # the same keys from the YAML file. (review-compile sets them before
+      # merging the YAML, so a value in config.yml silently wins.)
       class Compile
         include ReVIEW::Loggable
 
@@ -32,6 +46,18 @@ module ReVIEW
         EXIT_COMPILE_ERROR = 1
         EXIT_UNEXPECTED_ERROR = 2
 
+        DEFAULT_CONFIG_FILENAME = 'config.yml'
+
+        # target => [renderer require path, renderer class name, output extension]
+        RENDERERS = {
+          'html' => ['review/renderer/html_renderer', 'HtmlRenderer', '.html'],
+          'latex' => ['review/renderer/latex_renderer', 'LatexRenderer', '.tex'],
+          'idgxml' => ['review/renderer/idgxml_renderer', 'IdgxmlRenderer', '.xml'],
+          'plaintext' => ['review/renderer/plaintext_renderer', 'PlaintextRenderer', '.txt'],
+          'top' => ['review/renderer/top_renderer', 'TopRenderer', '.txt'],
+          'typst' => ['review/renderer/typst_renderer', 'TypstRenderer', '.typ']
+        }.freeze
+
         attr_reader :options, :logger
 
         def initialize
@@ -40,8 +66,11 @@ module ReVIEW
             check_only: false,
             verbose: false,
             output_file: nil,
-            config_file: nil
+            config_file: nil,
+            directory: nil
           }
+          # Config values given as options; applied on top of the YAML.
+          @config_overrides = {}
           @version_requested = false
           @help_requested = false
 
@@ -57,7 +86,7 @@ module ReVIEW
           validate_options
           compile
           EXIT_SUCCESS
-        rescue CompileError => e
+        rescue CompileError, ReVIEW::ApplicationError => e
           error_handler.handle(e)
           EXIT_COMPILE_ERROR
         rescue StandardError => e
@@ -70,38 +99,47 @@ module ReVIEW
         def parse_arguments(args)
           parser = create_option_parser
           parser.parse!(args)
-
-          if args.empty? && !@help_requested && !@version_requested && !@options[:check_only]
-            raise CompileError, 'No input file specified. Use -h for help.'
-          end
-
-          @input_file = args[0] unless args.empty?
+          @input_files = args.dup
         end
 
         def create_option_parser
           OptionParser.new do |opts|
-            opts.banner = 'Usage: review-ast-compile --target FORMAT <file>'
+            opts.banner = 'Usage: review-ast-compile --target FORMAT [options] [file ...]'
             opts.version = ReVIEW::VERSION
 
-            opts.on('-t', '--target FORMAT', 'Output format (html, latex, idgxml, markdown) [required unless --check]') do |fmt|
+            opts.on('-t', '--target FORMAT', "Target format (#{RENDERERS.keys.join(', ')})") do |fmt|
               @options[:target] = fmt
             end
-
-            opts.on('-o', '--output-file FILE', 'Output file (default: stdout)') do |file|
+            opts.on('-o', '--output-file FILE', 'Write all results into FILE instead of stdout.') do |file|
               @options[:output_file] = file
             end
-
-            opts.on('--config FILE', '--yaml FILE', 'Configuration file (config.yml)') do |file|
+            opts.on('--config FILE', '--yaml FILE', 'Read configurations from YAML file (default: config.yml).') do |file|
               @options[:config_file] = file
             end
+            opts.on('-c', '--check', 'Check manuscript only, no output.') { @options[:check_only] = true }
+            opts.on('--directory DIR', 'Compile all chapters of the book in DIR.') { |dir| @options[:directory] = dir }
+            opts.on('--catalogfile FILE', 'Set catalog file.') { |file| @config_overrides['catalogfile'] = file }
 
-            opts.on('-c', '--check', 'Check only, no output') do
-              @options[:check_only] = true
-            end
+            opts.on('--level LVL', Integer, 'Section level to append number.') { |lvl| @config_overrides['secnolevel'] = lvl }
+            opts.on('--toclevel LVL', Integer, 'Section level to show in the TOC.') { |lvl| @config_overrides['toclevel'] = lvl }
+            opts.on('--tabwidth WIDTH', Integer, 'Tab width.') { |width| @config_overrides['tabwidth'] = width }
+            opts.on('--chapterlink', 'Make chapref a hyperlink.') { @config_overrides['chapterlink'] = true }
+            opts.on('--footnotetext', 'Use footnotemark and footnotetext (latex).') { @config_overrides['footnotetext'] = true }
+            opts.on('--draft', 'Use draft mode (inline comment).') { @config_overrides['draft'] = true }
 
-            opts.on('-v', '--verbose', 'Verbose output') do
-              @options[:verbose] = true
+            opts.on('--structuredxml', 'Produce XML with structured sections (idgxml).') { @config_overrides['structuredxml'] = true }
+            opts.on('--table WIDTH', 'Default table width (idgxml).') { |width| @config_overrides['tableopt'] = width }
+            opts.on('--listinfo', 'Append listinfo tag to lists to indicate begin/end (idgxml).') { @config_overrides['listinfo'] = true }
+            opts.on('--chapref DECORATION', 'Chapref decoration "before,middle,after" (idgxml).') { |dec| @config_overrides['chapref'] = dec }
+
+            opts.on('--stylesheet FILES', 'Stylesheet file(s) for HTML (comma separated).') do |files|
+              @config_overrides['stylesheet'] = files.split(/\s*,\s*/)
             end
+            opts.on('--mathml', 'Use MathML for TeX equations in HTML.') { @config_overrides['math_format'] = 'mathml' }
+            opts.on('--htmlversion VERSION', Integer, 'HTML version.') { |v| @config_overrides['htmlversion'] = v }
+            opts.on('--epubversion VERSION', Integer, 'EPUB version.') { |v| @config_overrides['epubversion'] = v }
+
+            opts.on('-v', '--verbose', 'Verbose output') { @options[:verbose] = true }
 
             opts.on_tail('--version', 'Show version') do
               puts opts.version
@@ -116,221 +154,179 @@ module ReVIEW
         end
 
         def validate_options
-          # --check mode doesn't require --target
-          return if @options[:check_only]
+          # review-compile checks against html when no target is given.
+          @options[:target] ||= 'html' if @options[:check_only]
 
-          # --target is required for output generation
           if @options[:target].nil?
             raise MissingTargetError, '--target option is required (use --target html or --target latex)'
+          end
+
+          unless RENDERERS.key?(@options[:target])
+            raise UnsupportedFormatError, "Unsupported format: #{@options[:target]} (supported: #{RENDERERS.keys.join(', ')})"
+          end
+
+          if @input_files.empty? && @options[:directory].nil? && !File.exist?(catalog_path(Dir.pwd))
+            raise CompileError, 'No input file specified. Use -h for help.'
           end
         end
 
         def compile
-          validate_input_file
-
-          content = load_file(@input_file)
-          chapter = create_chapter(content)
-          ast = generate_ast(chapter)
-
-          if @options[:check_only]
-            log("Syntax check passed: #{@input_file}")
+          if @input_files.empty?
+            compile_directory(@options[:directory] || '.')
           else
-            output = render(ast, chapter)
-            output_content(output)
+            compile_files
           end
         end
 
-        def validate_input_file
-          unless @input_file
-            raise CompileError, 'No input file specified'
-          end
+        # review-compile's file mode: each file is compiled as the book's
+        # chapter of that name; all results go to stdout (or -o).
+        def compile_files
+          @input_files.each { |file| validate_input_file(file) }
+          files = @input_files.map { |file| File.expand_path(file) }
+          book = load_book(File.dirname(files.first))
 
-          unless File.exist?(@input_file)
-            raise FileNotFoundError, "Input file not found: #{@input_file}"
-          end
-
-          unless File.readable?(@input_file)
-            raise CompileError, "Cannot read file: #{@input_file}"
-          end
-        end
-
-        def load_file(path)
-          log("Loading: #{path}")
-          File.read(path)
-        rescue StandardError => e
-          raise CompileError, "Failed to read file: #{e.message}"
-        end
-
-        def create_chapter(content)
-          config = load_configuration
-
-          require 'review/i18n'
-          I18n.setup(config['language'] || 'ja')
-
-          book_basedir = File.dirname(@input_file)
-          book = ReVIEW::Book::Base.new(book_basedir, config: config)
-          basename = File.basename(@input_file, '.*')
-
-          chapter_number = find_chapter_number(book, basename)
-
-          # If chapter number not found, try to extract from filename (e.g., ch03.re -> 3)
-          if chapter_number.nil?
-            chapter_number = extract_chapter_number_from_filename(basename)
-          end
-
-          chapter_number ||= 1
-
-          ReVIEW::Book::Chapter.new(
-            book,
-            chapter_number,
-            basename,
-            @input_file,
-            StringIO.new(content)
-          )
-        end
-
-        def find_chapter_number(book, basename)
-          return nil unless book
-
-          catalog_file = File.join(book.basedir, 'catalog.yml')
-          return nil unless File.exist?(catalog_file)
-
-          begin
-            require 'yaml'
-            catalog = YAML.safe_load_file(catalog_file)
-
-            if catalog['CHAPS']
-              catalog['CHAPS'].each_with_index do |chapter_file, index|
-                # Remove extension and compare basename
-                catalog_basename = File.basename(chapter_file, '.*')
-                return index + 1 if catalog_basename == basename
-              end
+          results = in_book_dir(book) do
+            files.map do |file|
+              chapter = book_chapter(book, file) || standalone_chapter(book, file)
+              render_chapter(chapter)
             end
-          rescue StandardError => e
-            log("Warning: Could not parse catalog.yml: #{e.message}")
           end
+          return if @options[:check_only]
 
+          output_content(results.join)
+        end
+
+        # review-compile's directory mode: every chapter and part of the book is
+        # written to `<name><ext>` in the current directory.
+        def compile_directory(dir)
+          book = load_book(File.expand_path(dir))
+          ext = RENDERERS.fetch(@options[:target])[2]
+          outdir = Dir.pwd
+          in_book_dir(book) do
+            (book.chapters + book.parts_in_file).each do |chapter|
+              output = render_chapter(chapter)
+              next if @options[:check_only]
+
+              File.write(File.join(outdir, "#{chapter.name}#{ext}"), output)
+              log("Wrote #{chapter.name}#{ext}")
+            end
+          end
+        end
+
+        # Paths in the book's config (an index dictionary, a words file) are
+        # relative to the book, as the makers -- which run there -- read them.
+        def in_book_dir(book, &block)
+          Dir.chdir(book.basedir, &block)
+        end
+
+        def validate_input_file(file)
+          raise FileNotFoundError, "Input file not found: #{file}" unless File.exist?(file)
+          raise CompileError, "Cannot read file: #{file}" unless File.readable?(file)
+        end
+
+        def load_book(basedir)
+          config = load_configuration(basedir)
+          I18n.setup(config['language'] || 'ja')
+          book = ReVIEW::Book::Base.new(basedir, config: config)
+          book.config['builder'] = @options[:target]
+          book
+        end
+
+        # The chapter (or part) of the book whose file this is, if any.
+        def book_chapter(book, file)
+          basename = File.basename(file, '.*')
+          return unless File.exist?(catalog_path(book.basedir, book.config['catalogfile']))
+
+          book.chapters.find { |ch| ch.name == basename } ||
+            book.parts_in_file.find { |part| part.name == basename }
+        rescue ReVIEW::FileNotFound, KeyError
           nil
         end
 
+        # A file outside the book's catalog is compiled on its own, numbered by
+        # its file name (ch03.re -> 3) or as chapter 1.
+        def standalone_chapter(book, file)
+          basename = File.basename(file, '.*')
+          log("#{file} is not in the catalog; compiling it as a stand-alone chapter")
+          ReVIEW::Book::Chapter.new(
+            book,
+            extract_chapter_number_from_filename(basename) || 1,
+            basename,
+            file,
+            StringIO.new(File.read(file))
+          )
+        end
+
         def extract_chapter_number_from_filename(basename)
-          # Try to extract chapter number from common filename patterns
           case basename
-          when /^ch(?:ap)?(\d+)$/i # ch01, ch1, chap01, chap1, etc.
+          when /^ch(?:ap)?(\d+)$/i, /^chapter(\d+)$/i, /^(\d+)$/
             $1.to_i
-          when /^chapter(\d+)$/i # rubocop:disable Lint/DuplicateBranch -- chapter01, chapter1, etc.
-            $1.to_i
-          when /^(\d+)$/ # rubocop:disable Lint/DuplicateBranch -- 01, 1, etc.
-            $1.to_i
-          else
-            log("Warning: Could not extract chapter number from filename '#{basename}', using fallback")
-            nil
           end
         end
 
-        def generate_ast(chapter)
-          log('Generating AST...')
+        def render_chapter(chapter)
+          log("Compiling #{chapter.path} to #{@options[:target]}...")
           compiler = ReVIEW::AST::Compiler.for_chapter(chapter)
-          compiler.compile_to_ast(chapter)
+          ast = compiler.compile_to_ast(chapter, registry_provider: registry_provider)
+          renderer_class.new(chapter).render(ast)
+        rescue ReVIEW::ApplicationError, CompileError
+          raise
         rescue StandardError => e
-          raise CompileError, "AST generation failed: #{e.message}"
+          raise CompileError, "#{chapter.path}: #{e.message}"
         end
 
-        def render(ast, chapter)
-          log("Rendering to #{@options[:target]}...")
-
-          renderer_class = load_renderer(@options[:target])
-          renderer = renderer_class.new(chapter)
-          renderer.render(ast)
-        rescue StandardError => e
-          raise CompileError, "Rendering failed: #{e.message}"
+        def registry_provider
+          @registry_provider ||= ReVIEW::AST::ChapterRegistryProvider.new
         end
 
-        def load_configuration
-          config_file = @options[:config_file]
+        def renderer_class
+          path, name, = RENDERERS.fetch(@options[:target])
+          require path
+          ReVIEW::Renderer.const_get(name)
+        end
 
-          if config_file.nil?
-            default_config = File.join(File.dirname(@input_file), 'config.yml')
-            config_file = default_config if File.exist?(default_config)
+        def catalog_path(basedir, catalogfile = nil)
+          File.join(basedir, catalogfile || @config_overrides['catalogfile'] || 'catalog.yml')
+        end
+
+        # The Configure defaults, deep-merged with the YAML file (given, or
+        # config.yml next to the manuscript / in the current directory), then
+        # the command-line overrides.
+        def load_configuration(basedir)
+          config = ReVIEW::Configure.values
+          yaml = @options[:config_file]
+          if yaml
+            raise CompileError, "Configuration file not found: #{yaml}" unless File.exist?(yaml)
+          else
+            yaml = [File.join(basedir, DEFAULT_CONFIG_FILENAME), DEFAULT_CONFIG_FILENAME].find { |f| File.exist?(f) }
           end
 
-          if config_file && File.exist?(config_file)
-            log("Loading configuration: #{config_file}")
+          if yaml
+            log("Loading configuration: #{yaml}")
             begin
-              config = ReVIEW::Configure.create(
-                maker: 'ast-compile',
-                yamlfile: config_file
-              )
+              config.deep_merge!(ReVIEW::YAMLLoader.new.load_file(yaml))
             rescue StandardError => e
               raise CompileError, "Failed to load configuration: #{e.message}"
             end
-          else
-            if @options[:config_file]
-              raise CompileError, "Configuration file not found: #{@options[:config_file]}"
-            end
-
-            log('Using default configuration')
-            config = ReVIEW::Configure.values
           end
 
+          config.deep_merge!(@config_overrides)
           config
-        end
-
-        def load_renderer(format)
-          case format
-          when 'html'
-            require 'review/renderer/html_renderer'
-            ReVIEW::Renderer::HtmlRenderer
-          when 'latex'
-            require 'review/renderer/latex_renderer'
-            ReVIEW::Renderer::LatexRenderer
-          when 'idgxml'
-            require 'review/renderer/idgxml_renderer'
-            ReVIEW::Renderer::IdgxmlRenderer
-          when 'markdown'
-            require 'review/renderer/markdown_renderer'
-            ReVIEW::Renderer::MarkdownRenderer
-          else
-            raise UnsupportedFormatError, "Unsupported format: #{format} (supported: html, latex, idgxml, markdown)"
-          end
         end
 
         def output_content(content)
           if @options[:output_file]
             log("Writing to: #{@options[:output_file]}")
             File.write(@options[:output_file], content)
-            puts "Successfully generated: #{@options[:output_file]}"
           else
-            log('Writing to: stdout')
             print content
           end
         rescue StandardError => e
           raise CompileError, "Failed to write output: #{e.message}"
         end
 
-        def generate_output_filename
-          basename = File.basename(@input_file, '.*')
-          ext = output_extension(@options[:target])
-          "#{basename}#{ext}"
-        end
-
-        def output_extension(format)
-          case format
-          when 'html'
-            '.html'
-          when 'latex'
-            '.tex'
-          when 'idgxml'
-            '.xml'
-          when 'markdown'
-            '.md'
-          else
-            '.txt'
-          end
-        end
-
         def log(message)
-          puts message if @options[:verbose]
+          @logger.info(message) if @options[:verbose]
         end
 
         def error_handler
@@ -351,8 +347,6 @@ module ReVIEW
             case err
             when FileNotFoundError
               error 'Please check the file path and try again.'
-            when UnsupportedFormatError
-              error 'Supported formats: html, latex, idgxml'
             when MissingTargetError
               error 'Example: review-ast-compile --target html chapter1.re'
             end

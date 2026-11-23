@@ -24,7 +24,9 @@ Current scope:
 - Commands:
   - `review-ast-dump` — dump AST as JSON
   - `review-ast-dump2re` — regenerate Re:VIEW source from the AST
-  - `review-ast-compile` — render a chapter (`--target html|latex|idgxml`)
+  - `review-ast-compile` — counterpart of `review-compile`: render chapters
+    (`--target html|latex|idgxml|plaintext|top|typst`), with review-compile's
+    options (`--level`, `--toclevel`, `--chapterlink`, `--directory`, …)
   - `review-ast-pdfmaker` / `review-ast-idgxmlmaker` / `review-ast-textmaker` — book makers
   - `review-ast-vivliostylemaker` — PDF through Vivliostyle (CSS paged media)
     instead of LaTeX; needs Chrome/Chromium and the `vivlio-pdf` gem
