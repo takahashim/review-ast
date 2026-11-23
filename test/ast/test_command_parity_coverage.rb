@@ -131,6 +131,9 @@ class TestCommandParityCoverage < Test::Unit::TestCase
     kw: "The @<kw>{keyword, kw} here.\n",
     list: "See @<list>{lst}.\n\n//list[lst][Cap]{\nputs 1\n//}",
     raw: "text @<raw>{|html|<hr />} end\n",
+    # No words_file in a fragment: both paths degrade to "[missing word: x]".
+    w: "A @<w>{x} word.\n",
+    wb: "A @<wb>{x} word.\n",
     ruby: "The @<ruby>{漢字, かんじ} here.\n",
     sec: "= Chapter\n\n=={secid} Sec A\n\nSee @<sec>{secid}.\n",
     secref: "= Chapter\n\n=={secid} Sec A\n\nSee @<secref>{secid}.\n",
@@ -164,11 +167,7 @@ class TestCommandParityCoverage < Test::Unit::TestCase
     chap: 'resolves against the book catalog; the comparators build a one-chapter ' \
           'book with no catalog, so the chapter id is not registered.',
     chapref: 'resolves against the book catalog; see @<chap>.',
-    title: 'resolves against the book catalog; see @<chap>.',
-    w: 'needs a dictionary/words file supplied at book level, and the latex renderer ' \
-       'leaves it unimplemented (ast-semantics.ja.md section 4).',
-    wb: 'needs a dictionary/words file supplied at book level, and the latex renderer ' \
-        'leaves it unimplemented (ast-semantics.ja.md section 4).'
+    title: 'resolves against the book catalog; see @<chap>.'
   }.freeze
 
   # Per-format exclusions: the fragment is compared in the other formats.

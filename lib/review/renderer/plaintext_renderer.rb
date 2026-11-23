@@ -223,25 +223,21 @@ module ReVIEW
           return render_imgtable(node)
         end
 
-        # Add caption
         caption = render_caption_inline(node.caption_node)
-        unless caption.empty?
-          result += "\n"
-          result += if node.id
-                      generate_table_header(node.id, caption, node.definition_number) + "\n"
-                    else
-                      "#{caption}\n"
-                    end
-          result += "\n" if caption_top?('table')
-        end
+        header = unless caption.empty?
+                   node.id ? generate_table_header(node.id, caption, node.definition_number) : caption
+                 end
+        rows = (node.header_rows + node.body_rows).map { |row| visit_table_row(row) }.join
 
-        # Process table rows
-        all_rows = node.header_rows + node.body_rows
-        all_rows.each do |row|
-          result += visit_table_row(row)
+        # PLAINTEXTBuilder#table_header puts the caption above or below the
+        # rows per caption_position.
+        if caption_top?('table')
+          result += "\n#{header}\n\n" if header
+          result += rows
+        else
+          result += "\n#{rows}"
+          result += "\n#{header}\n" if header
         end
-
-        result += "\n" unless caption_top?('table')
         result += "\n"
 
         result

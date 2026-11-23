@@ -14,6 +14,8 @@ require_relative 'indexer'
 require_relative 'chapter_registry_provider'
 require_relative 'visitor'
 require 'review/exception'
+require 'review/logger'
+require 'csv'
 
 module ReVIEW
   module AST
@@ -36,7 +38,7 @@ module ReVIEW
         chapref: :resolve_chapter_ref_with_title,
         title: :resolve_chapter_title,
         hd: :resolve_headline_ref,
-        sec: :resolve_section_ref,
+        sec: :resolve_section_number_ref,
         secref: :resolve_section_ref,
         sectitle: :resolve_section_ref,
         labelref: :resolve_label_ref,
@@ -383,6 +385,21 @@ module ReVIEW
         resolve_headline_ref(node)
       end
 
+      # @<sec> prints the section number, so like Builder#inline_sec it is an
+      # error when the target has none to print: an unnumbered heading, one in
+      # an unnumbered chapter (a preface, say), or one deeper than secnolevel.
+      # (@<secref>/@<sectitle> fall back to the title and stay valid.)
+      def resolve_section_number_ref(node)
+        data = resolve_section_ref(node)
+        number = data.headline_number
+        secnolevel = @book.config['secnolevel'] || 2
+        unless number.present? && data.chapter_number && secnolevel >= 1 + Array(number).size
+          raise CompileError, "the target headline doesn't have a number: #{node.ref_id}#{node.location&.format_for_error}"
+        end
+
+        data
+      end
+
       # Label references search multiple indexes (by priority order)
       # Try to find the label in various indexes and return appropriate ResolvedData
       def resolve_label_ref(node)
@@ -426,16 +443,47 @@ module ReVIEW
         entry.number.nil? ? nil : entry.number.to_s
       end
 
+      # @<w>/@<wb> look the word up the way Builder does: in the CSV file(s)
+      # named by `words_file` (key in the first column, word in the second).
+      # A Hash under `dictionary` is also accepted for programmatic use. An
+      # unknown key warns and degrades to "[missing word: key]", as
+      # Builder#inline_w does, rather than stopping the build.
       def resolve_word_ref(node)
-        dictionary = @book.config['dictionary'] || {}
-        unless dictionary.key?(node.ref_id)
-          raise CompileError, "word not bound: #{node.ref_id}"
-        end
+        dictionary = word_dictionary
+        word = if dictionary.key?(node.ref_id)
+                 dictionary[node.ref_id]
+               else
+                 ReVIEW.logger.warn("word not bound: #{node.ref_id}#{node.location&.format_for_error}")
+                 "[missing word: #{node.ref_id}]"
+               end
 
-        ResolvedData.word(
-          word_content: dictionary[node.ref_id],
-          item_id: node.ref_id
-        )
+        ResolvedData.word(word_content: word, item_id: node.ref_id)
+      end
+
+      def word_dictionary
+        @word_dictionary ||= load_word_dictionary
+      end
+
+      def load_word_dictionary
+        config = @book&.config || {}
+        dictionary = {}
+        Array(config['words_file']).each do |file|
+          path = resolve_words_file(file)
+          next unless path
+
+          CSV.foreach(path) { |row| dictionary[row[0]] = row[1] }
+        end
+        dictionary.merge!(config['dictionary']) if config['dictionary'].is_a?(Hash)
+        dictionary
+      end
+
+      # Builder#load_words opens the path as given (relative to the working
+      # directory) and only if it ends in .csv; fall back to the book's
+      # basedir so a maker run from elsewhere still finds it.
+      def resolve_words_file(file)
+        return unless /\.csv\Z/i.match?(file.to_s)
+
+        [file, @book&.basedir && File.join(@book.basedir, file)].compact.find { |f| File.exist?(f) }
       end
 
       # Bibpapers are book-wide. They usually live in the book's bib file, but can

@@ -59,6 +59,13 @@ module ReVIEW
 
       attr_reader :text_formatter, :render_context
 
+      # Builder#detab: expand tabs to the book's `tabwidth` when it is set,
+      # TextUtils' default of 8 otherwise. An explicit width wins.
+      def detab(str, num = nil)
+        num ||= @config['tabwidth']
+        num ? super(str, num.to_i) : super(str)
+      end
+
       # Render an AST node to the target format.
       #
       # @param ast_root [Object] The root AST node to render

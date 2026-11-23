@@ -24,6 +24,12 @@ module ReVIEW
     # - Handle nested inline elements
     # - Process specialized inline formats (ruby, href, kw, etc.)
     class InlineProcessor
+      # Split a comma-separated inline argument the way Builder#inline_ruby and
+      # Builder#inline_href do: an unescaped comma separates fields and `\,`
+      # stands for a literal comma. (The scan is the builder's own regexp, so
+      # quirks such as a lone backslash also ending a field are shared.)
+      COMMA_FIELD_PATTERN = /(?:(?:(?:\\\\)*\\,)|[^,\\]+)+/
+
       # Default mapping of inline commands to handler methods
       DEFAULT_INLINE_HANDLERS = {
         embed: :create_inline_embed_ast_node,
@@ -170,71 +176,56 @@ module ReVIEW
         parent_node.add_child(node)
       end
 
-      # Create inline ruby AST node
-      def create_inline_ruby_ast_node(arg, parent_node)
-        # Parse ruby format: "base_text,ruby_text"
-        if arg.include?(',')
-          base_text, ruby_text = arg.split(',', 2)
-          args = [base_text.strip, ruby_text.strip]
+      # Split a comma-separated inline argument the way Builder#inline_ruby and
+      # Builder#inline_href do (see COMMA_FIELD_PATTERN).
+      def split_comma_fields(arg)
+        arg.scan(COMMA_FIELD_PATTERN)
+      end
 
-          inline_node = AST::InlineNode.new(
-            location: @ast_compiler.location,
-            inline_type: :ruby,
-            args: args
-          )
+      def unescape_comma(str)
+        str.gsub('\,', ',')
+      end
 
-          # Add text nodes for both parts
-          parent_text = AST::TextNode.new(
-            location: @ast_compiler.location,
-            content: base_text.strip
-          )
-          inline_node.add_child(parent_text)
-
-          ruby_text = AST::TextNode.new(
-            location: @ast_compiler.location,
-            content: ruby_text.strip
-          )
-          inline_node.add_child(ruby_text)
-        else
-          inline_node = AST::InlineNode.new(
-            location: @ast_compiler.location,
-            inline_type: :ruby,
-            args: [arg]
-          )
-
-          text_node = AST::TextNode.new(
-            location: @ast_compiler.location,
-            content: arg
-          )
-          inline_node.add_child(text_node)
+      def build_two_part_inline(type, args, parent_node)
+        inline_node = AST::InlineNode.new(
+          location: @ast_compiler.location,
+          inline_type: type,
+          args: args
+        )
+        args.each do |part|
+          inline_node.add_child(AST::TextNode.new(location: @ast_compiler.location, content: part))
         end
-
         parent_node.add_child(inline_node)
       end
 
-      # Create inline href AST node
+      # Create inline ruby AST node: "base, ruby". Builder#inline_ruby keeps
+      # every field after the first as the ruby text (re-joined with commas).
+      def create_inline_ruby_ast_node(arg, parent_node)
+        base, *ruby = split_comma_fields(arg)
+        if base && !ruby.empty?
+          build_two_part_inline(:ruby, [unescape_comma(base).strip, unescape_comma(ruby.join(',')).strip], parent_node)
+        else
+          build_two_part_inline(:ruby, [unescape_comma(arg)], parent_node)
+        end
+      end
+
+      # Create inline href AST node: "URL" or "URL, label". As in
+      # Builder#inline_href, only the first two fields are used.
       def create_inline_href_ast_node(arg, parent_node)
-        # Parse href format: "URL" or "URL, display_text"
-        args, text_content = if arg.include?(',')
-                               parts = arg.split(',', 2)
-                               [[parts[0].strip, parts[1].strip], parts[1].strip] # Display text
-                             else
-                               [[arg], arg] # URL as display text
-                             end
-
-        inline_node = AST::InlineNode.new(
-          location: @ast_compiler.location,
-          inline_type: :href,
-          args: args
-        )
-
-        text_node = AST::TextNode.new(
-          location: @ast_compiler.location,
-          content: text_content
-        )
-        inline_node.add_child(text_node)
-
-        parent_node.add_child(inline_node)
+        url, label = split_comma_fields(arg).map(&:lstrip)
+        url = url.nil? ? arg : unescape_comma(url).strip
+        if label.nil?
+          build_two_part_inline(:href, [url], parent_node)
+        else
+          label = unescape_comma(label).strip
+          inline_node = AST::InlineNode.new(
+            location: @ast_compiler.location,
+            inline_type: :href,
+            args: [url, label]
+          )
+          inline_node.add_child(AST::TextNode.new(location: @ast_compiler.location, content: label))
+          parent_node.add_child(inline_node)
+        end
       end
 
       # Create inline kw AST node

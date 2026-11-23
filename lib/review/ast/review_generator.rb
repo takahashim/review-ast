@@ -36,6 +36,12 @@ module ReVIEW
         text.to_s.gsub('\\', '\\\\\\\\').gsub('}', '\\}')
       end
 
+      # A field of @<href>/@<ruby> is comma-separated; a literal comma inside a
+      # field is written `\,` (see InlineProcessor#split_comma_fields).
+      def escape_comma(text)
+        text.gsub(',', '\\,')
+      end
+
       # Convert CaptionNode to Re:VIEW markup format
       # @param caption_node [CaptionNode, nil] The caption node to convert
       # @return [String] Re:VIEW markup string
@@ -177,9 +183,9 @@ module ReVIEW
 
       # Inline element: @<ruby>{base, ruby_text}
       def visit_inline_ruby(node)
-        base = escape_inline_content(node.args[0])
+        base = escape_comma(escape_inline_content(node.args[0]))
         if node.args.size >= 2
-          ruby_text = escape_inline_content(node.args[1])
+          ruby_text = escape_comma(escape_inline_content(node.args[1]))
           "@<ruby>{#{base}, #{ruby_text}}"
         else
           "@<ruby>{#{base}}"
@@ -188,12 +194,12 @@ module ReVIEW
 
       # Inline element: @<href>{url, text}
       def visit_inline_href(node)
-        url = node.args[0] || ''
+        url = escape_comma(escape_inline_content(node.args[0] || ''))
         content = visit_children(node)
-        if content.empty?
+        if content.empty? || node.args.size < 2
           "@<href>{#{url}}"
         else
-          escaped_content = escape_inline_content(content)
+          escaped_content = escape_comma(escape_inline_content(content))
           "@<href>{#{url}, #{escaped_content}}"
         end
       end

@@ -146,6 +146,26 @@ module ReVIEW
         end
       end
 
+      def render_list_item_inline(item)
+        return render_children(item) unless config['join_lines_by_lang']
+
+        breaks = item.source_line_breaks
+        parts = []
+        inline = +''
+        item.children.each_with_index do |child, index|
+          if child.is_a?(ReVIEW::AST::TextNode) || child.is_a?(ReVIEW::AST::InlineNode)
+            inline << "\n" if !inline.empty? && breaks.include?(index)
+            inline << visit(child)
+          else
+            # A nested block (a sub-list) keeps its own line structure.
+            parts << join_paragraph_lines(inline) << visit(child)
+            inline = +''
+          end
+        end
+        parts << join_paragraph_lines(inline)
+        parts.join
+      end
+
       def visit_list(node)
         tag = case node.list_type
               when :ul
@@ -197,9 +217,11 @@ module ReVIEW
             "<dt>#{term}</dt><dd>#{definition_content}</dd>"
           end
         else
-          # Regular list item
-          content = render_children(node)
-          "<li>#{content}</li>"
+          # Regular list item. HTMLBuilder#ul_item joins the item's source
+          # lines with join_lines_to_paragraph: plain concatenation, or the
+          # language-aware space with join_lines_by_lang. Continuation lines are
+          # separate children, marked by source_line_breaks.
+          "<li>#{render_list_item_inline(node)}</li>"
         end
       end
 
@@ -251,10 +273,18 @@ module ReVIEW
 #{rows_html}</table>)
         end
 
-        %Q(<div#{id_attr} class="table">
+        # Builder#table puts the caption above or below per caption_position.
+        if caption_top?('table')
+          %Q(<div#{id_attr} class="table">
 #{caption_html}#{table_html}
 </div>
 )
+        else
+          %Q(<div#{id_attr} class="table">
+#{table_html}
+#{caption_html}</div>
+)
+        end
       end
 
       def visit_table_row(node)
@@ -718,7 +748,7 @@ module ReVIEW
           %Q(<p class="caption">#{caption_content}</p>
 )
         when :numbered
-          return '' unless position == :top
+          return '' unless position == :top ? caption_top?('list') : !caption_top?('list')
 
           list_number = generate_list_header(node.id, caption_content, node.definition_number)
           %Q(<p class="caption">#{list_number}</p>
@@ -767,7 +797,7 @@ module ReVIEW
           lines = lines_content.split("\n", -1)[0...-1]
           lines.pop while lines.last && lines.last.empty?
           lines.map.with_index(first_line_number) do |line, i|
-            "#{i.to_s.rjust(2)}: #{detab(line)}"
+            detab("#{i.to_s.rjust(2)}: #{line}")
           end.join("\n") + "\n"
         end
       end
@@ -786,7 +816,7 @@ module ReVIEW
           lines = lines_content.split("\n", -1)[0...-1]
           lines.pop while lines.last && lines.last.empty?
           lines.map.with_index(first_line_number) do |line, i|
-            "#{i.to_s.rjust(2)}: #{detab(line)}"
+            detab("#{i.to_s.rjust(2)}: #{line}")
           end.join("\n") + "\n"
         end
       end

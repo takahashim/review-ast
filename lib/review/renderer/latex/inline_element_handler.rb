@@ -254,7 +254,7 @@ module ReVIEW
           data = ref_node.resolved_data
           # Format chapter number to full form (e.g., "第1章", "付録A", "第II部")
           chapter_num = @ctx.text_formatter.format_chapter_number_full(data.chapter_number, data.chapter_type)
-          "\\reviewchapref{#{chapter_num}}{chap:#{data.item_id}}"
+          chapter_link(chapter_num, data.item_id)
         end
 
         # Render chapter title reference
@@ -263,7 +263,7 @@ module ReVIEW
 
           data = ref_node.resolved_data
           display_str = @ctx.text_formatter.format_reference(:chapter, data)
-          "\\reviewchapref{#{escape(display_str)}}{chap:#{data.item_id}}"
+          chapter_link(escape(display_str), data.item_id)
         end
 
         # Extract heading reference from node.args, handling ReferenceResolver's array splitting
@@ -321,6 +321,17 @@ module ReVIEW
           [section_number, section_label, section_title, numbered]
         end
 
+        # LATEXBuilder wraps chapter and section references in
+        # \reviewchapref / \reviewsecref only when chapterlink is on; with it
+        # off they are plain text.
+        def chapter_link(text, chapter_id)
+          @ctx.chapter_link_enabled? ? "\\reviewchapref{#{text}}{chap:#{chapter_id}}" : text
+        end
+
+        def section_link(text, label)
+          @ctx.chapter_link_enabled? ? "\\reviewsecref{#{text}}{#{label}}" : text
+        end
+
         # Render heading reference
         def render_inline_hd(_type, _content, node)
           ref_node = resolved_reference_node(node)
@@ -332,7 +343,7 @@ module ReVIEW
                    else
                      "「#{escape(section_title)}」"
                    end
-          "\\reviewsecref{#{quoted}}{#{section_label}}"
+          section_link(quoted, section_label)
         end
 
         # Render section reference
@@ -341,7 +352,7 @@ module ReVIEW
 
           data = ref_node.resolved_data
           section_number, section_label, _section_title = build_heading_reference_parts(data)
-          "\\reviewsecref{#{section_number}}{#{section_label}}"
+          section_link(section_number, section_label)
         end
 
         # Render section reference with full title
@@ -355,7 +366,7 @@ module ReVIEW
                    else
                      "「#{escape(section_title)}」"
                    end
-          "\\reviewsecref{#{quoted}}{#{section_label}}"
+          section_link(quoted, section_label)
         end
 
         # Render section title only
@@ -364,7 +375,7 @@ module ReVIEW
 
           data = ref_node.resolved_data
           _section_number, section_label, section_title = build_heading_reference_parts(data)
-          "\\reviewsecref{#{escape(section_title)}}{#{section_label}}"
+          section_link(escape(section_title), section_label)
         end
 
         # Render index entry
@@ -600,9 +611,9 @@ module ReVIEW
         end
 
         # Render word expansion (bold)
-        def render_inline_wb(_type, content, _node)
-          # Word expansion - pass through content
-          content
+        def render_inline_wb(type, content, node)
+          # Builder#inline_wb is inline_b applied to the word
+          render_inline_b(type, content, node)
         end
 
         # Render raw content

@@ -83,6 +83,24 @@ module ReVIEW
           %Q(<ami>#{content}</ami>)
         end
 
+        # @<w>/@<wb>: the word is resolved (and escaped) by the time it gets
+        # here; Builder#inline_wb is inline_b applied to it.
+        def render_inline_w(_type, content, _node)
+          content
+        end
+
+        def render_inline_wb(type, content, node)
+          render_inline_b(type, content, node)
+        end
+
+        # IDGXMLBuilder has no #inline_tcy of its own; it inherits the generic
+        # Builder#inline_tcy, which marks the text with a "[rotate 90 degree]"
+        # note. (The builder leaves the text unescaped; here it is escaped --
+        # see doc/spec-questions.md.)
+        def render_inline_tcy(_type, content, _node)
+          "#{content}[rotate 90 degree]"
+        end
+
         def render_inline_bou(_type, content, _node)
           %Q(<bou>#{content}</bou>)
         end

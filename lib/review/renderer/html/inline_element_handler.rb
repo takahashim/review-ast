@@ -44,20 +44,30 @@ module ReVIEW
           %Q(<em>#{content}</em>)
         end
 
+        # HTMLBuilder writes monospace as <code class="tt"> for HTML5 and as the
+        # older <tt> element otherwise (htmlversion: 4, used for EPUB2).
         def render_inline_code(_type, content, _node)
-          %Q(<code class="inline-code tt">#{content}</code>)
+          html5? ? %Q(<code class="inline-code tt">#{content}</code>) : %Q(<tt class="inline-code">#{content}</tt>)
         end
 
         def render_inline_tt(_type, content, _node)
-          %Q(<code class="tt">#{content}</code>)
+          monospace(content)
         end
 
         def render_inline_ttb(_type, content, _node)
-          %Q(<code class="tt"><b>#{content}</b></code>)
+          monospace("<b>#{content}</b>")
         end
 
         def render_inline_tti(_type, content, _node)
-          %Q(<code class="tt"><i>#{content}</i></code>)
+          monospace("<i>#{content}</i>")
+        end
+
+        def monospace(content)
+          html5? ? %Q(<code class="tt">#{content}</code>) : %Q(<tt>#{content}</tt>)
+        end
+
+        def html5?
+          @ctx.render_context.htmlversion == 5
         end
 
         def render_inline_kbd(_type, content, _node)
@@ -176,26 +186,26 @@ module ReVIEW
           build_index_comment(index_str)
         end
 
-        def render_inline_href(_type, _content, node)
+        def render_inline_href(_type, content, node)
           args = node.args
-          if args.length >= 2
-            url = args[0]
-            text = escape_content(args[1])
-            if url.start_with?('#')
-              build_anchor_link(url[1..-1], text)
-            else
-              build_external_link(url, text)
-            end
-          elsif args.length >= 1
-            url = args[0]
-            escaped_url = escape_content(url)
-            if url.start_with?('#')
-              build_anchor_link(url[1..-1], escaped_url)
-            else
-              build_external_link(url, escaped_url)
-            end
+          return content if args.empty?
+
+          url = args[0]
+          label = args.length >= 2 ? args[1] : nil
+          # With externallink off, HTMLBuilder#compile_href prints the URL as
+          # text (or "label（url）" via the external_link i18n string) instead
+          # of a hyperlink -- for every href, anchors included.
+          unless @ctx.config['externallink']
+            return escape_content(url) if label.nil?
+
+            return I18n.t('external_link', [escape_content(label), escape_content(url)])
+          end
+
+          text = label.nil? ? escape_content(url) : escape_content(label)
+          if url.start_with?('#')
+            build_anchor_link(url[1..-1], text)
           else
-            content
+            build_external_link(url, text)
           end
         end
 
@@ -561,12 +571,10 @@ module ReVIEW
           end
         end
 
+        # Unlike footnotes, HTMLBuilder#inline_endnote has no EPUB2 variant: it
+        # always writes epub:type and the html_endnote_refmark mark.
         def build_endnote_link(endnote_id, number)
-          if @ctx.epub3?
-            %Q(<a id="endnoteb-#{normalize_id(endnote_id)}" href="#endnote-#{normalize_id(endnote_id)}" class="noteref" epub:type="noteref">#{@ctx.text_formatter.format_endnote_mark(number)}</a>)
-          else
-            %Q(<a id="endnoteb-#{normalize_id(endnote_id)}" href="#endnote-#{normalize_id(endnote_id)}" class="noteref">#{number}</a>)
-          end
+          %Q(<a id="endnoteb-#{normalize_id(endnote_id)}" href="#endnote-#{normalize_id(endnote_id)}" class="noteref" epub:type="noteref">#{@ctx.text_formatter.format_endnote_mark(number)}</a>)
         end
 
         # Wrap reference text with HTML decoration (span and optional link)
