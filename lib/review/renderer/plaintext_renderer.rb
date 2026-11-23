@@ -14,6 +14,12 @@ require_relative 'base'
 module ReVIEW
   module Renderer
     class PlaintextRenderer < Base
+      # review-ext.rb methods on this builder render the book's own commands.
+      def legacy_builder_class
+        require 'review/plaintextbuilder'
+        ReVIEW::PLAINTEXTBuilder
+      end
+
       include ReVIEW::TextUtils
       include ReVIEW::Loggable
       include ReVIEW::Renderer::TextRendererCommon

@@ -455,6 +455,16 @@ module ReVIEW
         "//label[#{node.args.first}]\n\n"
       end
 
+      # A review-ext.rb command: written back as it was read, arguments
+      # re-escaped the way ReVIEW::Compiler#parse_args unescapes them.
+      def visit_extension_block(node)
+        args = node.args.map { |arg| "[#{arg.to_s.gsub('\\', '\\\\\\').gsub(']', '\\]')}]" }.join
+        return "//#{node.block_type}#{args}\n\n" unless node.body?
+
+        body = node.lines.map { |line| "#{line}\n" }.join
+        "//#{node.block_type}#{args}{\n#{body}//}\n\n"
+      end
+
       # Block: //footnote[id][content]
       def visit_block_footnote(node)
         content = visit_children(node)

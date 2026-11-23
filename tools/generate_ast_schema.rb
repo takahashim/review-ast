@@ -206,7 +206,7 @@ module ReVIEW
       module_function
 
       # @yield [Node] each compiled chapter tree
-      def each_tree
+      def each_tree(&block)
         CORPORA.each do |dir|
           next unless File.directory?(dir)
 
@@ -225,6 +225,19 @@ module ReVIEW
             end
           end
         end
+        synthetic_trees.each(&block)
+      end
+
+      # Nodes no corpus can produce without changing the process it runs in:
+      # an ExtensionBlockNode needs a review-ext.rb, which reopens classes for
+      # good, so it is built directly -- once with a body, once without.
+      def synthetic_trees
+        require_relative('../lib/review/ast/extension_block_node')
+        location = ReVIEW::AST::SourceLocation.new('ext.re', 1, 1)
+        document = ReVIEW::AST::DocumentNode.new(location: location)
+        document.add_child(ReVIEW::AST::ExtensionBlockNode.new(location: location, block_type: :mybox, args: ['caption'], lines: ['body']))
+        document.add_child(ReVIEW::AST::ExtensionBlockNode.new(location: location, block_type: :mymark, args: ['id']))
+        [document]
       end
     end
   end

@@ -52,6 +52,14 @@ module ReVIEW
         nil
       end
 
+      # Default handling for an ExtensionBlockNode (a block command defined in
+      # review-ext.rb). It has no children and its meaning is the book's, so a
+      # visitor that is not rendering it has nothing to do. Renderers and the
+      # source generator override this.
+      def visit_extension_block(_node)
+        nil
+      end
+
       # Visit multiple nodes and return an array of results.
       #
       # @param nodes [Array] Array of AST nodes to visit

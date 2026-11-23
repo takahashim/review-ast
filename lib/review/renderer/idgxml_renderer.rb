@@ -39,6 +39,12 @@ require_relative 'idgxml/inline_element_handler'
 module ReVIEW
   module Renderer
     class IdgxmlRenderer < Base
+      # review-ext.rb methods on this builder render the book's own commands.
+      def legacy_builder_class
+        require 'review/idgxmlbuilder'
+        ReVIEW::IDGXMLBuilder
+      end
+
       include ReVIEW::HTMLUtils
       include ReVIEW::TextUtils
       include ReVIEW::Loggable

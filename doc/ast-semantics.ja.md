@@ -41,7 +41,7 @@ LaTeX は DVI 一致(TeX の組版結果ファイルどうしの比較。TeX ソ
 
 すべてのノードは `type` とソース位置 `location`(`filename`、`lineno`、`column`)を持つ。
 子を持ちうるノードは `children` を持つ。
-**leaf ノード**(抽象基底 `LeafNode` の派生である `TextNode`、`ReferenceNode`、`ImageNode`、`TexEquationNode`、`EmbedNode`)は構造上子を持たず、JSON に `children` キーを出さない。
+**leaf ノード**(抽象基底 `LeafNode` の派生である `TextNode`、`ReferenceNode`、`ImageNode`、`TexEquationNode`、`EmbedNode`、`ExtensionBlockNode`)は構造上子を持たず、JSON に `children` キーを出さない。
 
 このほか、状況に応じて付く共通フィールドが三つある。
 番号付き定義ノードの `definition_number`([2.3 節](#23-定義番号))、`//noindent` の適用対象が持つ `noindent`、画像を参照するノードが持つ解決済みの `image_path` である。
@@ -86,6 +86,7 @@ LaTeX は DVI 一致(TeX の組版結果ファイルどうしの比較。TeX ソ
 | ノード | 意味 | 主要フィールド | 生成する構文 |
 |---|---|---|---|
 | `BlockNode` | 専用ノードへ分化していない汎用ブロック | `block_type`, `args` | `//bibpaper`, `//graph`, `//box`, `//insn`, `//point`, `//term`, `//doorquote`, 制御命令, … |
+| `ExtensionBlockNode` | 本が `review-ext.rb` で定義した(`ReVIEW::Compiler.defblock`/`defsingle`/`defminicolumn`)、AST に処理系のないブロック命令。子を持たず、旧コンパイラがビルダーに渡すものをそのまま保持する。レンダラは `visit_block_<名前>` を実装するか、review-ext.rb のビルダーメソッドに委ねる([doc/review-ext.md](review-ext.md)) | `block_type`, `args`, `lines`(本体の生の行。1 行命令では無し) | review-ext.rb で宣言した任意の `//名前` |
 | `DirectiveNode` | 次のノードを修飾するパーサ指示。lowering で必ず除去される | `directive_type`, `args` | `//tsize`, `//firstlinenum`, `//noindent`, `//olnum`, `//beginchild`, `//endchild` |
 | `LeafNode` | 子を持たない内容ノードの抽象基底 | — | 直接シリアライズされない |
 

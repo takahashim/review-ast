@@ -29,6 +29,12 @@ require_relative 'html/inline_element_handler'
 module ReVIEW
   module Renderer
     class HtmlRenderer < Base
+      # review-ext.rb methods on this builder render the book's own commands.
+      def legacy_builder_class
+        require 'review/htmlbuilder'
+        ReVIEW::HTMLBuilder
+      end
+
       include ReVIEW::HTMLUtils
       include ReVIEW::TextUtils
       include ReVIEW::HtmlEscapeUtils

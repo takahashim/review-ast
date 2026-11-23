@@ -8,6 +8,10 @@
 
 require 'optparse'
 require 'stringio'
+# Every legacy builder, as review-compile has them (require 'review'): a
+# review-ext.rb reopens builder classes, and one not yet loaded would be
+# defined from scratch instead ("superclass mismatch" once the real one loads).
+require 'review'
 require 'review/book'
 require 'review/ast/compiler'
 require 'review/ast/chapter_registry_provider'

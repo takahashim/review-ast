@@ -56,7 +56,8 @@ Every node carries a `type` and a source position `location` (`filename`,
 `lineno`, `column`).
 Nodes that can have children carry `children`.
 **Leaf nodes** (the subclasses of the abstract base `LeafNode`: `TextNode`,
-`ReferenceNode`, `ImageNode`, `TexEquationNode`, `EmbedNode`) are childless by
+`ReferenceNode`, `ImageNode`, `TexEquationNode`, `EmbedNode`,
+`ExtensionBlockNode`) are childless by
 construction and emit no `children` key in JSON.
 
 Three more common fields appear where applicable: `definition_number` on
@@ -104,6 +105,7 @@ nodes.
 | Node | Meaning | Key fields | Produced by |
 |---|---|---|---|
 | `BlockNode` | Generic block not specialized into a dedicated node | `block_type`, `args` | `//bibpaper`, `//graph`, `//box`, `//insn`, `//point`, `//term`, `//doorquote`, control commands, … |
+| `ExtensionBlockNode` | A block command the book defines in `review-ext.rb` (`ReVIEW::Compiler.defblock`/`defsingle`/`defminicolumn`) and the AST has no handler for. Childless: it keeps what the legacy compiler hands the builder, and a renderer either implements `visit_block_<name>` or runs the review-ext.rb builder method ([doc/review-ext.md](review-ext.md)) | `block_type`, `args`, `lines` (raw body lines; absent for a single-line command) | any `//name` declared in review-ext.rb |
 | `DirectiveNode` | Parser instruction that modifies the next node; always removed by lowering | `directive_type`, `args` | `//tsize`, `//firstlinenum`, `//noindent`, `//olnum`, `//beginchild`, `//endchild` |
 | `LeafNode` | Abstract base for childless content nodes | — | never serialized directly |
 

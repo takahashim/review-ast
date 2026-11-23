@@ -48,6 +48,9 @@
           "$ref": "#/$defs/EmbedNode"
         },
         {
+          "$ref": "#/$defs/ExtensionBlockNode"
+        },
+        {
           "$ref": "#/$defs/FootnoteNode"
         },
         {
@@ -385,6 +388,32 @@
         },
         "type": {
           "const": "EmbedNode",
+          "description": "Node class name, without the module prefix."
+        }
+      }
+    },
+    "ExtensionBlockNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "args": {
+          "type": "array"
+        },
+        "block_type": {
+          "type": "string"
+        },
+        "lines": {
+          "type": "array"
+        },
+        "location": {
+          "$ref": "#/$defs/location",
+          "description": "Source position the node was parsed from."
+        },
+        "type": {
+          "const": "ExtensionBlockNode",
           "description": "Node class name, without the module prefix."
         }
       }
