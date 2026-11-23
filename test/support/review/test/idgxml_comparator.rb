@@ -43,11 +43,10 @@ module ReVIEW
         compiler = Compiler.new(builder)
         builder.bind(compiler, chapter, Location.new('test', nil))
 
-        # Compile the chapter
-        compiler.compile(chapter)
-
-        # Get raw result and normalize it for comparison
-        result = builder.raw_result
+        # Compile the chapter. The full result, not builder.raw_result: only
+        # #result resolves nested-list markers and closes the <chapter>/<sect>
+        # elements structuredxml opens.
+        result = compiler.compile(chapter)
         normalize_builder_output(result)
       end
 
@@ -142,6 +141,9 @@ module ReVIEW
             yaml_config = YAML.safe_load_file(config_file, permitted_classes: [Date, Time, Symbol])
             book_config.merge!(yaml_config) if yaml_config
           end
+          # Extra configuration given to the comparator wins over the book's
+          # own config.yml, so a sweep can vary one setting over a real book.
+          book_config.deep_merge!(@config) if @config
 
           # Set default IDGXML configuration
           book_config['builder'] ||= 'idgxml'

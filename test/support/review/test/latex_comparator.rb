@@ -160,13 +160,15 @@ module ReVIEW
         Dir.chdir(book_dir) do
           # Load book configuration from config.yml
           book_config = Configure.values
-          book_config.merge!(@config)
 
           config_file = File.join(book_dir, 'config.yml')
           if File.exist?(config_file)
             yaml_config = YAML.safe_load_file(config_file, permitted_classes: [Date, Time, Symbol])
             book_config.merge!(yaml_config) if yaml_config
           end
+          # Extra configuration given to the comparator wins over the book's
+          # own config.yml, so a sweep can vary one setting over a real book.
+          book_config.deep_merge!(@config) if @config
 
           # Set default LaTeX configuration
           book_config['texstyle'] ||= 'reviewmacro'
