@@ -113,7 +113,8 @@ class TestReviewExtCompat < Test::Unit::TestCase
   end
 
   def run_in_book(*command)
-    env = { 'BUNDLE_GEMFILE' => File.join(ROOT, 'Gemfile') }
+    # The children run under the same bundle as this test process.
+    env = { 'BUNDLE_GEMFILE' => ENV.fetch('BUNDLE_GEMFILE', File.join(ROOT, 'Gemfile')) }
     out, err, status = Open3.capture3(env, RbConfig.ruby, '-rbundler/setup', *command, chdir: @dir)
     [out, err, status]
   end
