@@ -8,6 +8,7 @@
 
 require 'review/textmaker'
 require 'review/ast'
+require 'review/ast/book_unit_view'
 require 'review/renderer/top_renderer'
 require 'review/renderer/plaintext_renderer'
 
@@ -64,6 +65,7 @@ module ReVIEW
 
           base_path = Pathname.new(@basedir)
           @book.parts.each do |part|
+            part = ReVIEW::AST::BookUnitView.wrap(part)
             if part.name.present?
               if part.file?
                 build_chap(part, base_path, basetmpdir, true)
@@ -73,7 +75,7 @@ module ReVIEW
               end
             end
 
-            part.chapters.each { |chap| build_chap(chap, base_path, basetmpdir, false) }
+            part.chapters.each { |chap| build_chap(ReVIEW::AST::BookUnitView.wrap(chap), base_path, basetmpdir, false) }
           end
         end
 
@@ -185,7 +187,7 @@ module ReVIEW
           return chapter if chapter
 
           # Then check parts with content files
-          @book.parts_in_file.find { |part| File.basename(part.path, '.*') == basename }
+          ReVIEW::AST::BookUnitView.parts_in_file(@book).find { |part| File.basename(part.path, '.*') == basename }
         end
       end
     end

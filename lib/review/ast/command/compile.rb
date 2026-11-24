@@ -15,6 +15,7 @@ require 'review'
 require 'review/book'
 require 'review/ast/compiler'
 require 'review/ast/chapter_registry_provider'
+require 'review/ast/book_unit_view'
 require 'review/version'
 require 'review/configure'
 require 'review/yamlloader'
@@ -207,12 +208,14 @@ module ReVIEW
           ext = RENDERERS.fetch(@options[:target])[2]
           outdir = Dir.pwd
           in_book_dir(book) do
-            (book.chapters + book.parts_in_file).each do |chapter|
+            (book.chapters + ReVIEW::AST::BookUnitView.parts_in_file(book)).each do |chapter|
               output = render_chapter(chapter)
               next if @options[:check_only]
 
-              File.write(File.join(outdir, "#{chapter.name}#{ext}"), output)
-              log("Wrote #{chapter.name}#{ext}")
+              # Part#name keeps a Markdown part file's ".md" (see BookUnitView).
+              name = File.basename(chapter.name, '.*')
+              File.write(File.join(outdir, "#{name}#{ext}"), output)
+              log("Wrote #{name}#{ext}")
             end
           end
         end
@@ -242,7 +245,7 @@ module ReVIEW
           return unless File.exist?(catalog_path(book.basedir, book.config['catalogfile']))
 
           book.chapters.find { |ch| ch.name == basename } ||
-            book.parts_in_file.find { |part| part.name == basename }
+            ReVIEW::AST::BookUnitView.parts_in_file(book).find { |part| File.basename(part.name, '.*') == basename }
         rescue ReVIEW::FileNotFound, KeyError
           nil
         end
