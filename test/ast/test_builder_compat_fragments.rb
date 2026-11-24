@@ -369,8 +369,8 @@ class TestBuilderCompatFragments < Test::Unit::TestCase
   # An inline @<raw>/@<embed> in a list item is part of the item's text; the
   # plaintext renderer printed it after the item, like a nested block.
   def test_inline_raw_in_a_list_item
-    source = " * a@<embed>{|html,idgxml,plaintext,top|p\\nq}b @<raw>{|html,idgxml,plaintext,top|r}\n   cont\n * next\n\n" \
-             " 1. one@<raw>{|html,idgxml,plaintext,top|s}\n"
+    source = " * a@<embed>{|html,idgxml,plaintext,top|p\\nq}b @<raw>{|html,idgxml,plaintext,top|r}\n   cont\n * next\n\n " \
+             "1. one@<raw>{|html,idgxml,plaintext,top|s}\n"
     assert_parity(source, formats: %i[html idgxml])
     assert_text_lines_parity(source)
   end
