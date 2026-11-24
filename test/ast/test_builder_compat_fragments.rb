@@ -448,6 +448,29 @@ class TestBuilderCompatFragments < Test::Unit::TestCase
     Thread.current[:stub_img_math] = nil
   end
 
+  # Found on youten/howto-create-vr-contents2: an item starting with "["
+  # gets \\lbrack{}, or \\item would take "[...]" as its label.
+  def test_latex_item_starting_with_a_bracket
+    assert_parity(" * [C-1-2] @<code>{x} item\n * normal [x]\n\n 1. [A] one\n", formats: [:latex])
+  end
+
+  # A definition runs, as ReVIEW::Compiler#compile_dlist reads it, until a
+  # line in column 1, the next term or a list item -- across blank and
+  # whitespace-only lines (found on engineers-lt/rooting-book-1). Its blank
+  # lines split it into paragraphs in LaTeX and the text formats.
+  DEFINITIONS = [" : t1\n    a\u3000\n    \u3000\n     \n    b\n\n : t2\n    c\n\npara\n",
+                 " : t1\n\tx\n\n\ty\n\nafter\n", " : t1\n\tx\n\n : t2\n\ty\n", " : t1\n\tx\n * item\n\nafter\n",
+                 " : t1\n\tx\n\n  indented para\n\nafter\n", " : t1\n\tx\n\#@ comment\n\ty\n"].freeze
+
+  def test_definition_runs_across_blank_lines
+    DEFINITIONS.each do |source|
+      [{}, { 'join_lines_by_lang' => true }].each do |config|
+        assert_parity(source, config: config)
+        assert_text_lines_parity(source, config: config)
+      end
+    end
+  end
+
   GENERATOR_ROUND_TRIP = ["//image[i1][Cap]{\nart @<b>{x}\n  art2\n//}\n", "//image[i1][][scale=0.5]{\n//}\n",
                           "//indepimage[i1]{\nart\n//}\n", "//bpo{\nline1 @<b>{bold}\n\nline3\n//}\n",
                           "//box[Cap]{\nline1\n\nline3\n//}\n", "//insn[Cap]{\nline1\n//}\n",

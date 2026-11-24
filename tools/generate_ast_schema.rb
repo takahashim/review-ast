@@ -162,7 +162,9 @@ module ReVIEW
         hash.each do |key, value|
           @resolved_data_types << value['type'] if key == 'resolved_data' && node?(value)
           @properties[type][key] ||= Set.new
-          @properties[type][key] << json_type_of(value)
+          # An empty children array is still a node array (an empty paragraph:
+          # a blank line inside a definition), not an untyped one.
+          @properties[type][key] << (key == 'children' && value == [] ? 'node_array' : json_type_of(value))
           descend(value)
         end
       end

@@ -111,9 +111,13 @@ module ReVIEW
           item_data = parse_definition_line(line)
           next unless item_data
 
-          # Collect definition content lines directly within this context
+          # The description: every line up to one that starts in column 1, the
+          # next term, or a numbered or bulleted item -- as
+          # ReVIEW::Compiler#compile_dlist reads it. Blank and whitespace-only
+          # lines in between belong to it (as empty lines); this stopped at
+          # them, cutting the description short.
           continuation_lines = []
-          f.while_match(/\A\s+(?!:)\S/) do |cont|
+          f.until_match(/\A(\S|\s*:|\s+\d+\.\s|\s+\*\s)/) do |cont|
             continuation_lines << cont.strip
           end
           item_data.continuation_lines = continuation_lines
