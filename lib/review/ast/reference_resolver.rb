@@ -142,7 +142,10 @@ module ReVIEW
         method_name = @resolver_methods[ref_type]
         raise CompileError, "Unknown reference type: #{ref_type}" unless method_name
 
-        resolved_node = node.with_resolved_data(send(method_name, node))
+        data = send(method_name, node)
+        return if data.nil? # a reference that need not resolve (resolve_label_ref)
+
+        resolved_node = node.with_resolved_data(data)
         node.parent&.replace_child(node, resolved_node)
       end
 
@@ -433,11 +436,11 @@ module ReVIEW
           return ResolvedData.column(**common, item_number: entry_number(entry), caption_node: entry.caption_node)
         end
 
-        # TODO: Support for other labeled elements (note, memo, tip, etc.)
-        # Currently there are no dedicated indexes for these elements,
-        # so we need to add label_index in the future
-
-        raise CompileError, "Label not found: #{node.ref_id}"
+        # Anything else -- a //label, or an id nothing defines -- stays
+        # unresolved: the builders never look a label up (@<labelref> and
+        # @<ref> print a placeholder with the id, @<pageref> too), so neither
+        # may the AST fail on one.
+        nil
       end
 
       # Stringified item number from a registry Entry (matching the legacy

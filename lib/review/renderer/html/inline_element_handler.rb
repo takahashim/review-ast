@@ -304,11 +304,6 @@ module ReVIEW
           %Q(<span class="#{style}">#{content}</span>)
         end
 
-        def render_inline_pageref(_type, content, _node)
-          # Page reference is unsupported in HTML
-          content
-        end
-
         def render_inline_icon(_type, content, node)
           # Icon is an inline image; its path was resolved at compile time and
           # stamped on the node (no chapter image index).
@@ -413,6 +408,11 @@ module ReVIEW
 
         def render_inline_ref(type, content, node)
           render_inline_labelref(type, content, node)
+        end
+
+        # HTMLBuilder#inline_pageref is an error: HTML has no page numbers.
+        def render_inline_pageref(_type, _content, node)
+          raise ReVIEW::CompileError, "pageref op is unsupported on this builder: #{node.args.first}#{node.location&.format_for_error}"
         end
 
         def render_inline_eq(_type, _content, node)

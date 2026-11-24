@@ -718,7 +718,7 @@ module ReVIEW
           render_comment(node, content)
         when :raw
           render_raw(node, content)
-        when :labelref
+        when :labelref, :ref # TOPBuilder aliases inline_ref to inline_labelref
           render_labelref(node, content)
         when :pageref
           render_pageref(node, content)
@@ -738,6 +738,9 @@ module ReVIEW
       end
 
       def visit_reference(node)
+        # An unresolved one is a label nothing numbers (@<labelref>{id}).
+        return node.content.to_s unless node.resolved?
+
         format_resolved_reference(node.resolved_data)
       end
 

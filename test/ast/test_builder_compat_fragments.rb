@@ -344,6 +344,17 @@ class TestBuilderCompatFragments < Test::Unit::TestCase
     end
   end
 
+  # The builders never look a label up: @<labelref>/@<ref> print a
+  # placeholder with the id, whether it names a //label, a numbered item or
+  # nothing at all. The AST failed with "Label not found" on every //label.
+  def test_label_references_need_no_target
+    source = "//label[l1]\n\n//list[li][C]{\nx\n//}\n\nSee @<labelref>{l1} @<ref>{li} @<labelref>{nothing}.\n"
+    assert_parity(source, formats: %i[html idgxml])
+    assert_text_lines_parity(source)
+    assert_text_lines_parity("See @<pageref>{l1}.\n")
+    assert_parity("See @<pageref>{l1}.\n", formats: %i[idgxml latex])
+  end
+
   GENERATOR_ROUND_TRIP = ["//image[i1][Cap]{\nart @<b>{x}\n  art2\n//}\n", "//image[i1][][scale=0.5]{\n//}\n",
                           "//indepimage[i1]{\nart\n//}\n", "//bpo{\nline1 @<b>{bold}\n\nline3\n//}\n",
                           "//box[Cap]{\nline1\n\nline3\n//}\n", "//insn[Cap]{\nline1\n//}\n",
