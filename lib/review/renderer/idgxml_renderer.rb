@@ -39,6 +39,16 @@ require_relative 'idgxml/inline_element_handler'
 module ReVIEW
   module Renderer
     class IdgxmlRenderer < Base
+      # A newline the builder writes with print (so its nolf keeps it); the
+      # document's nolf pass leaves it alone and visit_document restores it.
+      PROTECTED_NEWLINE = "\x01IDGXML_INLINE_NEWLINE\x01"
+
+      # Put before raw content (//embed, //raw, //rawblock): the nolf pass drops
+      # the newlines before it. It strips a newline only before a tag, but raw
+      # content may start with text, and the builder (puts under nolf) writes
+      # no newline after the previous block.
+      RAW_START = "\x01IDGXML_RAW_START\x01"
+
       # review-ext.rb methods on this builder render the book's own commands.
       def legacy_builder_class
         require 'review/idgxmlbuilder'
@@ -147,10 +157,13 @@ module ReVIEW
           # Remove all newlines between tags and before closing tags
           # This handles both >\n< and text\n< patterns
           result = result.gsub(/\n+</, '<')
+          result = result.gsub(/\n*#{RAW_START}/o, '')
 
           # Restore newlines inside <pre> tags
           result = result.gsub("\x01IDGXML_PRE_NEWLINE\x01", "\n")
         end
+
+        result = result.gsub(RAW_START, '')
 
         # Restore protected newlines from listinfo, inline elements, and endnotes
         result = result.gsub("\x01IDGXML_LISTINFO_NEWLINE\x01", "\n")
@@ -429,48 +442,6 @@ module ReVIEW
         captionblock('caution', content, caption)
       end
 
-      def visit_block_planning(node)
-        caption = node.args.first
-        content = render_children(node)
-        captionblock('planning', content, caption)
-      end
-
-      def visit_block_best(node)
-        caption = node.args.first
-        content = render_children(node)
-        captionblock('best', content, caption)
-      end
-
-      def visit_block_security(node)
-        caption = node.args.first
-        content = render_children(node)
-        captionblock('security', content, caption)
-      end
-
-      def visit_block_reference(node)
-        caption = node.args.first
-        content = render_children(node)
-        captionblock('reference', content, caption)
-      end
-
-      def visit_block_link(node)
-        caption = node.args.first
-        content = render_children(node)
-        captionblock('link', content, caption)
-      end
-
-      def visit_block_practice(node)
-        caption = node.args.first
-        content = render_children(node)
-        captionblock('practice', content, caption)
-      end
-
-      def visit_block_expert(node)
-        caption = node.args.first
-        content = render_children(node)
-        captionblock('expert', content, caption)
-      end
-
       def visit_block_point(node)
         caption = node.args.first
         content = render_block_content_with_paragraphs(node)
@@ -482,16 +453,10 @@ module ReVIEW
         end
       end
 
-      def visit_block_shoot(node)
-        caption = node.args.first
-        content = render_block_content_with_paragraphs(node)
-        if caption && !caption.empty? && node.caption_node
-          caption_with_inline = render_caption_inline(node.caption_node)
-          captionblock_with_content('shoot-t', content, caption_with_inline, 'shoot-title')
-        else
-          captionblock_with_content('shoot', content, nil)
-        end
-      end
+      # //shoot, //planning, //best, //security and IDGXMLBuilder's other
+      # captionblocks are declared by the builders (Compiler.defblock in
+      # htmlbuilder.rb and the like), not by the compiler, so the AST keeps them
+      # as ExtensionBlockNodes and the builder writes them (visit_extension_block).
 
       def visit_block_notice(node)
         caption = node.args.first
@@ -557,9 +522,11 @@ module ReVIEW
         %Q(<?dtp #{dtp_str} ?>\n)
       end
 
+      # IDGXMLBuilder#bpo: the lines joined with newlines, which the nolf pass
+      # must keep.
       def visit_block_bpo(node)
-        content = render_children(node)
-        %Q(<bpo>#{content.chomp}</bpo>\n)
+        content = node.children.map { |line_node| render_children(line_node) }.join(PROTECTED_NEWLINE)
+        %Q(<bpo>#{content}</bpo>\n)
       end
 
       def visit_block_printendnotes(node)
@@ -1479,8 +1446,8 @@ module ReVIEW
 
           result.join("\n") + "\n"
         else
-          # Fall back to dummy image
-          visit_image_dummy(node.id, caption_content, [], node.definition_number)
+          # Fall back to dummy image, with the block's body lines.
+          visit_image_dummy(node.id, caption_content, node.dummy_lines.map { |line| render_children(line) }, node.definition_number)
         end
       end
 
@@ -1519,12 +1486,10 @@ module ReVIEW
           result << generate_image_header(id, caption, definition_number)
         end
 
-        result << %Q(<pre aid:pstyle="dummyimage">)
-        lines.each do |line|
-          result << detab(line, tabwidth)
-          result << "\n"
-        end
-        result << '</pre>'
+        # IDGXMLBuilder prints each line and an explicit "\n" inside the <pre>;
+        # protect those newlines from the document's nolf pass.
+        body = lines.map { |line| "#{detab(line, tabwidth)}#{PROTECTED_NEWLINE}" }.join
+        result << %Q(<pre aid:pstyle="dummyimage">#{body}</pre>)
 
         if !caption_top?('image') && caption
           result << generate_image_header(id, caption, definition_number)
@@ -1548,21 +1513,12 @@ module ReVIEW
       end
 
       # Visit rawblock
+      # IDGXMLBuilder#rawblock: each inline-compiled line with the four XML
+      # entities unescaped, joined by newlines the nolf pass has to keep.
       def visit_rawblock(node)
-        result = []
-        no = 1
-
-        # Get lines from child TextNodes
-        lines = node.children.map { |child| child.is_a?(ReVIEW::AST::TextNode) ? child.content : '' }
-        lines.each do |line|
-          # Unescape HTML entities
-          unescaped = line.gsub('&lt;', '<').gsub('&gt;', '>').gsub('&quot;', '"').gsub('&amp;', '&')
-          result << unescaped
-          result << "\n" unless lines.length == no
-          no += 1
-        end
-
-        result.join
+        RAW_START + node.children.map do |line_node|
+          render_children(line_node).gsub('&lt;', '<').gsub('&gt;', '>').gsub('&quot;', '"').gsub('&amp;', '&')
+        end.join(PROTECTED_NEWLINE)
       end
 
       # Visit comment block
@@ -1610,8 +1566,10 @@ module ReVIEW
           content = content.gsub('\\n', "\n")
         end
 
-        # For block embeds, add trailing newline
-        node.embed_type == :block ? content + "\n" : content
+        # IDGXMLBuilder#embed and #raw use print, so their newlines -- the
+        # content's and a block's trailing one -- survive nolf.
+        content = RAW_START + content.gsub("\n", PROTECTED_NEWLINE) if %i[block raw].include?(node.embed_type)
+        node.embed_type == :block ? content + PROTECTED_NEWLINE : content
       end
 
       # Visit syntaxblock (box, insn) - processes lines with listinfo

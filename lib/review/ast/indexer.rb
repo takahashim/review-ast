@@ -292,7 +292,7 @@ module ReVIEW
           visit_caption_children(node)
         end
 
-        visit_all(node.children)
+        visit_all(node.dummy_lines)
       end
 
       def visit_minicolumn(node)

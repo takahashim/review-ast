@@ -494,10 +494,10 @@ class TestHtmlRendererInlineElements < Test::Unit::TestCase
 
   # Page reference (unsupported in HTML)
   def test_inline_pageref
+    # HTMLBuilder#inline_pageref is an error: HTML has no page numbers.
     content = "= Chapter\n\nSee @<pageref>{test}.\n"
-    output = render_inline(content)
-    # Should just output the content without error
-    assert_match(/test/, output)
+    error = assert_raise(ReVIEW::CompileError) { render_inline(content) }
+    assert_match(/pageref op is unsupported on this builder: test/, error.message)
   end
 
   # Icon images

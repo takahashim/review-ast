@@ -346,6 +346,13 @@ blocks:
     status: ignore
     reason: 文字単位の分割指定。Typstの行分割に相当がなく、出力しても意味を持たない
 
+  rawblock:
+    node: BlockNode
+    renderer: visit_block_rawblock
+    typst: (none)
+    status: ignore
+    reason: IDGXML 専用の生出力(IDGXMLBuilder#rawblock)。Typst には出力しない
+
   parasep:
     node: BlockNode
     renderer: visit_block_parasep

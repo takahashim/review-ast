@@ -3,6 +3,7 @@
 require_relative 'leaf_node'
 require_relative 'caption_node'
 require_relative 'captionable'
+require_relative 'code_line_node'
 
 module ReVIEW
   module AST
@@ -11,11 +12,22 @@ module ReVIEW
 
       attr_reader :metric, :image_type
 
-      def initialize(location:, id: nil, caption_node: nil, metric: nil, image_type: :image, content: '', **kwargs)
+      # The block's body lines, inline-compiled (one CodeLineNode each): what
+      # the builders print in place of an image that is not found
+      # (Builder#image_dummy). `content` keeps the same lines as written.
+      attr_reader :dummy_lines
+
+      def initialize(location:, id: nil, caption_node: nil, metric: nil, image_type: :image, content: '', dummy_lines: nil, **kwargs)
         super(location: location, id: id, content: content, **kwargs)
         @caption_node = caption_node
         @metric = metric
         @image_type = image_type&.to_sym # canonicalize to Symbol at construction
+        @dummy_lines = dummy_lines || []
+      end
+
+      # Include the dummy lines in a full-tree walk (see Node#each_subnode).
+      def extra_subnodes
+        super + dummy_lines
       end
 
       # Override serialize_to_hash to include ImageNode-specific attributes
@@ -46,7 +58,8 @@ module ReVIEW
           caption_node: deserialize_caption_from_hash(hash),
           metric: hash['metric'],
           image_type: hash['image_type'] || :image,
-          content: hash['content'] || ''
+          content: hash['content'] || '',
+          dummy_lines: (hash['dummy_lines'] || []).map { |line| ReVIEW::AST::JSONSerializer.deserialize_from_hash(line) }
         )
       end
 
@@ -58,6 +71,7 @@ module ReVIEW
         hash[:metric] = metric if metric
         hash[:image_type] = image_type
         hash[:content] = content if content && !content.empty?
+        hash[:dummy_lines] = dummy_lines.map { |line| line.serialize_to_hash(options) } unless dummy_lines.empty?
         hash
       end
     end

@@ -248,12 +248,19 @@ module ReVIEW
                     ''
                   end
 
+        dummy_lines = (context.content? ? context.lines : []).map do |line|
+          context.create_node(AST::CodeLineNode, original_text: line).tap do |line_node|
+            context.process_inline_elements(line, line_node)
+          end
+        end
+
         context.append_new_node(AST::ImageNode,
                                 id: context.arg(0),
                                 caption_node: caption_node,
                                 metric: context.arg(2),
                                 image_type: context.name,
-                                content: content)
+                                content: content,
+                                dummy_lines: dummy_lines)
       end
 
       def build_table_ast(context)
@@ -415,8 +422,8 @@ module ReVIEW
             context.process_structured_content_with_blocks(node)
           elsif context.content?
             case context.name
-            when :box, :insn
-              # Line-based processing for box/insn - preserve each line as separate node
+            when :box, :insn, :bpo, :rawblock
+              # Line-based processing for box/insn/bpo/rawblock - preserve each line as separate node
               context.lines.each do |line|
                 # Create a paragraph node for each line (including empty lines)
                 # This preserves line structure for listinfo processing
@@ -648,6 +655,10 @@ module ReVIEW
         bibpaper: :build_complex_block_ast,
         graph: :build_complex_block_ast,
         box: :build_complex_block_ast,
+        # The builders inline-compile a //bpo body, line by line, like //box.
+        bpo: :build_complex_block_ast,
+        # IDGXMLBuilder#rawblock: inline-compiled lines (it then unescapes them).
+        rawblock: :build_complex_block_ast,
         insn: :build_complex_block_ast,
         point: :build_complex_block_ast,
         term: :build_complex_block_ast,
@@ -659,7 +670,6 @@ module ReVIEW
         label: :build_control_command_ast,
         printendnotes: :build_control_command_ast,
         hr: :build_control_command_ast,
-        bpo: :build_control_command_ast,
         parasep: :build_control_command_ast,
 
         # Parser-instruction directives (lowered to a sibling attribute and

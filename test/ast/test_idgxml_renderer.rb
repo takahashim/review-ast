@@ -861,9 +861,10 @@ EOS
       assert_equal expected_message, error.message
     end
 
+    # IDGXMLBuilder never looks a label up: an id nothing defines still gets
+    # the placeholder.
     %w[ref labelref].each do |name|
-      error = assert_raise(ReVIEW::CompileError) { compile_block("@<#{name}>{n}\n") }
-      assert_equal 'Label not found: n', error.message
+      assert_include(compile_block("@<#{name}>{n}\n"), "<ref idref='n'>「●●　n」</ref>")
     end
 
     %w[chap chapref].each do |name|

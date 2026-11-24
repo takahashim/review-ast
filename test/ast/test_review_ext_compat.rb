@@ -156,11 +156,19 @@ class TestReviewExtCompat < Test::Unit::TestCase
   end
 
   def test_a_command_the_builder_lacks_is_an_error_in_both_paths
-    # plaintext: review-ext.rb gives PLAINTEXTBuilder no #mybox.
+    # plaintext: review-ext.rb gives PLAINTEXTBuilder no #inline_mykbd and no
+    # #mybox. The legacy compiler reports every error of the chapter, the AST
+    # path stops at the first (the inline, on line 3).
     _, err, status = run_in_book(Gem.bin_path('review', 'review-compile'), '--target=plaintext', 'ch01.re')
     assert_false(status.success?)
+    assert_match(/builder does not support inline op: @<mykbd>/, err)
     assert_match(%r{builder does not support command: //mybox}, err)
 
+    _, err, status = run_in_book('-I', File.join(ROOT, 'lib'), File.join(ROOT, 'bin/review-ast-compile'), '--target', 'plaintext', 'ch01.re')
+    assert_false(status.success?)
+    assert_match(/builder does not support inline op: @<mykbd>/, err)
+
+    File.write(File.join(@dir, 'ch01.re'), "= C\n\n//mybox{\nx\n//}\n")
     _, err, status = run_in_book('-I', File.join(ROOT, 'lib'), File.join(ROOT, 'bin/review-ast-compile'), '--target', 'plaintext', 'ch01.re')
     assert_false(status.success?)
     assert_match(%r{builder does not support command: //mybox}, err)

@@ -257,12 +257,12 @@ module ReVIEW
           wrap_reference_with_html(text, data, 'imgref')
         end
 
-        # Builder#inline_imgref is @<img> plus the image's caption in quotes.
+        # Builder#inline_imgref is @<img> plus the image's caption in quotes --
+        # an empty caption too (//image[id][][scale=0.5] gives 「」): the
+        # legacy index item's caption is a string, so its `if caption` holds.
         def render_inline_imgref(type, content, node)
           rendered = render_inline_img(type, content, node)
-          caption = resolved_reference_node(node).resolved_data.caption_text
-          return rendered if caption.empty?
-
+          caption = resolved_reference_node(node).resolved_data.caption_text.to_s
           "#{rendered}#{I18n.t('image_quote', caption)}"
         end
 
@@ -302,11 +302,6 @@ module ReVIEW
             style = 'upright'
           end
           %Q(<span class="#{style}">#{content}</span>)
-        end
-
-        def render_inline_pageref(_type, content, _node)
-          # Page reference is unsupported in HTML
-          content
         end
 
         def render_inline_icon(_type, content, node)
@@ -413,6 +408,11 @@ module ReVIEW
 
         def render_inline_ref(type, content, node)
           render_inline_labelref(type, content, node)
+        end
+
+        # HTMLBuilder#inline_pageref is an error: HTML has no page numbers.
+        def render_inline_pageref(_type, _content, node)
+          raise ReVIEW::CompileError, "pageref op is unsupported on this builder: #{node.args.first}#{node.location&.format_for_error}"
         end
 
         def render_inline_eq(_type, _content, node)
