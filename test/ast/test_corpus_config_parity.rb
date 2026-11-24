@@ -66,7 +66,26 @@ class TestCorpusConfigParity < Test::Unit::TestCase
     # Re:VIEW 2 compatibility mode (Configure#check_version('2')): older
     # macros in LaTeX, among others.
     review_version2: [{ 'review_version' => 2.0 }, %i[idgxml html latex plaintext top]],
-    review_version2_chapref: [{ 'review_version' => 2.0, 'chapref' => '<,>,!' }, %i[idgxml plaintext top]]
+    review_version2_chapref: [{ 'review_version' => 2.0, 'chapref' => '<,>,!' }, %i[idgxml plaintext top]],
+    row_separator_singletab: [{ 'table_row_separator' => 'singletab' }, %i[idgxml html latex plaintext top]],
+    row_separator_spaces: [{ 'table_row_separator' => 'spaces' }, %i[idgxml html latex plaintext top]],
+    row_separator_verticalbar: [{ 'table_row_separator' => 'verticalbar' }, %i[idgxml html latex plaintext top]],
+    language_en: [{ 'language' => 'en' }, %i[idgxml html latex plaintext top]],
+    toclevel1: [{ 'toclevel' => 1 }, %i[idgxml html latex plaintext top]],
+    toclevel4: [{ 'toclevel' => 4 }, %i[idgxml html latex plaintext top]],
+    mathml: [{ 'math_format' => 'mathml' }, %i[html]],
+    mathjax: [{ 'math_format' => 'mathjax' }, %i[html]],
+    highlight_listings: [{ 'highlight' => { 'latex' => 'listings', 'lang' => 'ruby' } }, %i[latex]],
+    htmlext_xhtml: [{ 'htmlext' => 'xhtml' }, %i[html]],
+    back_footnote: [{ 'epubmaker' => { 'back_footnote' => true } }, %i[html]],
+    makeindex: [{ 'pdfmaker' => { 'makeindex' => true } }, %i[latex]],
+    original_image_size: [{ 'pdfmaker' => { 'use_original_image_size' => true } }, %i[latex]],
+    texcommand_lualatex: [{ 'texcommand' => 'lualatex' }, %i[latex]],
+    tableopt: [{ 'tableopt' => '10', 'pt_to_mm_unit' => 0.3528 }, %i[idgxml]],
+    # nolf: false is IDGXML's readable layout (InDesign does not import it):
+    # the renderer does not place its newlines where the builder's puts do,
+    # so it is compared with newlines ignored (NEWLINE_INSENSITIVE).
+    no_nolf: [{ 'nolf' => false }, %i[idgxml]]
   }.freeze
 
   def corpus_dir(name)
@@ -77,11 +96,21 @@ class TestCorpusConfigParity < Test::Unit::TestCase
     ReVIEW::Book::Base.new(dir, config: ReVIEW::Configure.values).chapters.map(&:name)
   end
 
+  # Compares with every newline removed.
+  class NewlineInsensitiveDiff
+    def compare(builder, renderer)
+      ReVIEW::AST::Diff::ByteExact.new.compare(builder.delete("\n"), renderer.delete("\n"))
+    end
+  end
+
+  NEWLINE_INSENSITIVE = %i[no_nolf].freeze
+
   def assert_config_parity(format, config_name)
     config, formats = CONFIGS.fetch(config_name)
     omit("#{config_name} does not apply to #{format}") unless formats.include?(format)
 
     comparator_class, diff_class = FORMATS.fetch(format)
+    diff_class = NewlineInsensitiveDiff if NEWLINE_INSENSITIVE.include?(config_name)
     failures = []
     CORPORA.each do |corpus|
       dir = corpus_dir(corpus)

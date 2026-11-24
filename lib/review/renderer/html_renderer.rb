@@ -558,6 +558,9 @@ module ReVIEW
         # Add newline to content like HTMLBuilder does
         # parser.parse returns MathML::Math object, need to convert to string
         parser.parse(content + "\n", true).to_s
+      rescue MathML::LaTeX::ParseError => e
+        # A math_ml parse error is a compile error, as HTMLBuilder reports it.
+        raise ReVIEW::CompileError, e.message
       end
 
       def render_imgmath_format(content)

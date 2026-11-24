@@ -128,6 +128,12 @@ module ReVIEW
         end
       end
 
+      # An @<hd>'s text with the heading text given as the format writes it
+      # (IDGXML escapes it, but not the quotes hd_quote puts around it).
+      def format_headline_reference_with_caption(data, caption)
+        format_headline_reference(data, caption)
+      end
+
       # An @<chapref> in Re:VIEW 2 compatibility mode, as IDGXMLBuilder and
       # PLAINTEXTBuilder#inline_chapref write it: number and title wrapped by
       # the three parts of the 'chapref' setting ("prefix,middle,suffix"),
@@ -322,10 +328,12 @@ module ReVIEW
         # Use full form of chapter number for chapter references
         chapter_number_full = format_chapter_number_full(data.chapter_number, data.chapter_type)
 
-        if chapter_title && !chapter_number_full.empty?
+        # ChapterIndex#display_string asks `if number(id)`, and an unnumbered
+        # chapter's number is "" (Chapter#format_number), not nil: the builders
+        # always use chapter_quote, which in English leaves its space before
+        # the quoted title (' "Bibliography"').
+        if chapter_title
           I18n.t('chapter_quote', [chapter_number_full, chapter_title])
-        elsif chapter_title
-          I18n.t('chapter_quote_without_number', chapter_title)
         elsif !chapter_number_full.empty?
           chapter_number_full
         else
@@ -334,8 +342,9 @@ module ReVIEW
       end
 
       # Format headline reference
-      def format_headline_reference(data)
-        caption = data.caption_text
+      # caption: the heading text as the format writes it (IDGXML escapes it,
+      # but not the quotes hd_quote puts around it).
+      def format_headline_reference(data, caption = data.caption_text)
         headline_numbers = Array(data.headline_number).compact
 
         # The builders drop the number for a heading deeper than secnolevel

@@ -336,17 +336,19 @@ module ReVIEW
           @ctx.chapter_link_enabled? ? "\\reviewsecref{#{text}}{#{label}}" : text
         end
 
+        # LATEXBuilder#inline_hd_chap: I18n hd_quote / hd_quote_without_number
+        # ("「%s %s」" in Japanese, '"%s %s"' in English).
+        def heading_quote(number, title, numbered)
+          numbered ? I18n.t('hd_quote', [number, title]) : I18n.t('hd_quote_without_number', title)
+        end
+
         # Render heading reference
         def render_inline_hd(_type, _content, node)
           ref_node = resolved_reference_node(node)
 
           data = ref_node.resolved_data
           section_number, section_label, section_title, numbered = build_heading_reference_parts(data)
-          quoted = if numbered
-                     "「#{section_number} #{escape(section_title)}」"
-                   else
-                     "「#{escape(section_title)}」"
-                   end
+          quoted = heading_quote(section_number, escape(section_title), numbered)
           section_link(quoted, section_label)
         end
 
@@ -365,11 +367,7 @@ module ReVIEW
 
           data = ref_node.resolved_data
           section_number, section_label, section_title, numbered = build_heading_reference_parts(data)
-          quoted = if numbered
-                     "「#{section_number} #{escape(section_title)}」"
-                   else
-                     "「#{escape(section_title)}」"
-                   end
+          quoted = heading_quote(section_number, escape(section_title), numbered)
           section_link(quoted, section_label)
         end
 

@@ -353,7 +353,12 @@ module ReVIEW
             end
             parser = MathML::LaTeX::Parser.new(symbol: MathML::Symbol::CharacterReference)
             # parser.parse returns MathML::Math object, need to convert to string
-            %Q(<span class="equation">#{parser.parse(str, nil)}</span>)
+            begin
+              %Q(<span class="equation">#{parser.parse(str, nil)}</span>)
+            rescue MathML::LaTeX::ParseError => e
+              # A compile error, as HTMLBuilder#compile_inline reports it.
+              raise ReVIEW::CompileError, "#{e.message}#{node.location&.format_for_error}"
+            end
           when 'mathjax'
             %Q(<span class="equation">\\( #{str.gsub('<', '\lt{}').gsub('>', '\gt{}').gsub('&', '&amp;')} \\)</span>)
           when 'imgmath'
