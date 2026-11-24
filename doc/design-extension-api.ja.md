@@ -437,7 +437,7 @@ AST 版の互換は「旧経路と同じ本がすべて同じに組める」こ�
 | 機能 | 価値 | 複雑さ・壊れやすさの原因 |
 |---|---|---|
 | 独自命令(`defblock`/`definline` + ビルダーメソッド) | 高い。review-ext.rb を持つ本の多くがこれ | `StrictCompiler` が Re:VIEW の非公開の内部(`compile_command`、`syntax_descriptor`、`@command_name_stack`、`@non_parsed_commands`、`text`)とビルダーの状態(`doc_status`、`raw_result`)に依存する |
-| 組み込み命令の再定義(`def emlist`、`def inline_b`、`def note_begin`、`def inline_list` など) | 中程度。8 章の差し替えで置き換えられる | 全ノードに旧形式の命令(`Node#source_command`、`InlineNode#source_arg`)を持たせる必要がある(6 ファイル)。囲みでは、ビルダーが書いた両端の間にレンダラの出力を挟み込む。JSON から読み戻した木では使えない |
+| 組み込み命令の再定義(`def emlist`、`def inline_b`、`def note_begin`、`def inline_list` など) | 中程度。8 章の差し替えで置き換えられる | 全ノードに旧形式の命令(`Node#source_command`、`InlineNode#source_arg`)を持たせる必要がある(`node.rb`、`inline_node.rb`、`block_processor.rb`、`inline_processor.rb`、`renderer/base.rb` の 5 ファイル)。囲みでは、ビルダーが書いた両端の間にレンダラの出力を挟み込む。JSON から読み戻した木では使えない |
 | AST が呼ばない再定義の警告 | 補助的 | どのメソッドが Re:VIEW 自身の定義かを知るため、Re:VIEW のソースファイルを正規表現で読む(`review_defined_methods`) |
 
 さらに、ビルダーメソッドの中で `@chapter.list(id)` などを呼んだり、`compile_inline` が参照を解決したりすると、
