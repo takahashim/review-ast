@@ -159,6 +159,17 @@ change too, so the two stay in sync.
   `@<br>`-at-line-end bugs only surfaced on `FirstStepReVIEW-v3`; the bundled
   samples were already clean. Sweeping additional real books is high-value.
 
+## Every declared command
+
+`test/ast/test_review_command_sweep.rb` writes each command Re:VIEW declares
+(`ReVIEW::Compiler::SYNTAX` and `::INLINE`, including the ones the builders
+declare themselves, such as `//planning`) once with simple arguments, and
+requires both paths to agree in all five formats: the same output, or both an
+error. What cannot agree is listed in its `KNOWN_DIFFERENCES` with the reason,
+and an entry that starts agreeing has to be removed. Its first run found
+`@<labelref>` failing on every `//label`, image bodies dropped, IDGXML
+captionblocks rendered empty, and more (all fixed).
+
 ## Property-based testing
 
 `tools/pbt/` generates random self-contained documents and runs the same two

@@ -210,3 +210,18 @@ table cells.
   compiles the lines first).
 - Question: split the source line first and compile each cell, as the
   renderers do; then this entry goes away.
+
+### 10. A table row's leading tab is an empty cell in IDGXML only (builder)
+
+`Builder#parse_table_rows` (HTML, LaTeX, the text formats) strips each row
+before splitting it, so a row that starts with a tab (`\tx`) is one cell, `x`,
+in the first column. `IDGXMLBuilder#parse_table_rows` does not strip, so the
+same row is an empty cell and then `x`, and the table gains a column if no
+other row is that wide. The AST splits the row once, as the shared builder
+does, so IDGXML is the one format whose output differs. This is a deliberate
+non-match (the same source cannot follow both).
+
+- Builder: `IDGXMLBuilder#parse_table_rows` vs `Builder#parse_table_rows`.
+- Question: should a leading tab mean an empty first cell (`.` is the
+  documented way to write one)? Make the builders agree, then this entry goes
+  away.

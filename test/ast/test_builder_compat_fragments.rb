@@ -355,6 +355,17 @@ class TestBuilderCompatFragments < Test::Unit::TestCase
     assert_parity("See @<pageref>{l1}.\n", formats: %i[idgxml latex])
   end
 
+  # A short row is padded out to the table width; the padding cell is th or
+  # td by its position (Builder#table_rows), not a copy of the row's first
+  # cell -- which made HTML print <th> padding in a table without a header.
+  def test_ragged_table_padding
+    ["//table[t1][C]{\nA\tB\tC\nx\n//}\n", "//table[t2][C]{\nA\tB\n------------\nx\n//}\n",
+     "//table[t3][C]{\nA\n------------\nx\ty\n//}\n"].each do |source|
+      assert_parity(source)
+      assert_text_lines_parity(source)
+    end
+  end
+
   GENERATOR_ROUND_TRIP = ["//image[i1][Cap]{\nart @<b>{x}\n  art2\n//}\n", "//image[i1][][scale=0.5]{\n//}\n",
                           "//indepimage[i1]{\nart\n//}\n", "//bpo{\nline1 @<b>{bold}\n\nline3\n//}\n",
                           "//box[Cap]{\nline1\n\nline3\n//}\n", "//insn[Cap]{\nline1\n//}\n",
