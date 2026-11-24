@@ -215,7 +215,9 @@ ignores is invisible to them. `test/ast/test_corpus_config_parity.rb` runs the
 same corpora once per entry in a table of non-default configurations
 (`caption_position`, `externallink`, `tabwidth`, `secnolevel`, `chapterlink`,
 `draft`, `footnotetext`, `join_lines_by_lang`, `structuredxml`/`listinfo`,
-EPUB2/HTML4), comparing each format the setting applies to. When a configuration
+EPUB2/HTML4, `textmaker.th_bold`), comparing each format the setting applies
+to -- plaintext and TOP included, compared without blank lines and leading tabs
+(the layout the text renderers do not reproduce). When a configuration
 makes the *builder* reject a chapter (`secnolevel: 1` leaves `@<sec>` targets
 unnumbered), the renderer must reject it too. Its first run found divergences
 under six of the settings, all since fixed; add an entry whenever a renderer starts honouring,

@@ -173,10 +173,115 @@ class TestReviewExtCompat < Test::Unit::TestCase
     assert_match(/mymark/, err)
   end
 
-  def test_redefined_builtin_block_is_reported
-    File.write(File.join(@dir, 'review-ext.rb'), REVIEW_EXT.sub("  class HTMLBuilder\n", "  class HTMLBuilder\n    def note(lines, caption = nil); puts 'mine'; end\n"))
+  def test_redefined_structural_hook_is_reported
+    File.write(File.join(@dir, 'review-ext.rb'), REVIEW_EXT.sub("  class HTMLBuilder\n", "  class HTMLBuilder\n    def headline(level, label, caption); puts 'mine'; end\n"))
     _, err = ast('html')
-    assert_match(/review-ext\.rb redefines HTMLBuilder#note, which the AST renderer does not call/, err)
+    assert_match(/review-ext\.rb redefines HTMLBuilder#headline, which the AST renderer does not call/, err)
+  end
+
+  # Redefinitions of built-in commands: a block (emlist, list, table), a
+  # minicolumn's ends (note_begin / note_end) and special inlines (ruby,
+  # href, a reference). The legacy path uses them, so the AST path must too --
+  # while still numbering the blocks itself (@<list> keeps resolving).
+  BUILTIN_OVERRIDES = <<~'RUBY'
+    module ReVIEW
+      class HTMLBuilder
+        def emlist(lines, caption = nil, _lang = nil)
+          puts %Q(<pre class="myemlist" title="#{escape(caption.to_s)}">#{lines.join("\n")}</pre>)
+        end
+
+        def list(lines, id, caption, _lang = nil)
+          puts %Q(<div class="mylist" id="#{id}">#{@chapter.list(id).number}: #{compile_inline(caption)}</div>)
+          lines.each { |line| puts line }
+        end
+
+        # As the builder's own note_begin/note_end do, mark the minicolumn
+        # open (the legacy compiler reads it to close the block).
+        def note_begin(caption = nil)
+          @doc_status[:minicolumn] = 'note'
+          puts %Q(<aside class="mynote"><h5>#{compile_inline(caption.to_s)}</h5>)
+        end
+
+        def note_end
+          puts '</aside>'
+          @doc_status[:minicolumn] = nil
+        end
+
+        def inline_ruby(str)
+          base, ruby = str.split(',', 2)
+          %Q(<span class="myruby" data-ruby="#{escape(ruby.to_s.strip)}">#{escape(base)}</span>)
+        end
+
+        def inline_href(str)
+          %Q(<span class="myhref">#{escape(str)}</span>)
+        end
+
+        def inline_list(id)
+          %Q(<span class="mylistref">#{id}</span>)
+        end
+      end
+
+      class LATEXBuilder
+        def emlist(lines, caption = nil, _lang = nil)
+          puts "\\begin{myemlist}{#{compile_inline(caption.to_s)}}"
+          lines.each { |line| puts line }
+          puts '\end{myemlist}'
+        end
+
+        def table(lines, id = nil, caption = nil)
+          puts "\\mytable{#{id}}{#{lines.size}}"
+        end
+
+        def inline_ruby(str)
+          macro('myruby', escape(str))
+        end
+      end
+    end
+  RUBY
+
+  BUILTIN_CHAPTER = <<~REVIEW
+    = Overrides
+
+    See @<list>{l1}; @<ruby>{漢字, かんじ} and @<href>{http://example.com, Example}.
+
+    //emlist[Code & caption]{
+    a < b @<b>{bold}
+    //}
+
+    //list[l1][The @<b>{list}]{
+    puts 1
+    //}
+
+    //note[Note @<i>{title}]{
+    A note with @<b>{markup}.
+
+    //emlist{
+    nested
+    //}
+    //}
+
+    //table[t1][Table]{
+    A	B
+    ------------
+    C	D
+    //}
+  REVIEW
+
+  def test_redefined_builtin_commands_are_used_as_in_the_legacy_path
+    File.write(File.join(@dir, 'review-ext.rb'), BUILTIN_OVERRIDES)
+    File.write(File.join(@dir, 'ch01.re'), BUILTIN_CHAPTER)
+
+    html = assert_same_as_legacy('html', ReVIEW::AST::Diff::Html)
+    assert_include(html, '<pre class="myemlist" title="Code &amp; caption">')
+    assert_include(html, '<div class="mylist" id="l1">1: The <b>list</b></div>')
+    assert_include(html, '<aside class="mynote"><h5>Note <i>title</i></h5>')
+    assert_include(html, '<span class="myruby" data-ruby="かんじ">漢字</span>')
+    assert_include(html, '<span class="mylistref">l1</span>')
+
+    latex = assert_same_as_legacy('latex', ReVIEW::AST::Diff::Latex)
+    assert_include(latex, '\\begin{myemlist}{Code \\& caption}')
+    assert_include(latex, '\\mytable{t1}{3}')
+    assert_include(latex, '\\myruby{漢字, かんじ}')
   end
 
   def test_ast_native_renderer_method_wins

@@ -46,6 +46,15 @@ module ReVIEW
       # builder a given compile targets.
       attr_accessor :image_path
 
+      # The command as the legacy compiler would hand it to a builder method:
+      # name, args and the body's source lines (SourceCommand), set on the node
+      # a block command produced. It lets a renderer pass the block to a
+      # review-ext.rb redefinition of that builder method (LegacyExtensionBridge).
+      # Transient: it is not serialized, so a tree loaded from JSON has none.
+      attr_accessor :source_command
+
+      SourceCommand = Struct.new(:name, :args, :lines)
+
       def initialize(location:, type: nil, id: nil, original_text: nil, **_kwargs)
         # Prevent direct instantiation of abstract base class (except in tests)
         if self.instance_of?(ReVIEW::AST::Node)

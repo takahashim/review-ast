@@ -27,11 +27,15 @@ module ReVIEW
     #
     # Only methods defined outside the review and review-ast gems count (that
     # is what tells a review-ext.rb method from the builder's own). Such a
-    # method also wins over the renderer's built-in handling of a plain inline
-    # command it redefines (`def inline_b`), as it does in the legacy path.
-    # Redefinitions the AST cannot route -- a built-in block command such as
-    # `def note`, a structural hook such as `def headline` -- are reported once
-    # with a warning instead of being silently ignored.
+    # method also wins over the renderer's built-in handling of the command it
+    # redefines, as it does in the legacy path: an inline (`def inline_b`,
+    # `def inline_ruby`), a block (`def emlist`, `def table`) or a minicolumn's
+    # ends (`def note_begin`). The renderer still numbers and indexes the
+    # block; the builder method only writes it. For that, each node keeps the
+    # command in the legacy compiler's form (Node#source_command,
+    # InlineNode#source_arg). Redefinitions the AST cannot route -- structural
+    # hooks such as `def headline`, and the parser directives -- are reported
+    # once with a warning instead of being silently ignored.
     class LegacyExtensionBridge
       # A ReVIEW::Compiler that fails at the first error. The legacy compiler
       # logs errors and fails at the end of the chapter; here the error has to
@@ -39,6 +43,42 @@ module ReVIEW
       class StrictCompiler < ReVIEW::Compiler
         def error(msg, location: nil)
           raise ReVIEW::CompileError, location ? "#{location}: #{msg}" : msg
+        end
+
+        # One block command, as #read_command and #compile_command would run
+        # it: the body's lines inline-compiled by the builder (raw for the
+        # commands the compiler leaves unparsed), with the command on the
+        # name stack the escaping decisions read.
+        def run_command(name, args, lines)
+          @command_name_stack.push(name)
+          compile_command(syntax_descriptor(name), args, lines && compile_body(name, lines))
+        ensure
+          @command_name_stack.pop
+        end
+
+        # #compile_minicolumn_begin / #compile_minicolumn_end.
+        def run_minicolumn_begin(name, args)
+          compile_minicolumn_begin(name, *args)
+        end
+
+        def run_minicolumn_end
+          compile_minicolumn_end
+        end
+
+        private
+
+        def compile_body(name, lines)
+          raw = @non_parsed_commands.include?(name)
+          @builder.doc_status[name] = true
+          lines.filter_map do |line|
+            if raw
+              line.chomp
+            elsif !line.start_with?('#@')
+              text(line.rstrip, true)
+            end
+          end
+        ensure
+          @builder.doc_status[name] = nil
         end
       end
 
@@ -54,9 +94,11 @@ module ReVIEW
         File.expand_path('../..', __dir__)
       ].map { |dir| File.join(dir, '') }.freeze
 
-      # Builder methods whose redefinition the AST path does not pick up.
+      # Builder methods whose redefinition the AST path does not pick up: the
+      # structure the AST renders itself, and the parser directives it lowers.
       STRUCTURAL_HOOKS = %i[headline paragraph ul_begin ul_item ul_end ol_begin ol_item ol_end
-                            dl_begin dt dd dl_end column_begin column_end result].freeze
+                            dl_begin dt dd dl_end column_begin column_end result
+                            noindent olnum firstlinenum tsize beginchild endchild].freeze
 
       @warned = {}
 
@@ -82,6 +124,17 @@ module ReVIEW
           end
         end
 
+        # Whether review-ext.rb redefined the builder method for this block
+        # command (for a minicolumn, its _begin or _end). Asked for every
+        # block, so it is answered without binding a builder.
+        def block_overridden?(klass, name, minicolumn: false)
+          @overridden ||= {}
+          @overridden.fetch([klass, name, minicolumn]) do
+            names = minicolumn ? [:"#{name}_begin", :"#{name}_end"] : [name.to_sym]
+            @overridden[[klass, name, minicolumn]] = names.any? { |method| extension_method?(klass, method) }
+          end
+        end
+
         def unroutable_overrides(klass)
           (klass.instance_methods + klass.private_instance_methods).uniq.select do |name|
             unroutable_name?(name) && extension_method?(klass, name)
@@ -91,17 +144,7 @@ module ReVIEW
         private
 
         def unroutable_name?(name)
-          name = name.to_s
-          if name.start_with?('inline_')
-            # A special inline keeps parsed fields, not the raw argument.
-            ReVIEW::AST::InlineProcessor::DEFAULT_INLINE_HANDLERS.key?(name.delete_prefix('inline_').to_sym)
-          else
-            STRUCTURAL_HOOKS.include?(name.to_sym) || ast_block_command?(name.to_sym)
-          end
-        end
-
-        def ast_block_command?(name)
-          ReVIEW::AST::BlockProcessor::BLOCK_COMMAND_TABLE.key?(name)
+          STRUCTURAL_HOOKS.include?(name.to_sym)
         end
       end
 
@@ -133,15 +176,24 @@ module ReVIEW
       # The builder method's output for one ExtensionBlockNode, as
       # ReVIEW::Compiler#compile_command would call it.
       def render_block(node)
-        at(node.location) do
-          captured do
-            if node.body?
-              lines = node.lines.map { |line| @compiler.text(line.rstrip, true) }
-              @builder.__send__(node.block_type, lines, *node.args)
-            else
-              @builder.__send__(node.block_type, *node.args)
-            end
-          end
+        render_command(node.block_type, node.args, node.lines, node.location)
+      end
+
+      # The builder method's output for a block command given in its legacy
+      # form (Node#source_command): a review-ext.rb redefinition of a built-in
+      # command such as LATEXBuilder#emlist.
+      def render_command(name, args, lines, location)
+        at(location) { captured { @compiler.run_command(name, args, lines) } }
+      end
+
+      # A minicolumn (//note{ ... //}) whose <name>_begin / <name>_end
+      # review-ext.rb redefined: the builder writes both ends, the renderer
+      # (the block) the content in between, as in the legacy compiler.
+      def render_minicolumn(name, args, location)
+        at(location) do
+          head = captured { @compiler.run_minicolumn_begin(name, args) }
+          body = yield
+          head + body + captured { @compiler.run_minicolumn_end }
         end
       end
 

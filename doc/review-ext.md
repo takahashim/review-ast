@@ -20,7 +20,9 @@ not, and how to write an extension against the AST renderers directly.
 |---|---|
 | `defblock` / `defsingle` / `defminicolumn` + `XXXBuilder#name(lines, *args)` | The command becomes an `ExtensionBlockNode` (arguments and raw body lines). The renderer for that format calls the builder method exactly as `ReVIEW::Compiler` would — each body line inline-compiled by the builder, then `name(lines, *args)`, or `name(*args)` for a single-line command — and inserts what it wrote. |
 | `definline` + `XXXBuilder#inline_name(str)` | The inline is an ordinary `InlineNode`; the renderer calls `inline_name` with the raw argument and inserts the result. |
-| Redefining a plain inline (`def inline_b(str)`, `def inline_u(str)`, …) | The redefinition is used, as in the legacy path. |
+| Redefining an inline command (`def inline_b(str)`, `def inline_ruby(str)`, `def inline_href(str)`, a reference such as `def inline_list(id)`, …) | The redefinition is used, as in the legacy path, called with the argument exactly as the legacy compiler passes it. |
+| Redefining a built-in block command (`def emlist(lines, caption, lang)`, `def list(...)`, `def table(...)`, `def quote(lines)`, …) | The redefinition writes the block, called as `ReVIEW::Compiler` would call it (body lines inline-compiled by the builder, the bracketed arguments raw). The AST still numbers and indexes the block, so `@<list>{id}` and the like keep resolving. |
+| Redefining a minicolumn's ends (`def note_begin(caption)`, `def note_end`) | Used for the two ends, as the legacy compiler uses them for `//note{ … //}`; the content in between is rendered by the AST renderer. |
 | Argument counts and body rules of `defblock`/`defsingle` | Checked the same way (`check_args`; "block is required" / "block is not allowed"). |
 | A command the builder for the target format does not implement | An error, `builder does not support command: //name`, as in the legacy path. |
 
@@ -37,23 +39,30 @@ own.
 with `block_type`, `args`, `lines`) and `review-ast-dump2re` writes it back as
 it was.
 
+To call a redefinition with the arguments the legacy compiler would pass, each
+node keeps the command in that form while the chapter is rendered
+(`Node#source_command`, `InlineNode#source_arg`). This is not part of the JSON
+dump, so a tree rendered from `review-ast-dump` output does not use
+redefinitions of built-in commands.
+
 ## What is not picked up
 
-Redefinitions of things the AST renders itself are **not** used, because the
-AST does not go through those builder methods:
+Redefinitions of the structure the AST renders itself are **not** used, because
+the AST does not go through those builder methods:
 
-- built-in block commands (`def note`, `def list`, `def table`, …);
-- special inline commands whose argument the AST parses into fields
-  (`inline_ruby`, `inline_href`, `inline_kw`, and the reference commands such
-  as `inline_img`, `inline_hd`, `inline_chap`);
-- structural hooks (`headline`, `paragraph`, `ul_item`, `column_begin`,
-  `result`, …).
+- structural hooks (`headline`, `paragraph`, `ul_item`, `ol_item`, `dt`, `dd`,
+  `column_begin`, `column_end`, `result`, …);
+- the parser directives the AST lowers onto the next block (`noindent`,
+  `olnum`, `firstlinenum`, `tsize`, `beginchild`, `endchild`).
 
 Each such redefinition is reported once per run with a warning:
 
 ```text
-review-ext.rb redefines HTMLBuilder#note, which the AST renderer does not call; implement it on the renderer instead (see doc/review-ext.md)
+review-ext.rb redefines HTMLBuilder#headline, which the AST renderer does not call; implement it on the renderer instead (see doc/review-ext.md)
 ```
+
+Redefining `def note(lines, caption)` itself has no effect in either path: the
+legacy compiler, too, renders `//note{ … //}` through `note_begin` / `note_end`.
 
 Helper methods that only your own extension methods call are not reported.
 
