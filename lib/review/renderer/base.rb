@@ -269,7 +269,26 @@ module ReVIEW
         return extended if extended
 
         content = render_children(node)
-        render_inline_element(node.inline_type, content, node)
+        dispatch_inline_element(node.inline_type, content, node)
+      end
+
+      # render_inline_element, unless review-ext.rb gave this renderer its own
+      # `render_inline_<type>`: that wins, in every format. (The renderers
+      # dispatch built-in inlines differently -- HTML, LaTeX, IDGXML and Typst
+      # through an inline element handler, TOP through a case -- so the
+      # extension method is looked for here, once, rather than in each.)
+      def dispatch_inline_element(type, content, node)
+        return send(:"render_inline_#{type}", type, content, node) if renderer_extension_inline?(type)
+
+        render_inline_element(type, content, node)
+      end
+
+      # Whether review-ext.rb defined `render_inline_<type>` on this renderer.
+      def renderer_extension_inline?(type)
+        @renderer_extension_inline ||= {}
+        @renderer_extension_inline.fetch(type) do
+          @renderer_extension_inline[type] = LegacyExtensionBridge.extension_method?(self.class, :"render_inline_#{type}")
+        end
       end
 
       # A block command defined in review-ext.rb. A renderer method
@@ -304,7 +323,7 @@ module ReVIEW
 
         type = node.inline_type
         return unless LegacyExtensionBridge.extension_method?(builder_class, :"inline_#{type}")
-        return if LegacyExtensionBridge.extension_method?(self.class, :"render_inline_#{type}")
+        return if renderer_extension_inline?(type)
 
         # The argument as the legacy compiler passes it. A special inline
         # (ruby, href, references ...) keeps parsed fields in args, so only its
@@ -366,6 +385,9 @@ module ReVIEW
         return if builder_class.nil? || AST::BookUnitView.markdown?(@chapter)
 
         if inline
+          # A review-ext.rb `render_inline_<type>` on the renderer implements
+          # the op for this format as well as a builder method would.
+          return if renderer_extension_inline?(node.inline_type)
           return if LegacyExtensionBridge.builder_supports_inline?(builder_class, node.inline_type)
 
           raise ReVIEW::CompileError, "builder does not support inline op: @<#{node.inline_type}>#{node.location&.format_for_error}"

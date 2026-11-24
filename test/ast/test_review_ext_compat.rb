@@ -325,6 +325,32 @@ class TestReviewExtCompat < Test::Unit::TestCase
     assert_include(out, '<aside data-args="1" data-lines="3"></aside>')
   end
 
+  # A review-ext.rb `render_inline_<name>` on a renderer renders the inline in
+  # every format: on its own (plaintext, TOP and Typst, whose builders
+  # review-ext.rb leaves without #inline_mykbd -- Typst has no builder at all)
+  # and over a builder method (HTML, LaTeX, IDGXML). It used to be an error in
+  # all six, or, in TOP, to drop the command silently.
+  RENDERER_INLINE = <<~'RUBY'
+    %w[html latex idgxml plaintext top typst].each { |f| require "review/renderer/#{f}_renderer" }
+    [ReVIEW::Renderer::HtmlRenderer, ReVIEW::Renderer::LatexRenderer, ReVIEW::Renderer::IdgxmlRenderer,
+     ReVIEW::Renderer::PlaintextRenderer, ReVIEW::Renderer::TopRenderer, ReVIEW::Renderer::TypstRenderer].each do |klass|
+      klass.class_eval do
+        def render_inline_mykbd(_type, content, node)
+          "[kbd #{content}|#{node.args.first}]"
+        end
+      end
+    end
+  RUBY
+
+  def test_renderer_inline_method_works_in_every_format
+    File.write(File.join(@dir, 'review-ext.rb'), REVIEW_EXT + RENDERER_INLINE)
+    File.write(File.join(@dir, 'ch01.re'), "= C\n\nPress @<mykbd>{K} now.\n")
+    %w[html latex idgxml plaintext top typst].each do |target|
+      out, = ast(target)
+      assert_include(out, '[kbd K|K]', target)
+    end
+  end
+
   def test_round_trip_keeps_the_extension_block
     json, err, status = run_in_book('-I', File.join(ROOT, 'lib'), File.join(ROOT, 'bin/review-ast-dump'), 'ch01.re')
     assert(status.success?, err)

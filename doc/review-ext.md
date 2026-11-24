@@ -72,10 +72,15 @@ Helper methods that only your own extension methods call are not reported.
 
 ## Writing an extension for the AST renderers
 
-A renderer method takes precedence over the builder method, and is the only
-option for Typst. Define it in review-ext.rb (requiring the renderer first):
+A renderer method takes precedence over the builder method, in every format,
+and is the only option for Typst (which has no legacy builder). Declare the
+command as for the legacy path, then define the method in review-ext.rb
+(requiring the renderer first):
 
 ```ruby
+ReVIEW::Compiler.defblock :mybox, 0..1
+ReVIEW::Compiler.definline :mykbd
+
 require 'review/renderer/html_renderer'
 
 module ReVIEW
@@ -98,20 +103,48 @@ end
 ```
 
 - `visit_block_<name>(node)` receives the `ExtensionBlockNode`: `node.args`,
-  `node.lines` (raw source lines, `nil` for a single-line command),
-  `node.body?`, `node.location`.
+  `node.lines`, `node.body?`, `node.location`.
+  `node.lines` holds the body's **raw source lines** (`nil` for a
+  single-line `defsingle` command): the AST does not parse an extension
+  block's body, so inline commands in it are not rendered. In the example,
+  `@<b>{x}` in a `//mybox` body comes out as the literal text `@<b>{x}`. A
+  builder method, by contrast, receives the lines inline-compiled by the
+  builder. (Bodies parsed into nodes are planned; see
+  [design-extension-api.ja.md](design-extension-api.ja.md).)
 - `render_inline_<name>(type, content, node)` receives the inline's rendered
-  (escaped) content; `node.args.first` is the raw argument.
-- The command still has to be declared (`ReVIEW::Compiler.definline :mykbd`):
-  as in the legacy compiler, an inline op nobody declared is a compile error
-  (`no such inline op: mykbd`), in every format.
+  (escaped) content; `node.args.first` is the raw argument. It is enough on
+  its own: the builder for that format needs no `inline_<name>` as well.
+- Either way the command has to be declared (`ReVIEW::Compiler.defblock`,
+  `definline`, …): as in the legacy compiler, a command nobody declared is a
+  compile error (`no such inline op: mykbd`), in every format.
 
 The same applies to `LatexRenderer`, `IdgxmlRenderer`, `PlaintextRenderer`,
-`TopRenderer` and `TypstRenderer`.
+`TopRenderer` and `TypstRenderer`. For a command, the order is:
+
+1. the renderer's `visit_block_<name>` / `render_inline_<name>`;
+2. the builder method review-ext.rb defined (`name` / `inline_name`);
+3. otherwise an error, `builder does not support command: //name` (or
+   `inline op: @<name>`).
+
+### Renderer methods are not a stable interface
+
+Only `visit_block_<name>` for a command review-ext.rb declared and
+`render_inline_<name>` are supported extension points. Everything else on a
+renderer is internal:
+
+- Reopening a renderer lets you replace any of its methods, including those
+  that render built-in commands (`visit_block_box`, `visit_headline`, …). Such
+  a replacement is **not** checked or reported, unlike a builder
+  redefinition the AST does not call, and may break when the renderer
+  changes. Redefine a built-in command on the builder instead (see
+  [What works unchanged](#what-works-unchanged)).
+- Helpers an extension method calls, such as `escape` and `render_children`,
+  are the renderer's own and carry no compatibility promise.
 
 ## Testing
 
 `test/ast/test_review_ext_compat.rb` builds a small book with a review-ext.rb
 through `review-compile` and `review-ast-compile` and requires the HTML, LaTeX
-and IDGXML output to match. (review-ext.rb reopens classes for the rest of the
-process, so those builds run in child processes.)
+and IDGXML output to match. It also checks that a renderer's
+`render_inline_<name>` works in all six formats. (review-ext.rb reopens classes
+for the rest of the process, so those builds run in child processes.)
