@@ -313,6 +313,7 @@ the builder behaviour is a bug or a builder-specific quirk.
 | 5 | Table-cell leading-dot escaping | HTMLBuilder unescapes `..15`→`.15`; IDGXMLBuilder keeps `..15` | normalizes to `.15` (matches HTML; intentionally incompatible with IDGXML byte-exactness) | fix-now | open |
 | 6 | Fields after the second in `@<href>` | dropped without a warning (`@<ruby>` joins them into the reading) | reproduces the builder (same splitting regexp) | canonicalize? | open |
 | 7 | `@<tcy>` in IDGXML | the generic `Builder#inline_tcy` writes the text unescaped | emits the same `[rotate 90 degree]` note but escapes the text (intentionally incompatible) | fix-now | open |
+| 8 | `@<chapref>` in the text formats | with `chapterlink` on, writes a `<link href="…">` element into plain text | prints the reference text alone (intentionally incompatible) | fix-now | open |
 
 Besides these, one thing is simply unimplemented rather than divergent (see
 `doc/differential-testing.md`): `//graph` (external-tool image) is not

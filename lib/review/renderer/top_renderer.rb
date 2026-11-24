@@ -338,6 +338,7 @@ module ReVIEW
 
         result = +''
         @table_row_separator_count = 0
+        @table_header_row_count = node.header_rows.size
 
         result += "\n"
         result += "◆→開始:#{TITLES[:table]}←◆\n"
@@ -376,10 +377,11 @@ module ReVIEW
 
         result = cells.join("\t") + "\n"
 
-        # Add separator after header rows
+        # TOPBuilder#table_rows draws the rule after the header rows, and only
+        # for a table that has some (a source separator line); a table
+        # without one gets no rule.
         @table_row_separator_count += 1
-        # Check if this should be treated as header (simplified logic)
-        if @table_row_separator_count == 1 && should_add_table_separator?
+        if @table_header_row_count.to_i > 0 && @table_row_separator_count == @table_header_row_count && should_add_table_separator?
           result += "#{'-' * 12}\n"
         end
 
@@ -583,7 +585,7 @@ module ReVIEW
         case type
         when :b, :strong, :wb # Builder#inline_wb is inline_b of the word
           "★#{content}☆"
-        when :i, :em
+        when :i # not :em -- TOPBuilder leaves @<em> plain (PLAINTEXTBuilder#inline_em)
           "▲#{content}☆"
         when :code, :tt
           "△#{content}☆"

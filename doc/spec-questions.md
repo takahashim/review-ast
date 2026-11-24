@@ -179,3 +179,17 @@ used for.
 - Builder: `Builder#inline_tcy` (generic fallback, used by IDGXMLBuilder).
 - Question: give IDGXMLBuilder its own `#inline_tcy` that escapes (and perhaps
   emits real InDesign markup), then this entry goes away.
+
+### 8. The text builders put `<link href>` markup into plain text
+
+With `chapterlink` on (the default), `PLAINTEXTBuilder#inline_chapref` -- which
+TOPBuilder inherits -- returns `<link href="ch01">第1章「章見出し」</link>`:
+the IDGXML-style link element, in a plain-text format where it means nothing
+and reads as garbage. The plaintext and TOP renderers print the reference text
+alone. This is a deliberate non-match; the whole-book comparison
+(`test/ast/test_maker_parity.rb`) strips the element from the builder's side
+before comparing.
+
+- Builder: `PLAINTEXTBuilder#inline_chapref` (the `chapterlink` branch).
+- Question: drop the element in the text builders, then the strip in the test
+  and this entry go away.

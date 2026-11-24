@@ -228,6 +228,7 @@ Re:VIEW のインライン記法(`@<img>{id}` など)は Markdown 中でもそ�
 | 5 | 表セル先頭ドットのエスケープ | HTMLBuilder は `..15`→`.15`、IDGXMLBuilder は `..15` のまま | `.15` に正規化(HTML に一致。IDGXML byte 一致とは意図的に非互換) | 即修正 | open |
 | 6 | `@<href>` の 3 番目以降のフィールド | 警告なしに捨てる(`@<ruby>` は読みに連結する) | ビルダーを再現(同じ正規表現で分割) | 正典化? | open |
 | 7 | IDGXML の `@<tcy>` | 汎用 `Builder#inline_tcy` が本文を未エスケープで出す | 同じ `[rotate 90 degree]` 注記を出すが本文はエスケープする(意図的に非互換) | 即修正 | open |
+| 8 | テキスト形式の `@<chapref>` | `chapterlink` 有効時に `<link href="…">` 要素をプレーンテキストへ出す | 参照文字列だけを出す(意図的に非互換) | 即修正 | open |
 
 このほかに、乖離ではなく単なる未実装が一つある(`doc/differential-testing.md` 参照)。
 `//graph`(外部ツール画像)は、AST の LaTeX レンダラで未実装である。

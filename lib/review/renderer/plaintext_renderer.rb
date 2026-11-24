@@ -92,17 +92,35 @@ module ReVIEW
         "\n#{result}\n"
       end
 
+      # One item per line, as PLAINTEXTBuilder#ul_item/#ol_item print it: the
+      # item's own source lines folded by join_lines_to_paragraph (continuation
+      # lines are separate children, marked by source_line_breaks), then any
+      # nested list on the lines after it -- not folded into the item's line.
       def visit_list_item(node, type = :ul)
-        content = render_children(node)
-        # Remove paragraph newlines and join
-        text = content.gsub(/\n+/, ' ').strip
-
-        case type
-        when :ul
-          "#{text}\n"
-        when :ol
-          "#{@ol_num}　#{text}\n"
+        breaks = node.source_line_breaks
+        inline = +''
+        nested = +''
+        node.children.each_with_index do |child, index|
+          if child.is_a?(ReVIEW::AST::TextNode) || child.is_a?(ReVIEW::AST::InlineNode)
+            inline << "\n" if !inline.empty? && breaks.include?(index)
+            inline << visit(child)
+          else
+            nested << visit_nested_block(child)
+          end
         end
+        text = join_paragraph_lines(inline).strip
+
+        line = type == :ol ? "#{@ol_num}　#{text}\n" : "#{text}\n"
+        line + nested
+      end
+
+      # A nested //ol restarts and then clears the item counter; keep the
+      # enclosing list's.
+      def visit_nested_block(node)
+        saved = @ol_num
+        visit(node)
+      ensure
+        @ol_num = saved
       end
 
       def visit_definition_item(node)
