@@ -8,6 +8,7 @@
 
 require 'review/pdfmaker'
 require 'review/ast'
+require 'review/ast/book_unit_view'
 require 'review/renderer/latex_renderer'
 
 module ReVIEW
@@ -66,10 +67,58 @@ module ReVIEW
 
         # Override the converter creation point in build_pdf
         # This method replaces the direct Converter.new call in the parent class
+        #
+        # This is ReVIEW::PDFMaker#make_input_files with every part and chapter
+        # passed through BookUnitView: the base maker sorts chapters into
+        # PREDEF/CHAPS/APPENDIX/POSTDEF with Chapter#on_*?, which are all false
+        # for a Markdown chapter, so a Markdown book's __REVIEW_BOOK__.tex
+        # \input'ed no chapter at all; and a Markdown part file became a bare
+        # \part{part2.md}.
         def make_input_files(book)
           @converter = create_converter(book)
 
-          super
+          input_files = Hash.new { |h, key| h[key] = +'' }
+          book.parts.each do |part|
+            part = ReVIEW::AST::BookUnitView.wrap(part)
+            add_part_input(input_files, part) if part.name.present?
+
+            part.chapters.each do |chap|
+              add_chapter_input(input_files, ReVIEW::AST::BookUnitView.wrap(chap))
+            end
+          end
+          input_files
+        end
+
+        def add_part_input(input_files, part)
+          @config['use_part'] = true
+          unless part.file?
+            input_files['CHAPS'] << %Q(\\part{#{part.name}}\n)
+            return
+          end
+
+          if @buildonly && !@buildonly.include?(part.name)
+            warn "skip #{part.name}.re"
+            input_files['CHAPS'] << %Q(\\part{}\n)
+          else
+            output_chaps(part.name)
+            input_files['CHAPS'] << %Q(\\input{#{part.name}.tex}\n)
+          end
+        end
+
+        def add_chapter_input(input_files, chap)
+          filename = File.basename(chap.path, '.*')
+          entry = "\\input{#{filename}.tex}\n"
+          if @buildonly && !@buildonly.include?(filename)
+            warn "skip #{filename}.re"
+            entry = "\\chapter{}\n"
+          else
+            output_chaps(filename)
+          end
+
+          input_files['PREDEF'] << entry if chap.on_predef?
+          input_files['CHAPS'] << entry if chap.on_chaps?
+          input_files['APPENDIX'] << entry if chap.on_appendix?
+          input_files['POSTDEF'] << entry if chap.on_postdef?
         end
       end
 
@@ -168,7 +217,7 @@ module ReVIEW
           return chapter if chapter
 
           # Then check parts with content files
-          @book.parts_in_file.find { |part| File.basename(part.path, '.*') == basename }
+          ReVIEW::AST::BookUnitView.parts_in_file(@book).find { |part| File.basename(part.path, '.*') == basename }
         end
       end
     end

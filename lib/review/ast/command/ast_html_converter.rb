@@ -8,6 +8,7 @@
 
 require 'review/ast'
 require 'review/renderer/html_renderer'
+require 'review/ast/book_unit_view'
 
 module ReVIEW
   module AST
@@ -26,6 +27,8 @@ module ReVIEW
           @img_math = img_math
           @web_toc = web_toc
         end
+
+        attr_reader :book
 
         def convert(file, output_path)
           chapter = find_chapter(file)
@@ -49,7 +52,7 @@ module ReVIEW
         def find_chapter(file)
           basename = File.basename(file, '.*')
           @book.chapters.find { |ch| File.basename(ch.path, '.*') == basename } ||
-            @book.parts_in_file.find { |part| File.basename(part.path, '.*') == basename }
+            BookUnitView.parts_in_file(@book).find { |part| File.basename(part.path, '.*') == basename }
         end
       end
     end

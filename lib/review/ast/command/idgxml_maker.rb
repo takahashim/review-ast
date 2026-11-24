@@ -8,6 +8,7 @@
 
 require 'review/idgxmlmaker'
 require 'review/ast'
+require 'review/ast/book_unit_view'
 require 'review/renderer/idgxml_renderer'
 
 module ReVIEW
@@ -35,6 +36,7 @@ module ReVIEW
           @compile_errors = false
 
           book.parts.each do |part|
+            part = ReVIEW::AST::BookUnitView.wrap(part)
             if part.name.present?
               if part.file?
                 build_chap(part, base_path, basetmpdir, true)
@@ -44,7 +46,7 @@ module ReVIEW
               end
             end
             part.chapters.each do |chap|
-              build_chap(chap, base_path, basetmpdir, false)
+              build_chap(ReVIEW::AST::BookUnitView.wrap(chap), base_path, basetmpdir, false)
             end
           end
 
@@ -165,7 +167,7 @@ module ReVIEW
           chapter = @book.chapters.find { |ch| File.basename(ch.path, '.*') == basename }
           return chapter if chapter
 
-          @book.parts_in_file.find { |part| File.basename(part.path, '.*') == basename }
+          ReVIEW::AST::BookUnitView.parts_in_file(@book).find { |part| File.basename(part.path, '.*') == basename }
         end
 
         def handle_known_error(filename, error)

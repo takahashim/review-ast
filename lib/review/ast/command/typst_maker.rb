@@ -17,6 +17,7 @@ require 'review/loggable'
 require 'review/makerhelper'
 require 'review/version'
 require 'review/ast'
+require 'review/ast/book_unit_view'
 require 'review/ast/typst_assets'
 require 'review/renderer/typst_renderer'
 require_relative 'typst/chapter_set'
@@ -292,7 +293,7 @@ module ReVIEW
           return if part.name.to_s == ''
 
           @config['use_part'] = true
-          unless part.file?
+          unless ReVIEW::AST::BookUnitView.part_file?(part)
             source = ReVIEW::Renderer::Typst::PartDocument.source(
               part, ReVIEW::Renderer::TypstRenderer::LIBRARY_IMPORT
             )

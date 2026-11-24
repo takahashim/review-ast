@@ -12,6 +12,7 @@ require_relative 'compiler'
 require_relative 'headline_node'
 require_relative 'section_counter'
 require_relative 'chapter_title'
+require_relative 'book_unit_view'
 
 module ReVIEW
   module AST
@@ -39,7 +40,7 @@ module ReVIEW
         items = [%Q(<ul class="book-toc">), %Q(<li><a href="index.#{@htmlext}">TOP</a></li>)]
         @book.parts.each do |part|
           if part.name.present?
-            items << if part.file?
+            items << if BookUnitView.part_file?(part)
                        chapter_li(part)
                      else
                        %Q(<li>#{escape(part_label(part))}</li>)

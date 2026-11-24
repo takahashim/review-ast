@@ -12,7 +12,7 @@ require 'review/ast/stylesheet_resolver'
 require 'review/ast/web_assets'
 require 'review/ast/web_toc_builder'
 require_relative 'ast_html_converter'
-require_relative 'markdown_chapter_view'
+require 'review/ast/book_unit_view'
 
 module ReVIEW
   module AST
@@ -30,9 +30,28 @@ module ReVIEW
       class WebMaker < ReVIEW::WEBMaker
         private
 
+        # The base WEBMaker#build_body, with every part and chapter passed
+        # through BookUnitView so a Markdown book is laid out like a .re one.
+        def build_body(basetmpdir, _yamlfile)
+          base_path = Pathname.new(@basedir)
+          @compile_errors = nil
+          @book.parts.each do |part|
+            part = BookUnitView.wrap(part)
+            if part.name.present?
+              if part.file?
+                build_chap(part, base_path, basetmpdir, true)
+              else
+                build_part(part, basetmpdir, "part_#{part.number}.#{@config['htmlext']}")
+              end
+            end
+
+            part.chapters.each { |chap| build_chap(BookUnitView.wrap(chap), base_path, basetmpdir, false) }
+          end
+          app_error 'compile error, No web files output.' if @compile_errors
+        end
+
         def build_chap(chap, base_path, basetmpdir, ispart)
           @converter = ast_converter
-          chap = MarkdownChapterView.wrap(chap) unless ispart
           super
         end
 

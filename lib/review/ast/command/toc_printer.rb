@@ -13,6 +13,7 @@ require 'review/ast'
 require 'review/ast/compiler'
 require 'review/renderer/plaintext_renderer'
 require 'review/ast/chapter_title'
+require 'review/ast/book_unit_view'
 
 module ReVIEW
   module AST
@@ -66,7 +67,7 @@ module ReVIEW
             listed = part.name.present? && (@buildonly.nil? || @buildonly.include?(part.name))
             if listed
               result_array.push(Counter.new(part: 'start'))
-              if part.file? || ReVIEW::AST::ChapterTitle.markdown?(part)
+              if ReVIEW::AST::BookUnitView.part_file?(part)
                 result_array.concat(parse_contents(part.name, @upper, build_chap(part)))
               else
                 title = part.format_number + I18n.t('chapter_postfix') + part.title
