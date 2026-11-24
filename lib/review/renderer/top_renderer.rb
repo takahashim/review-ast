@@ -429,7 +429,14 @@ module ReVIEW
       # The caption line for an image block, empty when there is no caption.
       def image_caption(node)
         caption = render_caption_inline(node.caption_node)
-        return '' if caption.empty?
+        # TOPBuilder#image prints the heading even for an empty caption
+        # (//image[id][][scale=0.5]); #indepimage only for a present one.
+        if caption.empty?
+          return '' unless node.image_type == :image && node.definition_number && render_context.chapter_present?
+
+          dn = node.definition_number
+          return "#{text_formatter.format_caption_plain('image', dn.chapter_number, dn.number)}#{I18n.t('caption_prefix_idgxml')}\n"
+        end
 
         if node.id
           # Use I18n formatting to match TOPBuilder
@@ -659,6 +666,10 @@ module ReVIEW
           "#{content}◆→索引項目:#{content}←◆"
         when :hidx
           "◆→索引項目:#{content}←◆"
+        when :imgref
+          image_reference_with_caption(node, content)
+        when :dtp # inherited PLAINTEXTBuilder#inline_dtp
+          ''
         when :balloon
           "\t←#{content}"
         when :m
@@ -784,6 +795,10 @@ module ReVIEW
       def image_marker(node)
         unless node.image_path
           warn "image not bound: #{node.id}"
+          # TOPBuilder prints the block's body lines in its place (for an
+          # //imgtable, its rows).
+          return node.dummy_lines.map { |line| "#{render_children(line)}\n" }.join if node.respond_to?(:dummy_lines)
+
           body = render_children(node)
           return body if body.empty? || body.end_with?("\n")
 

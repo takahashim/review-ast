@@ -354,10 +354,10 @@ module ReVIEW
         # at compile time, so no chapter image index lookup is needed here.
         if caption_node
           @rendering_context.with_child_context(:caption) do |caption_context|
-            image_image_html_with_context(node.id, caption_node, id_attr, caption_context, node.image_type, node.definition_number, node.metric, image_path: node.image_path)
+            image_image_html_with_context(node, id_attr, caption_context)
           end
         else
-          image_image_html(node.id, caption_node, id_attr, node.image_type, node.definition_number, node.metric, image_path: node.image_path)
+          image_image_html(node, id_attr)
         end
       end
 
@@ -435,8 +435,9 @@ module ReVIEW
         render_captioned_block('point', node)
       end
 
+      # HTMLBuilder#bpo: each (inline-compiled) line, detabbed.
       def visit_block_bpo(node)
-        "<bpo>\n#{render_children(node)}</bpo>\n"
+        "<bpo>\n#{node.children.map { |line_node| "#{detab(render_children(line_node))}\n" }.join}</bpo>\n"
       end
 
       def visit_block_comment(node)
@@ -1162,17 +1163,26 @@ module ReVIEW
         [prefix, anchor]
       end
 
-      def image_image_html(id, caption_node, id_attr, image_type = :image, definition_number = nil, metric = nil, image_path: nil)
-        caption_html = image_header_html(id, caption_node, image_type, definition_number)
+      # The body lines an unbound image prints in its place (HTMLBuilder#image_dummy).
+      def rendered_dummy_lines(node)
+        node.dummy_lines.map { |line| render_children(line) }
+      end
+
+      def image_image_html(node, id_attr)
+        id = node.id
+        caption_node = node.caption_node
+        caption_html = image_header_html(id, caption_node, node.image_type, node.definition_number)
         caption_present = !caption_html.empty?
 
         # image_path was resolved at compile time and stamped on the node; nil
         # means unbound, so fall back to the dummy image.
-        return image_dummy_html(id, caption_node, [], id_attr, image_type, definition_number) unless image_path
+        unless node.image_path
+          return image_dummy_html(id, caption_node, rendered_dummy_lines(node), id_attr, node.image_type, node.definition_number)
+        end
 
-        src = image_path.sub(%r{\A\./}, '')
+        src = node.image_path.sub(%r{\A\./}, '')
         alt_text = escape(render_caption_inline(caption_node))
-        img_html = %Q(<img src="#{src}" alt="#{alt_text}"#{parse_metric('html', metric)} />)
+        img_html = %Q(<img src="#{src}" alt="#{alt_text}"#{parse_metric('html', node.metric)} />)
 
         # Check caption positioning like HTMLBuilder
         if caption_top?('image') && caption_present
@@ -1182,18 +1192,20 @@ module ReVIEW
         end
       end
 
-      def image_image_html_with_context(id, caption_node, id_attr, caption_context, image_type = :image, definition_number = nil, metric = nil, image_path: nil)
-        caption_html = image_header_html_with_context(id, caption_node, caption_context, image_type, definition_number)
+      def image_image_html_with_context(node, id_attr, caption_context)
+        id = node.id
+        caption_node = node.caption_node
+        caption_html = image_header_html_with_context(id, caption_node, caption_context, node.image_type, node.definition_number)
         caption_present = !caption_html.empty?
 
         # image_path was resolved at compile time and stamped on the node; nil
         # means unbound, so fall back to the dummy image.
-        unless image_path
-          return image_dummy_html_with_context(id, caption_node, [], id_attr, caption_context, image_type, definition_number)
+        unless node.image_path
+          return image_dummy_html_with_context(id, caption_node, rendered_dummy_lines(node), id_attr, caption_context, node.image_type, node.definition_number)
         end
 
-        src = image_path.sub(%r{\A\./}, '')
-        img_html = %Q(<img src="#{src}" alt="#{escape(render_caption_inline(caption_node))}"#{parse_metric('html', metric)} />)
+        src = node.image_path.sub(%r{\A\./}, '')
+        img_html = %Q(<img src="#{src}" alt="#{escape(render_caption_inline(caption_node))}"#{parse_metric('html', node.metric)} />)
 
         # Check caption positioning like HTMLBuilder
         if caption_top?('image') && caption_present
@@ -1207,12 +1219,12 @@ module ReVIEW
         caption_html = image_header_html(id, caption_node, image_type, definition_number)
         caption_present = !caption_html.empty?
 
-        # Generate dummy image content exactly like HTMLBuilder
-        # HTMLBuilder puts each line and adds newlines via 'puts'
+        # Generate dummy image content exactly like HTMLBuilder: each body line,
+        # already rendered (inline-compiled), detabbed and put on its own line.
         lines_content = if lines.empty?
                           "\n" # Empty image block just has one newline
                         else
-                          "\n" + lines.map { |line| escape(line) }.join("\n") + "\n"
+                          "\n" + lines.map { |line| detab(line) }.join("\n") + "\n"
                         end
 
         # Check caption positioning like HTMLBuilder
@@ -1231,7 +1243,7 @@ module ReVIEW
         lines_content = if lines.empty?
                           "\n" # Empty image block just has one newline
                         else
-                          "\n" + lines.map { |line| escape(line) }.join("\n") + "\n"
+                          "\n" + lines.map { |line| detab(line) }.join("\n") + "\n"
                         end
 
         # Check caption positioning like HTMLBuilder

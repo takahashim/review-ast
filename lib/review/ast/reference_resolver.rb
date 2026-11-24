@@ -175,6 +175,7 @@ module ReVIEW
 
       def visit_image(node)
         visit_all_with_caption(node)
+        visit_all(node.dummy_lines)
       end
 
       def visit_minicolumn(node)

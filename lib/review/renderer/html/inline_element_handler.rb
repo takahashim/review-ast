@@ -257,12 +257,12 @@ module ReVIEW
           wrap_reference_with_html(text, data, 'imgref')
         end
 
-        # Builder#inline_imgref is @<img> plus the image's caption in quotes.
+        # Builder#inline_imgref is @<img> plus the image's caption in quotes --
+        # an empty caption too (//image[id][][scale=0.5] gives 「」): the
+        # legacy index item's caption is a string, so its `if caption` holds.
         def render_inline_imgref(type, content, node)
           rendered = render_inline_img(type, content, node)
-          caption = resolved_reference_node(node).resolved_data.caption_text
-          return rendered if caption.empty?
-
+          caption = resolved_reference_node(node).resolved_data.caption_text.to_s
           "#{rendered}#{I18n.t('image_quote', caption)}"
         end
 

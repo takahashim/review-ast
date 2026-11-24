@@ -557,9 +557,11 @@ module ReVIEW
         %Q(<?dtp #{dtp_str} ?>\n)
       end
 
+      # IDGXMLBuilder#bpo: the lines joined with newlines, which the nolf pass
+      # must keep.
       def visit_block_bpo(node)
-        content = render_children(node)
-        %Q(<bpo>#{content.chomp}</bpo>\n)
+        content = node.children.map { |line_node| render_children(line_node) }.join("\x01IDGXML_INLINE_NEWLINE\x01")
+        %Q(<bpo>#{content}</bpo>\n)
       end
 
       def visit_block_printendnotes(node)
@@ -1479,8 +1481,8 @@ module ReVIEW
 
           result.join("\n") + "\n"
         else
-          # Fall back to dummy image
-          visit_image_dummy(node.id, caption_content, [], node.definition_number)
+          # Fall back to dummy image, with the block's body lines.
+          visit_image_dummy(node.id, caption_content, node.dummy_lines.map { |line| render_children(line) }, node.definition_number)
         end
       end
 
@@ -1519,12 +1521,10 @@ module ReVIEW
           result << generate_image_header(id, caption, definition_number)
         end
 
-        result << %Q(<pre aid:pstyle="dummyimage">)
-        lines.each do |line|
-          result << detab(line, tabwidth)
-          result << "\n"
-        end
-        result << '</pre>'
+        # IDGXMLBuilder prints each line and an explicit "\n" inside the <pre>;
+        # protect those newlines from the document's nolf pass.
+        body = lines.map { |line| "#{detab(line, tabwidth)}\x01IDGXML_INLINE_NEWLINE\x01" }.join
+        result << %Q(<pre aid:pstyle="dummyimage">#{body}</pre>)
 
         if !caption_top?('image') && caption
           result << generate_image_header(id, caption, definition_number)

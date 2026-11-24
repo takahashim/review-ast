@@ -308,7 +308,9 @@ module ReVIEW
         result += "\n"
         if node.id && node.definition_number
           dn = node.definition_number
-          result += "#{text_formatter.format_caption_plain('image', dn.chapter_number, dn.number, caption)}\n"
+          # PLAINTEXTBuilder#image prints the separator even before an empty
+          # caption (//image[id][][scale=0.5]).
+          result += "#{text_formatter.format_caption_plain('image', dn.chapter_number, dn.number)}#{I18n.t('caption_prefix_idgxml')}#{caption}\n"
         else
           result += "図　#{caption}\n" unless caption.empty?
         end
@@ -561,6 +563,15 @@ module ReVIEW
       def render_inline_ruby(_type, _content, node)
         # Ruby base text only, ignore ruby annotation
         node.args.first || ''
+      end
+
+      def render_inline_imgref(_type, content, node)
+        image_reference_with_caption(node, content)
+      end
+
+      # PLAINTEXTBuilder#inline_dtp: a DTP instruction has no place in text.
+      def render_inline_dtp(_type, _content, _node)
+        ''
       end
 
       def render_inline_br(_type, _content, _node)

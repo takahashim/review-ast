@@ -99,6 +99,13 @@ module ReVIEW
       end
 
       # The ResolvedData behind an inline command that wraps a reference.
+      # Builder#inline_imgref: the @<img> text, then the image's caption (as
+      # written) in I18n 'image_quote' -- an empty caption too (「」), as the
+      # legacy index item's caption is always a string.
+      def image_reference_with_caption(node, content)
+        "#{content}#{I18n.t('image_quote', resolved_data_of(node).caption_text.to_s)}"
+      end
+
       def resolved_data_of(node)
         ref_node = node.children.first
         unless ref_node.reference_node? && ref_node.resolved?

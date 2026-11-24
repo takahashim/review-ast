@@ -304,8 +304,12 @@ module ReVIEW
         text = "//#{image_command}[#{node.id || ''}]"
 
         caption_text = caption_to_review_markup(node.caption_node)
-        text += "[#{caption_text}]" unless caption_text.empty?
-        text += "[#{node.metric}]" if node.metric && !node.metric.empty?
+        has_metric = node.metric && !node.metric.empty?
+        # The caption is positional: an empty one stays when a metric follows.
+        text += "[#{caption_text}]" if !caption_text.empty? || has_metric
+        text += "[#{node.metric}]" if has_metric
+        # The body: what an unbound image prints in its place.
+        text += "{\n#{node.content.chomp}\n//}" unless node.content.to_s.empty?
         text + "\n\n"
       end
 
@@ -402,10 +406,46 @@ module ReVIEW
         render_simple_wrapper_block('flushright', content)
       end
 
-      # Block: //comment{ ... //}
+      # Block: //comment[...]{ ... //} (its lines are raw text nodes)
       def visit_block_comment(node)
-        content = visit_children(node)
-        render_simple_wrapper_block('comment', content)
+        render_block_with_args('comment', node, node.children.map { |line| visit(line) }.join("\n"))
+      end
+
+      # A //name[arg]...{ body //} block, its arguments as written.
+      def render_block_with_args(name, node, body)
+        args = node.args.map { |arg| "[#{arg}]" }.join
+        return "//#{name}#{args}\n\n" if body.empty? && node.children.empty?
+
+        text = "//#{name}#{args}{\n#{body}"
+        text += "\n" unless text.end_with?("\n")
+        text + "//}\n\n"
+      end
+
+      # A block whose body is kept line by line, one paragraph node per line
+      # (//box, //insn, //bpo).
+      def render_line_block(name, node)
+        render_block_with_args(name, node, node.children.map { |line| visit_children(line) }.join("\n"))
+      end
+
+      # A block whose body is paragraphs (//blockquote, //point, //term).
+      def render_paragraph_block(name, node)
+        render_block_with_args(name, node, visit_children(node).sub(/\n+\z/, "\n"))
+      end
+
+      def visit_block_blockquote(node)
+        render_paragraph_block('blockquote', node)
+      end
+
+      def visit_block_point(node)
+        render_paragraph_block('point', node)
+      end
+
+      def visit_block_term(node)
+        render_paragraph_block('term', node)
+      end
+
+      def visit_block_insn(node)
+        render_line_block('insn', node)
       end
 
       # Block: //address{ ... //}
@@ -440,9 +480,9 @@ module ReVIEW
         "//parasep\n\n"
       end
 
-      # Block: //bpo
-      def visit_block_bpo(_node)
-        "//bpo\n\n"
+      # Block: //bpo{ ... //}
+      def visit_block_bpo(node)
+        render_line_block('bpo', node)
       end
 
       # Block: //printendnotes
@@ -527,13 +567,7 @@ module ReVIEW
 
       # Block: //box[caption]{ ... //}
       def visit_block_box(node)
-        text = '//box'
-        text += "[#{node.args.first}]" if node.args.any?
-        text += "{\n"
-        content = visit_children(node)
-        text += content
-        text += "\n" unless content.end_with?("\n")
-        text + "//}\n\n"
+        render_line_block('box', node)
       end
 
       def visit_embed(node)

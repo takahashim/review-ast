@@ -333,11 +333,21 @@ module ReVIEW
       # JSON is checked as the fresh one is. A Markdown chapter is not checked:
       # its blocks are the adapter's (a thematic break is an hr in every
       # format), not commands anyone wrote.
+      #
+      # The same for an inline op (ReVIEW::Compiler#compile_inline): the text
+      # formats have no @<abbr>, HTML no @<pageref>.
       def check_builder_support(node)
-        return unless node.is_a?(ReVIEW::AST::BlockNode)
+        inline = node.is_a?(ReVIEW::AST::InlineNode)
+        return unless inline || node.is_a?(ReVIEW::AST::BlockNode)
 
         builder_class = legacy_builder_class
         return if builder_class.nil? || AST::BookUnitView.markdown?(@chapter)
+
+        if inline
+          return if LegacyExtensionBridge.builder_supports_inline?(builder_class, node.inline_type)
+
+          raise ReVIEW::CompileError, "builder does not support inline op: @<#{node.inline_type}>#{node.location&.format_for_error}"
+        end
         return if LegacyExtensionBridge.builder_supports?(builder_class, node.block_type)
 
         raise ReVIEW::CompileError, "builder does not support command: //#{node.block_type}#{node.location&.format_for_error}"

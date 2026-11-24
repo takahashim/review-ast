@@ -10,6 +10,7 @@ require 'review/ast/diff/html'
 require 'review/ast/diff/latex'
 require 'review/ast/compiler'
 require 'review/ast/review_generator'
+require 'review/ast/json_serializer'
 require 'tmpdir'
 
 # Builder parity for behaviours the corpora do not exercise: settings and
@@ -283,6 +284,63 @@ class TestBuilderCompatFragments < Test::Unit::TestCase
     assert_include(regenerated, '//raw[|html|<hr>\\n<a>\\]x]')
     assert_include(regenerated, '@<raw>{|html|')
     assert_include(regenerated, '@<embed>{|latex|')
+  end
+
+  # -- what the every-command sweep found
+
+  # The body of an image block is what the builders print when the image is
+  # not found (Builder#image_dummy), inline-compiled and detabbed.
+  def test_an_unbound_image_prints_its_body
+    source = "//image[i1][Cap]{\nart @<b>{x} & <y>\n\tart2\n//}\n\n" \
+             "//indepimage[i2][Cap2]{\nindep @<i>{z}\n//}\n\n//numberlessimage[i3]{\nnone\n//}\n"
+    assert_parity(source)
+    assert_parity(source, config: CAPTIONS_BOTTOM)
+    assert_text_lines_parity(source)
+  end
+
+  def test_an_inline_op_the_builder_lacks_is_an_error
+    { plaintext: %w[abbr kbd var], top: %w[abbr samp] }.each do |format, ops|
+      comparator = ReVIEW::Test::TextComparator.new(format: format)
+      ops.each do |op|
+        source = "A @<#{op}>{x} B\n"
+        assert_raise(ReVIEW::ApplicationError, "builder: #{format} @<#{op}>") { comparator.convert_with_builder(source) }
+        error = assert_raise(ReVIEW::CompileError, "renderer: #{format} @<#{op}>") { comparator.convert_with_renderer(source) }
+        assert_match(/builder does not support inline op: @<#{op}>/, error.message)
+      end
+    end
+  end
+
+  def test_text_imgref_quotes_the_caption_and_dtp_is_dropped
+    # An empty caption is still quoted (「」): the legacy index item's caption
+    # is a string, so Builder#inline_imgref's `if caption` holds.
+    assert_parity("//image[i2][][scale=0.5]{\n//}\n\nSee @<imgref>{i2}.\n")
+    assert_text_lines_parity("//image[i1][The caption]{\n//}\n\n//image[i2][]{\n//}\n\nSee @<imgref>{i1}, @<imgref>{i2} @<dtp>{x}.\n")
+  end
+
+  def test_bpo_body_is_inline_compiled_line_by_line
+    source = "//bpo{\nline1 @<b>{bold} & <x>\n\n\tline3\n//}\n"
+    assert_parity(source, formats: %i[html idgxml])
+    assert_text_lines_parity(source)
+  end
+
+  GENERATOR_ROUND_TRIP = ["//image[i1][Cap]{\nart @<b>{x}\n  art2\n//}\n", "//image[i1][][scale=0.5]{\n//}\n",
+                          "//indepimage[i1]{\nart\n//}\n", "//bpo{\nline1 @<b>{bold}\n\nline3\n//}\n",
+                          "//box[Cap]{\nline1\n\nline3\n//}\n", "//insn[Cap]{\nline1\n//}\n",
+                          "//comment[c]{\nline1\nline2\n//}\n", "//blockquote{\npara1\n\npara2\n//}\n",
+                          "//point[P]{\npara1\n//}\n", "//term{\nT1\n//}\n"].freeze
+
+  def test_blocks_survive_a_round_trip
+    book = ReVIEW::Book::Base.new(config: ReVIEW::Configure.values)
+    compile = lambda do |text|
+      chapter = ReVIEW::Book::Chapter.new(book, 1, 'test', 'test.re', StringIO.new(text))
+      ReVIEW::AST::Compiler.new.compile_to_ast(chapter, reference_resolution: false)
+    end
+    options = ReVIEW::AST::JSONSerializer::Options.new(include_location: false)
+    GENERATOR_ROUND_TRIP.each do |block|
+      original = compile.call("= C\n\npara\n\n#{block}\nafter\n")
+      regenerated = ReVIEW::AST::ReVIEWGenerator.new.generate(original)
+      assert_equal original.serialize_to_hash(options), compile.call(regenerated).serialize_to_hash(options), "#{block.inspect} -> #{regenerated.inspect}"
+    end
   end
 
   # -- an inline op nobody declared is an error in every format, as in

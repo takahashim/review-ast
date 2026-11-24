@@ -1342,6 +1342,15 @@ module ReVIEW
                     end
         end
 
+        # The body lines, each after an empty line (LATEXBuilder#image_dummy /
+        # #indepimage: puts "\n"; puts detab(line.rstrip)).
+        if node.respond_to?(:dummy_lines)
+          node.dummy_lines.each do |line|
+            result << ''
+            result << detab(render_children(line).rstrip)
+          end
+        end
+
         if with_label && node.id?
           result << if render_context.chapter_present?
                       "\\label{image:#{render_context.chapter_id}:#{node.id}}"

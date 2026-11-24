@@ -146,6 +146,15 @@ module ReVIEW
           end
         end
 
+        # #builder_supports? for an inline op (ReVIEW::Compiler#compile_inline:
+        # respond_to?("inline_<op>")).
+        def builder_supports_inline?(klass, name)
+          @supported_inline ||= {}
+          @supported_inline.fetch([klass, name]) do
+            @supported_inline[[klass, name]] = !ReVIEW::Compiler::INLINE.key?(name.to_sym) || klass.public_method_defined?(:"inline_#{name}")
+          end
+        end
+
         def unroutable_overrides(klass)
           (klass.instance_methods + klass.private_instance_methods).uniq.select do |name|
             unroutable_name?(name) && extension_method?(klass, name)
