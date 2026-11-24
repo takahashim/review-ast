@@ -62,7 +62,7 @@ module ReVIEW
 
           header_rows, body_rows = build_rows_from_structure(structure, block_location)
 
-          adjust_columns(header_rows + body_rows)
+          adjust_columns(header_rows + body_rows, first_cell_header: structure.first_cell_header)
 
           process_and_add_rows(table_node, header_rows, body_rows)
         end
@@ -126,7 +126,8 @@ module ReVIEW
 
         # Matches the behavior of Builder#adjust_n_cols
         # @param rows [Array<TableRowNode>] Rows to adjust
-        def adjust_columns(rows)
+        # @param first_cell_header [Boolean] No header separator: the first column is th
+        def adjust_columns(rows, first_cell_header: false)
           return if rows.empty?
 
           rows.each do |row|
@@ -142,11 +143,13 @@ module ReVIEW
           max_cols = rows.map { |row| row.children.size }.max
 
           rows.each do |row|
-            cells_needed = max_cols - row.children.size
-            cell_type = row.children.first&.cell_type || :td
-            cells_needed.times do
-              empty_cell = create_node(AST::TableCellNode, cell_type: cell_type)
-              row.add_child(empty_cell)
+            (row.children.size...max_cols).each do |index|
+              # A padding cell is typed by its position, as Builder#table_rows
+              # types it: th in a header row, and in the first column when the
+              # table has no header separator; td otherwise. (It copied the
+              # row's first cell, so a short body row got <th> padding.)
+              cell_type = row.row_type == :header || (first_cell_header && index == 0) ? :th : :td
+              row.add_child(create_node(AST::TableCellNode, cell_type: cell_type))
             end
           end
         end

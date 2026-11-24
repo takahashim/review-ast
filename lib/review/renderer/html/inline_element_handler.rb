@@ -284,8 +284,10 @@ module ReVIEW
           %Q(<b>#{content}</b>)
         end
 
-        def render_inline_dtp(_type, content, _node)
-          "<?dtp #{content} ?>"
+        # HTMLBuilder#inline_dtp writes the instruction as given: it is a
+        # processing instruction, where entities mean nothing.
+        def render_inline_dtp(_type, content, node)
+          "<?dtp #{node.args.first || content} ?>"
         end
 
         def render_inline_recipe(_type, content, _node)

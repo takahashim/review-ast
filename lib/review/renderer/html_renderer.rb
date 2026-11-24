@@ -164,7 +164,7 @@ module ReVIEW
         parts = []
         inline = +''
         item.children.each_with_index do |child, index|
-          if child.is_a?(ReVIEW::AST::TextNode) || child.is_a?(ReVIEW::AST::InlineNode)
+          if inline_content_node?(child)
             inline << "\n" if !inline.empty? && breaks.include?(index)
             inline << visit(child)
           else

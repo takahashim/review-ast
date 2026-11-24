@@ -108,7 +108,7 @@ module ReVIEW
         inline_breaks = []
         nested = +''
         node.children.each_with_index do |child, index|
-          if child.is_a?(ReVIEW::AST::TextNode) || child.is_a?(ReVIEW::AST::InlineNode)
+          if inline_content_node?(child)
             inline_breaks << inline.size if breaks.include?(index)
             inline << child
           else
