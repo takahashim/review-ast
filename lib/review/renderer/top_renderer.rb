@@ -174,21 +174,7 @@ module ReVIEW
       end
 
       def visit_unordered_list_item(node)
-        # Separate text content from nested lists
-        text_content = +''
-        nested_lists = +''
-
-        node.children.each do |child|
-          if child.class.name.include?('ListNode')
-            # This is a nested list - render it separately
-            nested_lists += visit(child)
-          else
-            # This is regular content
-            text_content += visit(child)
-          end
-        end
-
-        text_content = text_content.chomp
+        text_content, nested_lists = list_item_parts(node)
 
         # Use level for nested indentation (TOP style uses tabs for each level)
         level = node.level || 1
@@ -202,21 +188,7 @@ module ReVIEW
       end
 
       def visit_ordered_list_item(node, number)
-        # Separate text content from nested lists
-        text_content = +''
-        nested_lists = +''
-
-        node.children.each do |child|
-          if child.class.name.include?('ListNode')
-            # This is a nested list - render it separately
-            nested_lists += visit(child)
-          else
-            # This is regular content
-            text_content += visit(child)
-          end
-        end
-
-        text_content = text_content.chomp
+        text_content, nested_lists = list_item_parts(node)
 
         # Use level for nested indentation
         level = node.level || 1
@@ -227,6 +199,25 @@ module ReVIEW
         # Add any nested lists after the item
         result += nested_lists
         result
+      end
+
+      # A list item's own text and its nested lists. The item's source lines
+      # (continuation lines are separate children, marked by
+      # source_line_breaks) are folded as TOPBuilder#ul_item/#ol_item fold
+      # them, with join_lines_to_paragraph.
+      def list_item_parts(node)
+        breaks = node.source_line_breaks
+        text = +''
+        nested = +''
+        node.children.each_with_index do |child, index|
+          if child.is_a?(ReVIEW::AST::ListNode)
+            nested << visit(child)
+          else
+            text << "\n" if !text.empty? && breaks.include?(index)
+            text << visit(child)
+          end
+        end
+        [join_paragraph_lines(text.chomp), nested]
       end
 
       def visit_item(node)
@@ -268,19 +259,20 @@ module ReVIEW
         result += "\n"
         result += "◆→開始:#{block_title}←◆\n"
 
-        # Add caption if present
+        # The caption goes above or below the code per caption_position (list),
+        # as in TOPBuilder#list / #base_block.
         caption = render_caption_inline(node.caption_node)
-        unless caption.empty?
-          result += if node.id && (code_type == :list || code_type == :listnum)
-                      # For list/listnum, use I18n formatting to match TOPBuilder
-                      format_list_caption(node.id, caption, node.definition_number)
-                    elsif node.id
-                      "■#{node.id}■#{caption}\n"
-                    else
-                      "■#{caption}\n"
-                    end
-          result += "\n"
-        end
+        caption_line = unless caption.empty?
+                         if node.id && (code_type == :list || code_type == :listnum)
+                           # For list/listnum, use I18n formatting to match TOPBuilder
+                           format_list_caption(node.id, caption, node.definition_number)
+                         elsif node.id
+                           "■#{node.id}■#{caption}\n"
+                         else
+                           "■#{caption}\n"
+                         end
+                       end
+        result += "#{caption_line}\n" if caption_line && caption_top?('list')
 
         # Add line numbers if needed
         if node.line_numbers
@@ -301,6 +293,7 @@ module ReVIEW
           result += "\n"
         end
 
+        result += "\n#{caption_line}" if caption_line && !caption_top?('list')
         result += "\n"
         result += "◆→終了:#{block_title}←◆\n"
         result += "\n"
@@ -370,11 +363,10 @@ module ReVIEW
       def visit_table_row(node)
         cells = []
         node.children.each do |cell|
-          cell_content = render_children(cell)
           # Skip separator rows (rows that contain only dashes)
-          unless /^-+$/.match?(cell_content.strip)
-            cells << cell_content
-          end
+          next if /^-+$/.match?(render_children(cell).strip)
+
+          cells << visit(cell)
         end
 
         # Only process non-empty rows

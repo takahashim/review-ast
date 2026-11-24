@@ -4,6 +4,7 @@ require_relative '../test_helper'
 require_relative '../support/review/test/idgxml_comparator'
 require_relative '../support/review/test/html_comparator'
 require_relative '../support/review/test/latex_comparator'
+require_relative '../support/review/test/text_comparator'
 require 'review/ast/diff/byte_exact'
 require 'review/ast/diff/html'
 require 'review/ast/diff/latex'
@@ -24,25 +25,67 @@ require 'review/book'
 class TestCorpusConfigParity < Test::Unit::TestCase
   CORPORA = %w[syntax-book debug-book].freeze
 
+  # The text comparators take the format as an argument; these fix it.
+  class PlaintextComparator < ReVIEW::Test::TextComparator
+    def initialize(config: {})
+      super(format: :plaintext, config: config)
+    end
+  end
+
+  class TopComparator < ReVIEW::Test::TextComparator
+    def initialize(config: {})
+      super(format: :top, config: config)
+    end
+  end
+
+  # Text output compared without blank lines and leading tabs: the text
+  # renderers do not reproduce the builders' blank-line layout and keep the
+  # list nesting the builders flatten (test_text_renderer_semantics.rb). The
+  # builders' <link href> around a @<chapref> is not reproduced either
+  # (doc/spec-questions.md #8).
+  class TextLinesDiff
+    Result = Struct.new(:same, :pretty_diff) do
+      def equal?
+        same
+      end
+    end
+
+    def compare(builder, renderer)
+      expected = lines(builder.gsub(%r{<link href="[^"]*">(.*?)</link>}, '\\1'))
+      actual = lines(renderer)
+      at = expected.zip(actual).index { |a, b| a != b } || [expected.size, actual.size].min
+      Result.new(expected == actual, "line #{at + 1}\n  builder:  #{expected[at].inspect}\n  renderer: #{actual[at].inspect}")
+    end
+
+    private
+
+    def lines(text)
+      text.lines.map { |line| line.sub(/\A\t+/, '') }.reject { |line| line.strip.empty? }
+    end
+  end
+
   FORMATS = {
     idgxml: [ReVIEW::Test::IdgxmlComparator, ReVIEW::AST::Diff::ByteExact],
     html: [ReVIEW::Test::HtmlComparator, ReVIEW::AST::Diff::Html],
-    latex: [ReVIEW::Test::LatexComparator, ReVIEW::AST::Diff::Latex]
+    latex: [ReVIEW::Test::LatexComparator, ReVIEW::AST::Diff::Latex],
+    plaintext: [PlaintextComparator, TextLinesDiff],
+    top: [TopComparator, TextLinesDiff]
   }.freeze
 
   CAPTIONS_BOTTOM = { 'caption_position' => { 'image' => 'bottom', 'table' => 'bottom', 'list' => 'bottom', 'equation' => 'bottom' } }.freeze
 
   # name => [config, formats it applies to]
   CONFIGS = {
-    captions_bottom: [CAPTIONS_BOTTOM, %i[idgxml html latex]],
+    captions_bottom: [CAPTIONS_BOTTOM, %i[idgxml html latex plaintext top]],
     no_externallink: [{ 'externallink' => false }, %i[html]],
-    tabwidth4: [{ 'tabwidth' => 4 }, %i[idgxml html latex]],
-    secnolevel1: [{ 'secnolevel' => 1 }, %i[idgxml html latex]],
-    secnolevel4: [{ 'secnolevel' => 4 }, %i[idgxml html latex]],
-    no_chapterlink: [{ 'chapterlink' => false }, %i[html latex]],
-    draft: [{ 'draft' => true }, %i[idgxml html latex]],
+    tabwidth4: [{ 'tabwidth' => 4 }, %i[idgxml html latex plaintext top]],
+    secnolevel1: [{ 'secnolevel' => 1 }, %i[idgxml html latex plaintext top]],
+    secnolevel4: [{ 'secnolevel' => 4 }, %i[idgxml html latex plaintext top]],
+    no_chapterlink: [{ 'chapterlink' => false }, %i[html latex plaintext top]],
+    draft: [{ 'draft' => true }, %i[idgxml html latex plaintext top]],
     footnotetext: [{ 'footnotetext' => true }, %i[latex]],
-    join_lines_by_lang: [{ 'join_lines_by_lang' => true }, %i[idgxml html latex]],
+    join_lines_by_lang: [{ 'join_lines_by_lang' => true }, %i[idgxml html latex plaintext top]],
+    th_bold: [{ 'textmaker' => { 'th_bold' => true } }, %i[top]],
     structured_idgxml: [{ 'structuredxml' => true, 'listinfo' => true }, %i[idgxml]],
     epub2: [{ 'epubversion' => 2, 'htmlversion' => 4 }, %i[html]]
   }.freeze
