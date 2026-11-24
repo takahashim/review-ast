@@ -183,9 +183,11 @@ module ReVIEW
       def create_inline_embed_ast_node(arg, parent_node)
         target_builders, embed_content = RawContentParser.parse(arg)
 
+        # :inline_embed, not :inline (@<raw>): Builder#inline_embed prints
+        # its content as written, without turning \n into a newline.
         node = AST::EmbedNode.new(
           location: @ast_compiler.location,
-          embed_type: :inline,
+          embed_type: :inline_embed,
           target_builders: target_builders,
           content: embed_content || ''
         )

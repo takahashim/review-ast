@@ -96,7 +96,7 @@ nodes.
 | `MinicolumnNode` | Small admonition box | `minicolumn_type` | `//note`, `//memo`, `//tip`, `//info`, `//warning`, `//important`, `//caution`, `//notice` |
 | `FootnoteNode` | Footnote and endnote definitions | `id`, `footnote_type` (`footnote`/`endnote`) | `//footnote`, `//endnote` |
 | `TexEquationNode` | Display equation | `id`, `caption_node` | `//texequation` |
-| `EmbedNode` | Raw pass-through for chosen builders. A raw HTML block from Markdown input lands here too (`embed_type: :block`, html only) | `embed_type`, target builders, `content` | `//embed`, `@<embed>`, `//raw`, `@<raw>`, a Markdown HTML block |
+| `EmbedNode` | Raw pass-through for chosen builders. `embed_type` names the command: `:block` (`//embed`), `:raw` (`//raw`), `:inline` (`@<raw>`), `:inline_embed` (`@<embed>`); the raw ones turn a literal `\n` into a newline, the embed ones do not. A raw HTML block from Markdown input lands here too (`embed_type: :block`, html only) | `embed_type`, target builders, `content` | `//embed`, `@<embed>`, `//raw`, `@<raw>`, a Markdown HTML block |
 
 ### Generic blocks and transient nodes
 

@@ -89,7 +89,7 @@ class TestASTEmbed < Test::Unit::TestCase
 
     embed_node = paragraph_node.children.find { |n| n.is_a?(ReVIEW::AST::EmbedNode) }
     assert_not_nil(embed_node, 'Should have inline embed node')
-    assert_equal :inline, embed_node.embed_type
+    assert_equal :inline_embed, embed_node.embed_type
     assert_equal 'inline content', embed_node.content
   end
 
@@ -104,7 +104,7 @@ class TestASTEmbed < Test::Unit::TestCase
     embed_node = paragraph_node.children.find { |n| n.is_a?(ReVIEW::AST::EmbedNode) }
 
     assert_not_nil(embed_node)
-    assert_equal :inline, embed_node.embed_type
+    assert_equal :inline_embed, embed_node.embed_type
     assert_equal ['html'], embed_node.target_builders
     assert_equal '<strong>HTML only</strong>', embed_node.content
   end
@@ -126,7 +126,7 @@ class TestASTEmbed < Test::Unit::TestCase
     assert_not_nil(paragraph_node, 'Should have paragraph with inline embed')
     assert_not_nil(block_embed_node, 'Should have block embed node')
 
-    inline_embed = paragraph_node.children.find { |n| n.is_a?(ReVIEW::AST::EmbedNode) && n.embed_type == :inline }
+    inline_embed = paragraph_node.children.find { |n| n.is_a?(ReVIEW::AST::EmbedNode) && n.embed_type == :inline_embed }
     assert_not_nil(inline_embed, 'Should have inline embed in paragraph')
     assert_equal 'inline embed', inline_embed.content
 
@@ -162,7 +162,7 @@ class TestASTEmbed < Test::Unit::TestCase
 
     first_para = paragraph_nodes[0]
     bold_node = first_para.children.find { |n| n.is_a?(ReVIEW::AST::InlineNode) && n.inline_type == :b }
-    inline_embed_node = first_para.children.find { |n| n.is_a?(ReVIEW::AST::EmbedNode) && n.embed_type == :inline }
+    inline_embed_node = first_para.children.find { |n| n.is_a?(ReVIEW::AST::EmbedNode) && n.embed_type == :inline_embed }
 
     assert_not_nil(bold_node)
     assert_not_nil(inline_embed_node)

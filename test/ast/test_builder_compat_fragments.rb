@@ -252,6 +252,39 @@ class TestBuilderCompatFragments < Test::Unit::TestCase
     assert_nothing_raised { ReVIEW::Renderer::PlaintextRenderer.new(chapter).render(ast) }
   end
 
+  # -- @<raw> / //raw turn \n into a newline, @<embed> / //embed print it as
+  #    written (Builder#inline_raw vs #inline_embed); //embed[] names no
+  #    format; a newline @<raw> writes survives the HTML paragraph join
+
+  def test_raw_and_embed
+    %i[html latex idgxml].each do |format|
+      source = "A@<raw>{|#{format}|x\\ny}B@<embed>{|#{format}|p\\nq}C@<embed>{r\\ns}\n\n" \
+               "//raw[|#{format}|t\\nu]\n\n//embed[]{\nnone\n//}\n\n//embed[||]{\nnone\n//}\n\n//embed{\nall\n//}\n"
+      assert_parity(source, formats: [format])
+    end
+    assert_text_lines_parity("A@<embed>{|plaintext,top|p\\nq}B\n\n//embed[]{\nnone\n//}\n")
+  end
+
+  def test_raw_and_embed_survive_a_round_trip
+    source = "= C\n\nA@<raw>{|html|x\\ny}B@<embed>{|latex|\\textbf{z\\}}C@<raw>{w}@<embed>{e}\n\n" \
+             "//raw[|html|<hr>\\n<a>\\]x]\n\n//raw[plain]\n\n//embed[html]{\n<p>\n//}\n\n//embed{\nall\n//}\n\n//embed[]{\nnone\n//}\n"
+    book = ReVIEW::Book::Base.new(config: ReVIEW::Configure.values)
+    compile = lambda do |text|
+      chapter = ReVIEW::Book::Chapter.new(book, 1, 'test', 'test.re', StringIO.new(text))
+      ReVIEW::AST::Compiler.new.compile_to_ast(chapter, reference_resolution: false)
+    end
+    embeds = lambda do |node|
+      own = node.is_a?(ReVIEW::AST::EmbedNode) ? [[node.embed_type, node.target_builders, node.content]] : []
+      own + node.children.flat_map { |child| embeds.call(child) }
+    end
+    original = compile.call(source)
+    regenerated = ReVIEW::AST::ReVIEWGenerator.new.generate(original)
+    assert_equal embeds.call(original), embeds.call(compile.call(regenerated)), regenerated
+    assert_include(regenerated, '//raw[|html|<hr>\\n<a>\\]x]')
+    assert_include(regenerated, '@<raw>{|html|')
+    assert_include(regenerated, '@<embed>{|latex|')
+  end
+
   # -- an inline op nobody declared is an error in every format, as in
   #    ReVIEW::Compiler#compile_inline (the text renderers used to print it)
 

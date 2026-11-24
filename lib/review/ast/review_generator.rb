@@ -537,22 +537,21 @@ module ReVIEW
       end
 
       def visit_embed(node)
+        content = node.content || ''
+        targets = node.target_builders && "|#{node.target_builders.join(',')}|"
         case node.embed_type
         when :block
-          target = node.target_builders&.join(',') || ''
-          text = "//embed[#{target}]{\n"
-          text += node.content || ''
+          # No brackets for every format: //embed[] would name none.
+          text = "//embed#{targets && "[#{targets}]"}{\n#{content}"
           text += "\n" unless text.end_with?("\n")
           text + "//}\n\n"
         when :raw
-          target = node.target_builders&.join(',') || ''
-          text = "//raw[#{target}]{\n"
-          text += node.content || ''
-          text += "\n" unless text.end_with?("\n")
-          text + "//}\n\n"
+          # //raw is a single-line command: //raw[|html|<hr>\n<hr>].
+          "//raw[#{targets}#{content.gsub(']', '\\]')}]\n\n"
+        when :inline_embed
+          "@<embed>{#{escape_inline_content("#{targets}#{content}")}}"
         else
-          # Inline embed should be handled in inline context
-          "@<embed>{#{node.content || ''}}"
+          "@<raw>{#{escape_inline_content("#{targets}#{content}")}}"
         end
       end
 

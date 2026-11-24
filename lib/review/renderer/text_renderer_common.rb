@@ -26,28 +26,6 @@ module ReVIEW
         node.content || ''
       end
 
-      # Inline content rendered and joined as join_lines_to_paragraph joins
-      # a paragraph's lines. Only the source line breaks fold: the newlines
-      # in the text nodes, and the breaks before the child indexes `breaks`
-      # gives (a list item's continuation lines). A newline an inline writes
-      # (@<br>, @<raw>{|text|a\\nb}) is content, and stays -- the builders
-      # compile each source line on its own and only then join them.
-      def render_source_lines(children, breaks: [])
-        lines = [+'']
-        children.each_with_index do |child, index|
-          lines << +'' if index > 0 && breaks.include?(index)
-          output = visit(child)
-          if child.instance_of?(ReVIEW::AST::TextNode)
-            first, *rest = output.split("\n", -1)
-            lines.last << first.to_s
-            lines.concat(rest.map(&:dup))
-          else
-            lines.last << output
-          end
-        end
-        fold_source_lines(lines)
-      end
-
       def visit_block_blankline(_node)
         "\n"
       end

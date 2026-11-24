@@ -510,14 +510,13 @@ module ReVIEW
                                 content: lines.join("\n"))
       end
 
+      # As Builder#embed reads its argument: no argument (//embed{) is every
+      # format, while an empty one (//embed[]{, //embed[||]{) names none.
       def parse_embed_builders(arg)
-        return nil if arg.nil? || arg.empty?
+        return nil if arg.nil?
 
         # Parse format like "|html,latex|" or "html,latex"
-        cleaned = arg.gsub(/^\s*\|/, '').gsub(/\|\s*$/, '').gsub(/\s/, '')
-        return nil if cleaned.empty?
-
-        cleaned.split(',')
+        arg.gsub(/^\s*\|/, '').gsub(/\|\s*$/, '').gsub(/\s/, '').split(',')
       end
 
       def build_footnote_ast(context)
