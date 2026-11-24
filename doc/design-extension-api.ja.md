@@ -1,17 +1,54 @@
 # 拡張 API の設計(草案)
 
-本書は、本が review-ext.rb で定義する独自命令を AST 上でどう表し、どう描画させるかの設計を定める。
-対象は二つである。
-
-1. 独自ブロック命令の本文を、AST のノードとして表せるようにすること(`ExtensionBlockNode` の本文の形)。
-2. レンダラ拡張を、クラスの開き直しではなく登録で行えるようにすること(登録 API)。
+本書は、本が独自に定義する命令を AST 上でどう宣言し、どう表し、どう描画させるかの設計を定める。
+前提は「**実行時の描画からビルダーを廃止し、レンダラに寄せる**」である(0 章)。
 
 現行の仕組み(review-ext.rb のビルダーメソッドを AST 経路で呼ぶこと、`visit_block_<名前>` によるレンダラ拡張)は [review-ext.md](review-ext.md) が述べている。
-本書の設計はそれを置き換えず、その上に足す。
+本書は、それをレンダラ中心の仕組みへ段階的に置き換える計画である。
+
+構成は、基盤(2 章)のあとに、優先度の高い順に三つの拡張点を置く。
+
+1. 引数のインライン解析(3 章): 今は拡張がキャプションのインライン命令を描画できない。
+2. 本文の形(4 章): 今は拡張が本文のインライン命令を描画できない。
+3. 登録 API(5・6 章): 今は書けるが、書きにくく、内部に依存する。
+
+1 と 2 は「そもそも書けない」問題、3 は「書きにくい」問題なので、この順に解く。
 
 ---
 
-## 0. 原則: ノード型は閉じたまま、拡張は「名前」と「決まった形」で表す
+## 0. 前提: ビルダーを廃止し、レンダラに寄せる
+
+### 現状
+
+AST 経路の出力はすでにレンダラが作っている。
+ビルダーが実行時に関わるのは次の三か所だけである。
+
+| 用途 | 場所 | ビルダーの使い方 |
+|---|---|---|
+| review-ext.rb のメソッドを呼ぶ | `Renderer::LegacyExtensionBridge` | インスタンスを作り、独自命令・組み込み命令の再定義に出力させる |
+| 命令がその形式で使えるかの確認、再定義の検出 | `Renderer::Base#check_builder_support` ほか | クラスを調べる(`respond_to?`、メソッドの定義元) |
+| 個別の判定 | `TopRenderer#em_marked_like_i?`、`Command::VolumePrinter` | クラスを調べる、`compile_inline` を呼ぶ |
+
+### 目標
+
+- 実行時にビルダーのインスタンスもクラスも参照しない。
+- どの命令がどの形式で使えるか、という決まりを review-ast が持つ(2 章)。
+- 本の拡張は、レンダラ向けの API で書く(5 章)。
+
+### 残すもの
+
+- `review` gem への依存そのもの。
+  Book/Chapter のモデル、i18n、画像の探索、maker の基底クラスは今後も使う(README の Relationship to Re:VIEW)。
+  廃止するのはビルダーだけである。
+- テストのオラクルとしてのビルダー。
+  移行期間中は、旧経路との出力比較(`test/ast/*_comparator`、DVI 比較など)を続ける。
+  これはテストの中の話で、ライブラリの実行時には関わらない。
+- review-ext.rb のビルダーメソッドを呼ぶ互換層(`LegacyExtensionBridge`)。
+  ただし非推奨とし、9 章の手順で撤去する。
+
+---
+
+## 1. 原則: ノード型は閉じたまま、拡張は「名前」と「決まった形」で表す
 
 **拡張から新しいノード型を登録できるようにはしない。**
 
@@ -29,32 +66,126 @@
   定義番号、参照解決、ブロック分離などのパスは、ノード型ごとの意味を前提にしている
   ([ast-semantics.ja.md](ast-semantics.ja.md) 2 章)。
   知らない型についての判断が拡張側に漏れ出す。
-- パリティ検証。
-  オラクルであるレガシービルダーには「ノード型」という概念がない。
 
-代わりに、拡張が選べるものを次の二つに限る。
+代わりに、拡張が選べるものを次に限る。
 
-- **名前**: 命令名(`block_type` / `inline_type`)。今もこの形である。
-- **形**: 本文の形を、本体が用意した少数の選択肢から選ぶ(1 章)。
+- **名前**: 命令名(`block_type` / `inline_type`)。
+- **引数の種類**: 引数ごとに、生の文字列かインライン解析するか(3 章)。
+- **本文の形**: 本体が用意した少数の選択肢から選ぶ(4 章)。
 
 新しい形そのものは本体(review-ast)側でしか増やさない。
 これは Pandoc が AST の型を固定し、拡張を `Div` / `Span` と属性で表すのと同じ考え方である。
 
 ---
 
-## 1. 本文の形
+## 2. 基盤: 命令表を review-ast が持つ
 
 ### 問題
 
-`ExtensionBlockNode` は `LeafNode` の派生で、本文を生の行(`lines`)のまま持つ
-(`lib/review/ast/extension_block_node.rb`)。
-これはレガシーのビルダーメソッドに渡す引数としては正しいが、次の不便がある。
+命令の宣言と、形式ごとの対応状況が、どちらも Re:VIEW 側にある。
 
-- JSON を読む外部ツールから、独自ブロックの中のインライン構造や段落が見えない。
-- 本文中の `@<fn>`、`@<list>` などが AST の索引・参照解決の対象にならない。
-  解決はビルダーメソッド内の inline コンパイルに委ねられている。
-- AST ネイティブに描画したい拡張(`visit_block_<名前>`)は、生の行を自分で解釈するしかない。
-  [review-ext.md](review-ext.md) の例も `node.lines.map { |line| escape(line) }` で、本文中のインライン命令は描画されない。
+- 宣言: 独自命令は `ReVIEW::Compiler.defblock` / `definline` で Re:VIEW の大域表(`ReVIEW::Compiler::SYNTAX` など)に登録される。
+  AST のコンパイラは「その表にあり、AST 自身に処理系がない」命令を独自命令とみなしている(`AST::Compiler#extension_command?`)。
+- 対応状況: 「この命令はこの形式で使えるか」は、ビルダーがそのメソッドを持つかで決まっている(`check_builder_support`)。
+  たとえば plaintext と TOP には `@<abbr>` がなく、HTML には `@<pageref>` がない、という決まりは、ビルダーのクラスから実行時に読み取っている。
+
+ビルダーを廃止すると後者の根拠がなくなる。
+また、3・4 章で命令の宣言に情報(引数の種類、本文の形)を足すには、Re:VIEW 側の表は使えない(引数を変えられない。review-ast は Re:VIEW に monkey patch を当てない)。
+
+### 設計
+
+review-ast に命令表 `ReVIEW::AST::CommandTable` を置く。
+一つの命令について、次を持つ。
+
+| 項目 | 内容 |
+|---|---|
+| 名前と種類 | ブロック / 1 行命令 / インライン |
+| 引数の個数 | 現行の `check_args` と同じ規則 |
+| 引数の種類 | 3 章 |
+| 本文の有無と形 | 4 章 |
+| 対応する形式 | どの形式で描画できるか |
+
+- 組み込み命令は、既存の `BlockProcessor::BLOCK_COMMAND_TABLE` と `InlineProcessor::DEFAULT_INLINE_HANDLERS` を元にこの表へ載せる。
+- 組み込み命令の「対応する形式」は、最初は**ビルダーから生成した表**として同梱する。
+  スキーマと同じ流儀である([ast-format.ja.md](ast-format.ja.md) 5 章)。
+  生成ツールがビルダーのメソッドを調べて表を書き、テストが同梱物とビルダーの実際が一致することを確かめる。
+  実行時にはビルダーを見ず、同梱の表だけを見る。
+  旧経路との出力比較をやめる時点で、この一致テストもやめ、表を review-ast の仕様として固定する。
+- 独自命令は、5 章の API で宣言したものと、互換のために Re:VIEW の表から読み取ったもの(`defblock` などで宣言されたもの)の両方をこの表に載せる。
+  後者の「対応する形式」は、移行期間中に限り、review-ext.rb がその形式のビルダーにメソッドを定義しているかで決める(9 章)。
+- `check_builder_support` は、この表を引く形に置き換える。
+  エラーの文言は今と同じにする(`builder does not support command: //名前` など)。
+
+---
+
+## 3. 引数のインライン解析(優先度 1)
+
+### 問題
+
+`//mybox[A @<b>{bold} box]{ ... //}` の第 1 引数は、`ExtensionBlockNode#args` に生の文字列 `"A @<b>{bold} box"` として入る。
+レンダラのキャプション描画(`render_caption_inline`)はパース済みの `CaptionNode` しか受け取らないので、
+AST ネイティブの拡張には、引数の中のインライン命令を描画する公開の手段がない。
+
+ビルダーメソッドなら `compile_inline(caption)` で描画できる。
+独自の囲み枠はたいていキャプションを持つので、レンダラで書くとビルダーより劣る。
+ビルダーを廃止する前提では、これは致命的である。
+
+描画時に文字列をインライン解析させる案(`ctx.render_inline_source(str)`)は採らない。
+描画時の解析で生まれたノードは、索引と参照解決を通らない。
+キャプション中の `@<fn>` や `@<list>` が、ほかのキャプションと同じに番号付け・解決されなくなる。
+
+### 設計
+
+命令の宣言で、引数ごとに種類を指定する。
+
+| 種類 | 意味 |
+|---|---|
+| `:raw`(既定) | 生の文字列(ID、言語名、オプションなど) |
+| `:caption` | キャプション。`CaptionNode` に解析する。一つの命令に一つまで |
+| `:inline` | インライン命令を含む文字列。インライン列に解析する |
+
+```ruby
+ReVIEW::AST::Extension.block(:mybox, args: [:caption], body: :blocks)
+ReVIEW::AST::Extension.block(:quiz, args: [:raw, :caption, :inline], body: :blocks)
+```
+
+- `:caption` の引数は `ExtensionBlockNode#caption_node` に入る。
+  既存の `CaptionNode` と `Captionable` をそのまま使うので、ノード型は増えない。
+  キャプション中の脚注の扱い(LaTeX での `\footnotemark` への切り替えなど)も、組み込み命令のキャプションと同じ処理に乗る。
+  レンダラは `render_caption_inline(node.caption_node)` で描画できる(5 章の `ctx.render_caption(node)`)。
+- `:inline` の引数は `ExtensionBlockNode#arg_nodes` に入る。
+  `args` と同じ長さの配列で、`:inline` の位置にインライン列(ノードの配列)、それ以外の位置に `nil` を置く。
+- `args` は、種類にかかわらず常に生の文字列を保持する(ソースの事実であり、dump2re の書き戻しに使う)。
+
+JSON の形:
+
+```json
+{
+  "type": "ExtensionBlockNode",
+  "block_type": "quiz",
+  "args": ["q1", "問 @<b>{1}", "ヒント: @<i>{表}"],
+  "caption_node": { "type": "CaptionNode", "children": [ "..." ] },
+  "arg_nodes": [null, null, [ { "type": "TextNode", "...": "..." }, { "type": "InlineNode", "...": "..." } ]],
+  "...": "..."
+}
+```
+
+`caption_node` と `arg_nodes` はどちらも省略可能なフィールドの追加なので、
+[ast-format.ja.md](ast-format.ja.md) 3 章により `ast_format` は 1 のまま上げずに済む。
+
+- インデクサと参照解決は、`caption_node` と `arg_nodes` の中へも降りる。
+- 1 行命令(`defsingle` に当たるもの)にも同じ宣言が使える。
+
+---
+
+## 4. 本文の形(優先度 2)
+
+### 問題
+
+`ExtensionBlockNode` は `LeafNode` の派生で、本文を生の行(`lines`)のまま持つ。
+そのため、本文中のインライン命令や段落が AST のノードにならない。
+AST ネイティブの拡張は本文のインライン命令を描画できず、JSON を読む外部ツールからも本文の構造が見えない。
+本文中の `@<fn>`、`@<list>` なども AST の索引・参照解決の対象にならない。
 
 ### 設計
 
@@ -62,14 +193,8 @@
 
 | 形 | 本文の表し方 | 想定する命令 |
 |---|---|---|
-| `raw`(既定) | `lines` に生の行。子は持たない(現行と同じ) | ビルダーメソッドにそのまま渡す命令、本文が独自の小言語である命令 |
+| `raw`(既定) | `lines` に生の行。子は持たない(現行と同じ) | 本文が独自の小言語である命令(図の記述、データの列挙など) |
 | `blocks` | `children` に通常のブロック列(段落、リスト、入れ子のブロック命令など) | `//note` のような囲み枠、注記、独自のコラム |
-
-形の宣言は review-ast 側の API で行う(2 章の `ReVIEW::AST::Extension.block`)。
-Re:VIEW の `ReVIEW::Compiler.defblock` の引数は変えられない(review-ast は Re:VIEW に monkey patch を当てない)ためである。
-宣言しない命令は `raw` のままとし、現行の本はすべて今と同じに動く。
-
-#### `blocks` 形のノード
 
 `ExtensionBlockNode` を子を持てるノードにし、`blocks` 形のときだけ `children` を持たせる。
 
@@ -78,63 +203,57 @@ Re:VIEW の `ReVIEW::Compiler.defblock` の引数は変えられない(review-as
   "type": "ExtensionBlockNode",
   "block_type": "mybox",
   "body": "blocks",
-  "args": ["注意"],
-  "lines": ["本文の @<b>{一行目}", "", " * 項目"],
+  "args": ["A @<b>{bold} box"],
+  "caption_node": { "type": "CaptionNode", "children": [ "..." ] },
   "children": [ { "type": "ParagraphNode", "...": "..." }, { "type": "ListNode", "...": "..." } ]
 }
 ```
 
 - `body` は `raw` のとき省略する。
-- `lines` は `blocks` 形でも保持する。
-  レガシーのビルダーメソッド(`LegacyExtensionBridge#render_block`)は生の行を受け取るので、
-  ビルダーメソッドで描画する本でも形の宣言を足せるようにするためである。
-  `ReviewGenerator`(dump2re)も `lines` から書き戻せば元のソースと一致する。
-- `body` と `children` はどちらも省略可能なフィールドの追加なので、
-  [ast-format.ja.md](ast-format.ja.md) 3 章により `ast_format` は 1 のまま上げずに済む。
-  知らないキーを無視する既存の読み手は、今までどおり `lines` を読む。
+- `blocks` 形では `lines` を持たない。
+  本文の唯一の表現は `children` であり、dump2re は組み込みのブロックと同じく子から書き戻す。
+  生の行を残す理由だったビルダーメソッドへの受け渡しは、ビルダー廃止の前提ではなくなる。
+  互換層(`LegacyExtensionBridge`)が扱うのは `raw` 形の命令だけとする(9 章)。
+- `body` と `children` は省略可能なフィールドの追加なので、`ast_format` は上げずに済む。
+  ただし、`ExtensionBlockNode` は今は「`children` キーを出さない leaf ノード」と [ast-semantics.ja.md](ast-semantics.ja.md) に書かれている。
+  この記述は「`blocks` 形のときだけ `children` を持つ」に改める。
 
 #### コンパイラ側の変更
 
 - `blocks` 形の本文は `read_block_with_nesting` で読む(現行の `read_extension_block_lines` は最初の `//}` で止まり、入れ子を認めない)。
 - 子のブロック列は通常の本文と同じ規則でコンパイルし、ポストプロセス(directive の lowering、リスト正規化など)もかける。
 - インデクサと参照解決は `blocks` 形の子へも降りる。
-  本文中の脚注や参照が、他の本文と同じに番号付け・解決される。
 
-#### レガシー経路との差
+#### `defminicolumn` との関係
 
-`blocks` 形の宣言は AST 経路だけが知っている。
-`review-compile`(レガシー経路)は今までどおり最初の `//}` までを本文として読む。
-したがって、`blocks` 形の本文に入れ子のブロック命令を書いた本は、二つの経路で読み方が変わる。
-これは形を宣言した本だけに生じる差で、宣言しない本のパリティには影響しない。
-[review-ext.md](review-ext.md) に明記する。
+Re:VIEW の `defminicolumn` で宣言された独自命令は、旧経路でも本文を通常の本文としてコンパイルする(`//note` と同じ扱い)。
+したがって、互換のために Re:VIEW の表から読み取るとき、`defminicolumn` の命令は「第 1 引数が `:caption`、本文が `blocks`」として扱うのが自然である。
+これでビルダーメソッドがなくても、7 章の既定の描画で表示できる。
 
-### `inline` 形を今回は入れない理由
+#### `inline` 形を今回は入れない理由
 
-「行ごとにインライン解析した本文」(レガシーのビルダーメソッドが受け取るものに対応する形)も候補だった。
+「行ごとにインライン解析した本文」も候補だった。
 ただし、これを表すには「インライン列を持つ 1 行」というノードが要る。
 既存の `CodeLineNode` は名前も意味もコード用であり、流用すると意味がぼやける。
-新しいノード型を足すかどうかは本書の原則に関わるので、`raw` と `blocks` の運用を見てから決める(7 章)。
+新しいノード型を足すかどうかは 1 章の原則に関わるので、`raw` と `blocks` の運用を見てから決める(11 章)。
 
 ---
 
-## 2. 登録 API
+## 5. 登録 API(優先度 3)
 
 ### 問題
 
-現行のレンダラ拡張は、次の三つの組み合わせで成り立っている(`lib/review/renderer/base.rb` の `visit_extension_block`、`render_extension_inline`)。
+現行のレンダラ拡張は、名前の慣習(`visit_block_<名前>` / `render_inline_<名前>`)、
+クラスの開き直し、メソッドの定義元による判定(`LegacyExtensionBridge.extension_method?`)の組み合わせで成り立っている。
 
-- 名前の慣習: `visit_block_<名前>` / `render_inline_<名前>` というメソッドがあれば呼ぶ。
-- クラスの開き直し: review-ext.rb が `HtmlRenderer` などを再オープンしてメソッドを足す。
-- 定義元による判定: メソッドが gem の外で定義されていれば拡張とみなす(`LegacyExtensionBridge.extension_method?`)。
-
-この方式には次の問題がある。
-
-- レンダラの内部メソッド(`escape`、`render_children`、`@chapter` など)がすべて拡張から使えるため、事実上の公開契約になっている。
-  内部を変えると、どの本が壊れるか分からない。
-- プロセス全体のクラスを書き換える。
-  テストでは子プロセスに分けて回す必要がある([review-ext.md](review-ext.md) の Testing 節)。
-- 同じ命令を二か所で定義しても気づけない。
+- レンダラの内部メソッドがすべて拡張から使え、事実上の公開契約になっている。
+- 開き直したクラスで、組み込み命令の描画(`visit_block_box` など)も黙って置き換えられる。
+- 一つの命令に 6 つのクラスを開く必要があり、ブロックとインラインで受け取る引数の形も異なる。
+- プロセス全体のクラスを書き換えるので、テストは子プロセスに分けて回す必要がある。
 - 対象形式に実装がないことは、描画がその命令に到達して初めて分かる。
+
+ビルダーを廃止すると、拡張の書き方はレンダラ側だけになる。
+その唯一の書き方が上の状態では困るので、正式な API を用意する。
 
 ### 設計
 
@@ -144,87 +263,65 @@ Re:VIEW の `ReVIEW::Compiler.defblock` の引数は変えられない(review-as
 # review-ext.rb
 require 'review/ast/extension'
 
-ReVIEW::AST::Extension.block(:mybox, args: 0..1, body: :blocks)
+ReVIEW::AST::Extension.block(:mybox, args: [:caption], body: :blocks)
 ReVIEW::AST::Extension.inline(:mykbd)
 
 ReVIEW::AST::Extension.render_block(:mybox, format: :html) do |node, ctx|
-  title = node.args.first
-  head = title ? %Q(<p class="mybox-title">#{ctx.escape(title)}</p>\n) : ''
+  title = ctx.render_caption(node)
+  head = title.empty? ? '' : %Q(<p class="mybox-title">#{title}</p>\n)
   %Q(<div class="mybox">\n#{head}#{ctx.render_children(node)}</div>\n)
 end
 
-ReVIEW::AST::Extension.render_inline(:mykbd, format: :html) do |_node, ctx|
+ReVIEW::AST::Extension.render_inline(:mykbd, format: [:html, :idgxml]) do |_node, ctx|
   %Q(<kbd>#{ctx.content}</kbd>)
+end
+
+ReVIEW::AST::Extension.render_inline(:mykbd, format: :latex) do |_node, ctx|
+  %Q(\\mykbd{#{ctx.content}})
 end
 ```
 
-- `block` / `inline` は構文の宣言である。
-  まだ宣言されていなければ `ReVIEW::Compiler.defblock` / `definline` を呼ぶ(Re:VIEW の公開 API の呼び出しであり、monkey patch ではない)。
-  一つの宣言でレガシー経路と AST 経路の両方が命令を知る。
-  `body:` は 1 章の形で、省略時は `:raw`。
-- `render_block` / `render_inline` は描画の登録である。
-  `format:` は `:html`(EPUB・Web を含む)、`:latex`、`:idgxml`、`:plaintext`、`:top`、`:typst` のいずれか、または配列。
-- ブロックハンドラは `(node, ctx)` を受け取り、そのブロックの出力を文字列で返す。
-  ブロック間の分離はレンダラが今までどおり付ける([design-improvements.ja.md](design-improvements.ja.md) 項目 2)。
-  ハンドラの出力は一つのブロックとして扱う。
-- インラインハンドラは `(node, ctx)` を受け取る。
-  `ctx.content` は描画・エスケープ済みの内容、`node.args.first` は生の引数である(現行の `render_inline_<名前>` と同じ)。
+- `block` / `inline` は宣言で、2 章の命令表に載る。
+  Re:VIEW の `defblock` などは呼ばない(ビルダー廃止の前提では、旧経路にこの命令を知らせる必要がない)。
+- `render_block` / `render_inline` は描画の登録で、命令表の「対応する形式」にも反映される。
+  `format:` は `:html`(EPUB・Web を含む)、`:latex`、`:idgxml`、`:plaintext`、`:top`、`:typst` のいずれか、またはその配列。
+- ブロックハンドラもインラインハンドラも、受け取る引数は `(node, ctx)` にそろえる。
+- ブロックハンドラの出力は一つのブロックとして扱い、ブロック間の分離はレンダラが今までどおり付ける([design-improvements.ja.md](design-improvements.ja.md) 項目 2)。
 
 #### 呼び出しの優先順
 
 1. 登録されたハンドラ
-2. レンダラのメソッド `visit_block_<名前>` / `render_inline_<名前>`(現行方式。互換のため残す)
-3. review-ext.rb のビルダーメソッド(`LegacyExtensionBridge`)
-4. `blocks` 形の既定の描画(3 章)
-5. エラー(`builder does not support command: //名前`。現行と同じ)
+2. `blocks` 形の既定の描画(7 章)
+3. 互換層: レンダラのメソッド `visit_block_<名前>` / `render_inline_<名前>`、review-ext.rb のビルダーメソッド(9 章で撤去)
+4. エラー(`builder does not support command: //名前`。文言は現行と同じ)
+
+既定の描画を互換層より前に置くのは、`blocks` 形を宣言した命令は AST ネイティブだからである。
+`blocks` 形の命令に互換層は使えない(4 章: `lines` を持たない)。
 
 #### 登録の検査
 
 - 同じ(命令名, 形式)を二度登録したらエラーにし、両方の定義位置を示す。
-- 組み込み命令(`//list`、`@<b>` など)の名前は登録できない。
-  組み込み命令の上書きは今のビルダーメソッド再定義の経路だけで扱い、新しい API の範囲に入れない(5 章)。
-- 構文の宣言がない命令への描画登録はエラーにする。
-- book maker は描画を始める前に、その本で宣言された独自命令のうち対象形式にハンドラも
-  ビルダーメソッドも既定の描画もないものを一覧にして警告する。
+- 組み込み命令の名前は `block` / `inline` で宣言できない(描画の差し替えは 8 章の別の入口で行う)。
+- 宣言のない命令への描画登録はエラーにする。
+- book maker は描画を始める前に、命令表を見て「その本で宣言されたが、対象形式で描画できない命令」を一覧にして警告する。
   実際に使われているものは、使われた位置付きで描画時にエラーになる(現行と同じ)。
 
 #### 登録表の範囲
 
-登録表は `ReVIEW::AST::Extension` が持つ一つの表である。
+登録表は命令表とともに `ReVIEW::AST::Extension` が持つ。
 review-ext.rb は本を開くときにプロセスへ読み込まれるので、登録の範囲は実質「そのプロセスで開いた本」になる。
 maker は一つのプロセスで一冊を扱うので、これで足りる。
 
-テストでは、登録表を差し替えて同じプロセス内で独立に検査できる(`Extension.with_registry(...)` のような入口を用意する)。
-ただし構文の宣言(`ReVIEW::Compiler::SYNTAX`)は Re:VIEW 側の大域表なので、構文まで含めて分けたいテストは今までどおり子プロセスを使う。
+テストでは、命令表と登録表を差し替えて同じプロセス内で独立に検査できるようにする(`Extension.with_registry(...)` のような入口)。
+Re:VIEW の大域表に触れないので、5 章の API だけを使うテストは子プロセスを要しない。
 
 #### JSON から読み戻した木
 
 登録ハンドラはノードと `ctx` しか使わないので、`review-ast-dump` の出力から読み戻した木でも動く。
-組み込み命令の再定義(`Node#source_command` に頼る)が読み戻した木では効かないのと異なる点である。
 
 ---
 
-## 3. `blocks` 形の既定の描画
-
-`blocks` 形の命令は、ハンドラが登録されていなくても子を描画できる。
-形式ごとに「汎用の囲み」を既定の描画として持たせる。
-
-| 形式 | 既定の描画(案) |
-|---|---|
-| HTML | `<div class="名前">` で子を囲む。第 1 引数があれば見出しとして先頭に置く |
-| plaintext / TOP | 子をそのまま描画する(TOP は `◆→開始:名前←◆` / `◆→終了:名前←◆` の囲みを付ける) |
-| Typst | 子を `#block` で囲む |
-| LaTeX | `\begin{review名前}` ... `\end{review名前}` |
-| IDGXML | `<名前>` 要素で子を囲む |
-
-LaTeX の環境と IDGXML の要素は、本の側(sty やスタイル定義)に定義がなければ組版・取り込みで失敗する。
-したがって既定の描画は「定義を本が用意する前提の出力」であり、どの形式で既定の描画を有効にするかは未決とする(7 章)。
-
----
-
-## 4. ハンドラに渡す `ctx`
-
-### 設計
+## 6. ハンドラに渡す `ctx`
 
 `ctx` は、拡張に公開すると約束するものだけを持つ小さなオブジェクトとする。
 レンダラのインスタンスそのものは渡さない。
@@ -235,79 +332,172 @@ LaTeX の環境と IDGXML の要素は、本の側(sty やスタイル定義)に
 | `format` | 出力形式(`:html` など) |
 | `render_children(node)` | ノードの子を、この形式で描画した文字列 |
 | `render(node)` | 一つのノードを描画した文字列 |
+| `render_caption(node)` | `node.caption_node` を描画した文字列(キャプションがなければ空文字列) |
+| `render_arg(node, index)` | `:inline` の引数を描画した文字列 |
 | `escape(str)` | この形式でのエスケープ |
 | `content` | インラインハンドラのみ。描画済みの内容 |
 | `config` | 本の設定の読み取り専用の参照(`[]`、`fetch`、`dig`) |
 | `location` | 描画中のノードのソース位置 |
 | `error(message)` | ソース位置付きの `ReVIEW::CompileError` を送出する |
+| `render_default(node)` | 8 章の差し替えでのみ使う。本来の描画結果 |
 
 次は公開しない。
 
 - `@chapter`、`@book` などの本体モデル。
-- レンダラの内部ヘルパ(キャプション生成、番号の整形、ブロック分離の内部など)。
-- 他の命令を呼び出す手段(`visit_block_list` を直接呼ぶ、など)。
-
-### 判断の根拠
+- レンダラの内部ヘルパ(番号の整形、ブロック分離の内部など)。
+- 他の命令の描画を直接呼ぶ手段(`visit_block_list` を呼ぶ、など)。
 
 `ctx` を小さく保てば、レンダラの内部を変えても拡張を壊さずに済む。
-足りないものは、要求が出た時点で `ctx` に足す。
-足すのは版を上げずにできるが、削るのは破壊的変更になるので、最初は少なく始める。
-
-候補として保留しているものは 7 章に挙げる。
+足りないものは、要求が出た時点で足す。
+足すのは互換性を壊さないが、削るのは破壊的変更になるので、最初は少なく始める。
 
 ---
 
-## 5. 範囲に入れないもの
+## 7. `blocks` 形の既定の描画
 
-- **新しいノード型の登録**(0 章)。
-- **構造部分の差し替え**(見出し、段落、リスト項目、`//column` など)。
-  番号付け・ブロック分離・パリティ検証の前提が崩れる。
-  現行と同じく、ビルダーでこれらを再定義したものは警告して使わない。
-- **組み込み命令の上書き**。
-  ビルダーメソッド再定義による現行の経路を互換のため残すが、登録 API では扱わない。
-  組み込み命令の見た目を変えたい要求は、まず CSS・sty・テンプレートで受ける。
-- **`inline` 形**(1 章末尾)。
+`blocks` 形の命令は、ハンドラが登録されていなくても描画できるようにする。
+既定の描画は、**組み込みの囲み(`//note` などの minicolumn)の描画規則を命令名で使う**ものとする。
 
----
+組み込みの囲みの描画は、すでに多くの形式で命令名に依存しない作りになっている。
 
-## 6. 移行手順
+| 形式 | 現行の囲みの描画 | 既定の描画として使うための変更 |
+|---|---|---|
+| HTML | `<div class="名前">` とキャプションの `<p class="caption">`(`HtmlRenderer#visit_minicolumn`) | 不要 |
+| IDGXML | 名前の要素で囲む(`IdgxmlRenderer#visit_minicolumn`) | 不要 |
+| TOP | `◆→開始:見出し←◆` の囲み(見出しは既知の名前なら表から、なければ命令名) | 不要 |
+| plaintext | キャプションの行と子を描画する(命令名を使わない) | 不要 |
+| LaTeX | 既知の名前を `reviewnote` などの環境名に対応させる `case` | 未知の名前を `review名前` 環境にする規則を足す |
+| Typst | 既知の名前以外をエラーにする(`MINICOLUMN_KINDS`) | 未知の名前を汎用の囲みとして描く規則を足す |
 
-1. 登録表・`ctx`・呼び分けを実装する(本文は `raw` 形のみ。ノードは変えない)。
-   `render_block` / `render_inline` は現行の `visit_block_<名前>` / `render_inline_<名前>` と同じ入力で呼べるので、ノードの変更なしに入れられる。
-2. `body: :blocks` を実装する。
-   `ExtensionBlockNode` を子を持てるノードにし、コンパイラの読み込み、ポストプロセス、インデクサ、参照解決、`ReviewGenerator`、JSON のシリアライズ/デシリアライズを対応させる。
-   スキーマを再生成し、[ast-semantics.ja.md](ast-semantics.ja.md) とその英語版のノード目録を更新する。
-3. `blocks` 形の既定の描画を、未決事項の結論に従って形式ごとに入れる。
-4. [review-ext.md](review-ext.md) を書き直し、登録 API を推奨の書き方とする。
-   クラスの開き直し方式は互換のために動き続けることを明記する。
-5. `inline` 形の要否を判断する。
-
-手順 1 と 2 は独立しており、どちらを先に進めてもよい。
-手順 3 は 2 に依存する。
+LaTeX の環境と IDGXML の要素は、本の側(sty やスタイル定義)に定義がなければ組版・取り込みで失敗する。
+ただしこれは、旧経路で独自の minicolumn を定義した本がすでに負っている条件と同じである。
+本が定義を用意しないまま使った場合の失敗をどう分かりやすくするかは、11 章に残す。
 
 ---
 
-## 7. 未決事項
+## 8. 組み込み命令の描画の差し替え
 
-- `blocks` 形の既定の描画を、LaTeX と IDGXML でも有効にするか。
-  有効にするなら、本が環境・要素を定義していないときの失敗をどう分かりやすくするか。
-- `ctx` に、文字列中のインライン命令を描画する手段(`ctx.render_inline_source(str)`)を入れるか。
-  引数(キャプションなど)にインライン命令を書く命令で必要になる。
-  入れると、描画時にインライン解析が走ることになり、その中の参照は索引の対象外になる。
-  引数を構文の宣言時に「インライン解析する引数」と指定して、コンパイル時に解析させる方が筋がよい可能性がある。
+### 問題
+
+ビルダーを廃止すると、review-ext.rb で組み込み命令を再定義する書き方(`def emlist`、`def inline_b`、`def note_begin` など)の行き先がなくなる。
+実際の本では、これは独自命令と同じくらい使われている(CSS クラスを足す、LaTeX のマクロ名を変える、など)。
+差し替えの入口をまったく持たないと、ビルダー廃止はそうした本を切り捨てることになる。
+
+### 設計
+
+**命令単位の描画だけ**を差し替えられるようにする。
+
+```ruby
+ReVIEW::AST::Extension.override_block(:emlist, format: :html) do |node, ctx|
+  ctx.render_default(node).sub('<div class="emlist-code">', '<div class="emlist-code my-code">')
+end
+
+ReVIEW::AST::Extension.override_inline(:b, format: :latex) do |_node, ctx|
+  %Q(\\mybold{#{ctx.content}})
+end
+```
+
+- 対象は、命令表に載っている組み込みのブロック命令・インライン命令・囲み(minicolumn)である。
+- ハンドラには型の決まったノード(`CodeBlockNode`、`InlineNode` など)が渡る。
+  番号付けと索引は AST が済ませたあとなので、差し替えても `@<list>{id}` などの参照は壊れない。
+- `ctx.render_default(node)` で本来の描画結果を得られる。
+  多くの差し替えは「本来の出力を少し変える」ものなので、全体を書き直さずに済む。
+- 差し替えたブロックの出力も一つのブロックとして扱い、ブロック間の分離はレンダラが付ける。
+
+### 差し替えられないもの
+
+見出し、段落、リスト項目、表の行など、**文書の構造**は差し替えの対象にしない。
+番号付け、ブロック分離、目次などの前提が崩れるためである。
+現行の互換層でも、これらをビルダーで再定義したものは警告して使っていない([review-ext.md](review-ext.md) の What is not picked up)。
+見た目の変更は、CSS・sty・テンプレートで受ける。
+
+---
+
+## 9. ビルダー経路の段階的廃止
+
+### 互換層の扱い
+
+`LegacyExtensionBridge` とレンダラの開き直し方式は、次の段階を経て撤去する。
+
+1. **併存**: 5〜8 章の API を入れる。互換層は今のまま動く。
+   [review-ext.md](review-ext.md) は新しい API を推奨の書き方とする。
+2. **非推奨の警告**: 互換層を使うたびに、命令ごとに一度、移行先を示す警告を出す。
+   - ビルダーの独自命令メソッド → `Extension.block` と `render_block`
+   - ビルダーの組み込み命令の再定義 → `override_block` / `override_inline`
+   - レンダラの `visit_block_<名前>` / `render_inline_<名前>` → `render_block` / `render_inline`
+3. **撤去**: 互換層を削除する。
+   review-ext.rb のビルダーメソッドは呼ばれなくなり、2 章の命令表の「互換のために Re:VIEW の表から読み取る」経路もなくなる。
+   撤去する版は、本を移行する期間を置いて別途決める。
+
+### ビルダーへのその他の依存の置き換え
+
+| 依存 | 置き換え |
+|---|---|
+| `check_builder_support` | 2 章の命令表を引く |
+| `LegacyExtensionBridge.warn_unroutable_overrides` | 互換層の撤去とともに不要になる |
+| `TopRenderer#em_marked_like_i?`(`TOPBuilder#inline_em` が `inline_i` の別名かを調べる) | インストールされたビルダーに追従するのをやめ、AST の仕様として一つに決める(新しい Re:VIEW に合わせて `@<i>` と同じ記号で囲む)。旧経路との出力比較では、Re:VIEW 5.11 との差として扱う |
+| `Command::VolumePrinter`(章タイトルを `PLAINTEXTBuilder#compile_inline` で文字列にする) | AST の章タイトル(`ChapterTitle`)を `PlaintextRenderer` で描画する |
+
+---
+
+## 10. 範囲に入れないもの
+
+- **新しいノード型の登録**(1 章)。
+- **文書の構造の差し替え**(8 章)。
+- **`inline` 形の本文**(4 章末尾)。
+- **独自命令の定義番号**。
+  独自の「図」のような番号付きブロックを許すと、参照(`@<名前>{id}`)と番号の書式まで拡張範囲に入り、範囲が大きく広がる。
+
+---
+
+## 11. 移行手順
+
+依存関係の順に並べる。
+
+1. **命令表**(2 章)。
+   組み込み命令と、Re:VIEW の表から読み取った独自命令を載せる。
+   ビルダーから「対応する形式」の表を生成するツールと、その一致テストを作る。
+   `check_builder_support` を命令表に置き換える。出力は変わらない。
+2. **引数のインライン解析**(3 章)。
+   `Extension.block` の `args:` と、`caption_node` / `arg_nodes`。
+   コンパイラ、インデクサ、参照解決、JSON、`ReviewGenerator` を対応させる。
+   この時点では、描画は現行の `visit_block_<名前>` から `node.caption_node` を使う。
+3. **本文の `blocks` 形**(4 章)と**既定の描画**(7 章)。
+   `defminicolumn` の命令も `blocks` 形として扱う。
+4. **登録 API と `ctx`**(5・6 章)。
+5. **組み込み命令の差し替え**(8 章)。
+6. **非推奨の警告**(9 章の段階 2)と、[review-ext.md](review-ext.md) の書き直し。
+   `em_marked_like_i?` と `VolumePrinter` の置き換え。
+7. **互換層の撤去**(9 章の段階 3)。
+
+手順 2〜4 は、AST ネイティブの拡張が「書ける」ようになる順である。
+手順 4 までで、新しく書く拡張はビルダーを使わずに済む。
+手順 5 までで、既存の本の拡張がすべて新しい API へ移行できる。
+
+各手順のたびに、スキーマを再生成し、[ast-semantics.ja.md](ast-semantics.ja.md) と英語版を更新する。
+
+---
+
+## 12. 未決事項
+
+- `blocks` 形の既定の描画で、本が LaTeX の環境や IDGXML のスタイルを定義していないときの失敗を、どう分かりやすくするか。
+- `:inline` の引数を表す `arg_nodes` を、位置で引く配列にするか、名前付きの引数(`args: { title: :caption, hint: :inline }`)にするか。
+  名前付きにすると `args` の位置との対応を別に持つ必要がある。
 - `ctx` に章番号・章 ID などの文書情報を入れるか。
 - `inline` 形を入れるか。入れるなら行を表すノードをどうするか。
-- 独自命令が定義番号を持てるようにするか(独自の「図」のような番号付きブロック)。
-  持たせると参照(`@<名前>{id}`)と番号の書式まで拡張範囲に入り、範囲が大きく広がる。現時点では入れない方向とする。
+- 互換層を撤去する版と、移行期間の長さ。
+- 旧経路との出力比較(オラクル)をいつやめ、命令表の「対応する形式」を review-ast の仕様として固定するか。
 
 ---
 
-## 8. 検証
+## 13. 検証
 
-- `test/ast/test_ast_schema.rb`: `body` / `children` の追加後にスキーマを再生成し、同梱物と一致すること。
-- round-trip: `blocks` 形の命令を含む章について、dump → 読み戻し → 描画の一致と、dump2re → 再コンパイルの一致。
-- `test/ast/test_review_ext_compat.rb`: 形を宣言しない本で、レガシー経路と AST 経路の出力が今までどおり一致すること。
-- 登録 API の単体テスト: 優先順、二重登録、組み込み命令名の拒否、構文未宣言の拒否、事前一覧の警告。
+- `test/ast/test_ast_schema.rb`: フィールドを足すたびにスキーマを再生成し、同梱物と一致すること。
+- 命令表: 生成した「対応する形式」の表が、ビルダーの実際と一致すること(オラクルを使う期間)。
+- round-trip: 引数の種類と本文の形を宣言した命令を含む章について、dump → 読み戻し → 描画の一致と、dump2re → 再コンパイルの一致。
+- 索引と参照解決: キャプション・`:inline` 引数・`blocks` 形の本文の中の `@<fn>` / `@<list>` が、通常の本文と同じ番号・解決結果になること。
+- `test/ast/test_review_ext_compat.rb`: 互換層を撤去するまで、旧方式の本で旧経路と AST 経路の出力が一致すること。
+- 登録 API の単体テスト: 優先順、二重登録、組み込み命令名の拒否、宣言のない命令の拒否、事前一覧の警告、差し替えでの `render_default`。
   登録表の差し替えにより同一プロセスで回す。
-- `blocks` 形の本文中の `@<fn>` / `@<list>` が、通常の本文と同じ番号・解決結果になること。
-- 6 形式すべてで、ハンドラがない独自命令が同じエラー文言で止まること。
+- 既定の描画: 6 形式すべてで、ハンドラのない `blocks` 形の命令が描画されること。
+- 6 形式すべてで、描画できない独自命令が同じエラー文言で止まること。
