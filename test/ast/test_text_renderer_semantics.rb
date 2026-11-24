@@ -214,12 +214,14 @@ class TestTextRendererSemantics < Test::Unit::TestCase
     end
   end
 
-  def test_olnum_sets_where_the_numbering_starts
-    # TOP numbered from 1 regardless, silently renumbering the author's items.
-    source = "= 章\n\n//olnum[10]\n\n 1. 十番目\n 2. 十一番目\n"
+  def test_ordered_items_keep_their_written_numbers
+    # TOPBuilder#ol_item / PLAINTEXTBuilder#ol_item print the number each item
+    # was written with: the renderers counted up from 1 (or from //olnum),
+    # renumbering "3. 3. 7." as 3, 4, 5. //olnum does not renumber a text list.
+    source = "= 章\n\n 3. 三\n 3. また三\n 7. 七\n\n//olnum[10]\n\n 1. 一\n 2. 二\n"
 
-    assert_include(top(source), "10\t十番目")
-    assert_include(top(source), "11\t十一番目")
+    assert_equal ["3\t三\n", "3\tまた三\n", "7\t七\n", "1\t一\n", "2\t二\n"], top(source).lines.grep(/\A\d+\t/)
+    assert_equal builder_plaintext(source).lines.grep(/\A\d+　/), plaintext(source).lines.grep(/\A\d+　/)
   end
 
   def test_emtable_caption_carries_no_block_marker

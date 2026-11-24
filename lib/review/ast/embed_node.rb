@@ -10,7 +10,9 @@ module ReVIEW
     # Attributes:
     # - content: The processed content ready for rendering.
     #            Renderers should use this attribute.
-    # - embed_type: :block for //embed{}, :raw for //raw{}, :inline for @<embed>{}/@<raw>{}
+    # - embed_type: :block for //embed{}, :raw for //raw[], :inline for @<raw>{},
+    #   :inline_embed for @<embed>{}. (//raw and @<raw> turn a literal \n in
+    #   their content into a newline; //embed and @<embed> print it as written.)
     # - target_builders: Array of builder names (e.g., ["html", "latex"]), or nil for all builders
     class EmbedNode < LeafNode
       attr_reader :embed_type, :target_builders

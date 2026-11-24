@@ -20,6 +20,7 @@ require 'review/ast/image_node'
 require 'review/ast/minicolumn_node'
 require 'review/ast/extension_block_node'
 require 'review/ast/section_counter'
+require 'review/ast/book_unit_view'
 
 module ReVIEW
   module Renderer
@@ -139,16 +140,46 @@ module ReVIEW
       def join_paragraph_lines(content)
         return content unless content.include?("\n")
 
-        unless config['join_lines_by_lang']
-          return content.gsub(/\n+/, '')
-        end
+        fold_source_lines(content.split("\n"))
+      end
 
-        lines = content.split("\n")
+      # join_paragraph_lines for content already split into its source lines
+      # (LatexRenderer#join_source_lines is a different join, for dd and list
+      # items).
+      #
+      # @param lines [Array<String>]
+      # @return [String]
+      def fold_source_lines(lines)
+        return lines.join unless config['join_lines_by_lang']
+
         lang = config['language'] || 'ja'
+        lines = lines.dup
         0.upto(lines.size - 2) do |n|
           lines[n] += ' ' if add_space?(lines[n], lines[n + 1], lang, true)
         end
         lines.join
+      end
+
+      # Inline content rendered and joined as join_lines_to_paragraph joins
+      # a paragraph's lines. Only the source line breaks fold: the newlines
+      # in the text nodes, and the breaks before the child indexes `breaks`
+      # gives (a list item's continuation lines). A newline an inline writes
+      # (@<br>, @<raw>{|text|a\\nb}) is content, and stays -- the builders
+      # compile each source line on its own and only then join them.
+      def render_source_lines(children, breaks: [])
+        lines = [+'']
+        children.each_with_index do |child, index|
+          lines << +'' if index > 0 && breaks.include?(index)
+          output = visit(child)
+          if child.instance_of?(ReVIEW::AST::TextNode)
+            first, *rest = output.split("\n", -1)
+            lines.last << first.to_s
+            lines.concat(rest.map(&:dup))
+          else
+            lines.last << output
+          end
+        end
+        fold_source_lines(lines)
       end
 
       # Render all children of a node and join the results.
@@ -263,9 +294,11 @@ module ReVIEW
         extension_bridge.render_inline(type, arg, node.location)
       end
 
-      # Every node passes here first: a block whose builder method review-ext.rb
+      # Every node passes here first: a block command its builder does not
+      # implement is an error, and a block whose builder method review-ext.rb
       # redefined is written by that method (LegacyExtensionBridge).
       def visit(node)
+        check_builder_support(node)
         delegated = render_overridden_block(node)
         return delegated if delegated
 
@@ -292,6 +325,22 @@ module ReVIEW
         else
           bridge.render_command(command.name, command.args, command.lines, node.location)
         end
+      end
+
+      # As in ReVIEW::Compiler#compile_command, a block command the format's builder
+      # has no method for is an error -- LaTeX has no //talk, the text formats
+      # no //hr or //parasep. Read from the block's type, so a tree loaded from
+      # JSON is checked as the fresh one is. A Markdown chapter is not checked:
+      # its blocks are the adapter's (a thematic break is an hr in every
+      # format), not commands anyone wrote.
+      def check_builder_support(node)
+        return unless node.is_a?(ReVIEW::AST::BlockNode)
+
+        builder_class = legacy_builder_class
+        return if builder_class.nil? || AST::BookUnitView.markdown?(@chapter)
+        return if LegacyExtensionBridge.builder_supports?(builder_class, node.block_type)
+
+        raise ReVIEW::CompileError, "builder does not support command: //#{node.block_type}#{node.location&.format_for_error}"
       end
 
       def extension_bridge

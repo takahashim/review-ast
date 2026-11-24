@@ -8,6 +8,7 @@ require_relative '../support/review/test/text_comparator'
 require 'review/ast/diff/byte_exact'
 require 'review/ast/diff/html'
 require 'review/ast/diff/latex'
+require 'review/ast/diff/text_lines'
 require 'review/book'
 
 # Builder-vs-renderer parity over every corpus chapter, under non-default
@@ -38,38 +39,12 @@ class TestCorpusConfigParity < Test::Unit::TestCase
     end
   end
 
-  # Text output compared without blank lines and leading tabs: the text
-  # renderers do not reproduce the builders' blank-line layout and keep the
-  # list nesting the builders flatten (test_text_renderer_semantics.rb). The
-  # builders' <link href> around a @<chapref> is not reproduced either
-  # (doc/spec-questions.md #8).
-  class TextLinesDiff
-    Result = Struct.new(:same, :pretty_diff) do
-      def equal?
-        same
-      end
-    end
-
-    def compare(builder, renderer)
-      expected = lines(builder.gsub(%r{<link href="[^"]*">(.*?)</link>}, '\\1'))
-      actual = lines(renderer)
-      at = expected.zip(actual).index { |a, b| a != b } || [expected.size, actual.size].min
-      Result.new(expected == actual, "line #{at + 1}\n  builder:  #{expected[at].inspect}\n  renderer: #{actual[at].inspect}")
-    end
-
-    private
-
-    def lines(text)
-      text.lines.map { |line| line.sub(/\A\t+/, '') }.reject { |line| line.strip.empty? }
-    end
-  end
-
   FORMATS = {
     idgxml: [ReVIEW::Test::IdgxmlComparator, ReVIEW::AST::Diff::ByteExact],
     html: [ReVIEW::Test::HtmlComparator, ReVIEW::AST::Diff::Html],
     latex: [ReVIEW::Test::LatexComparator, ReVIEW::AST::Diff::Latex],
-    plaintext: [PlaintextComparator, TextLinesDiff],
-    top: [TopComparator, TextLinesDiff]
+    plaintext: [PlaintextComparator, ReVIEW::AST::Diff::TextLines],
+    top: [TopComparator, ReVIEW::AST::Diff::TextLines]
   }.freeze
 
   CAPTIONS_BOTTOM = { 'caption_position' => { 'image' => 'bottom', 'table' => 'bottom', 'list' => 'bottom', 'equation' => 'bottom' } }.freeze

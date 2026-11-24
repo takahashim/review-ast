@@ -927,7 +927,7 @@ config の読みは約 30 キー、約 100 箇所。
   - render 側の直接 `I18n.t` を `TextFormatter` 経由へ: LaTeX imgref は既存の `format_image_quote`、HTML ruby は新設 `ruby_prefix`/`ruby_postfix` を使用。
   - `indexer.rb` の `part_short` は据え置き。これは compile 側の章番号整形で、`TextFormatter#format_chapter_number_*` と実質重複しており、render 側ヘルパへ移すより「番号整形の共通化」として手順 4(RenderContext)で扱うのが適切。`I18n.setup`(ロケール初期化)は文字列組み立てではないので対象外。
 - 実装済み(手順 2: レガシー索引構築の撤去)
-  - `Indexer` を全面書き換え。`ReVIEW::Book::*Index`/`Index::Item` の構築を全廃し、採番は `@number = Hash.new(0)` の `next_number(type)`(`@X_index.size+1` の等価再現)へ置換。indepimage/numberlessimage/imgtable-image は indepimage カウンタ共有、image/graph は image カウンタ共有という採番規則を厳密維持。`indexes`/`index_for`/各 `attr_reader :*_index` を撤去し、残すのは `attr_reader :registry` のみ。footnote/endnote は AST 自前の `FootnoteIndex`(参照順採番)を保持。
+  - `Indexer` を全面書き換え。`ReVIEW::Book::*Index`/`Index::Item` の構築を全廃し、採番は `@number = Hash.new(0)` の `next_number(type)`(`@X_index.size+1` の等価再現)へ置換。indepimage/numberlessimage/imgtable-image は indepimage カウンタ共有、image/graph は image カウンタ共有という採番規則を厳密維持。`indexes`/`index_for`/各 `attr_reader :*_index` を撤去し、残すのは `attr_reader :registry` のみ。footnote/endnote は AST 自前の `FootnoteIndex` を保持(当初は参照順採番だったが、`IndexBuilder` と同じ定義順採番に修正済み)。
   - `require 'review/book/index'` を `indexer.rb` から削除。
   - `BookIndexer` を撤去(ファイル削除)し、全 9 呼び出し(dumper/compile/pdf/idgxml/text maker + 比較ハーネス 3 + renderer テストの require)を除去。production の maker は book ディレクトリ内で走るため書き戻し prepass は不要。
   - テスト(test_ast_indexer/_pure、test_chapter_index_registry)を `indexer.registry.lookup(:X, id)` / `ids(:X)` 参照へ移行。icon は索引化していなかった(番号未使用)ため対応テストを削除。`ChapterIndexRegistry#ids` を追加。

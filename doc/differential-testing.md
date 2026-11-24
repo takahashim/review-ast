@@ -178,6 +178,19 @@ tests. Two operational notes learned here:
   separately from a genuine divergence.
 - Seeds are reproducible but not stable across generator changes — fold findings
   into tests, never cite a seed as the regression.
+
+The same runner compares the other formats with `--mode html` (CSS white-space
+model), `idgxml` (byte for byte), and `plaintext` / `top` (non-blank lines,
+`Diff::TextLines`); the nightly workflow runs those four over 500 seeds. The
+first text-mode sweep found, and the fragment tests in
+`test/ast/test_builder_compat_fragments.rb` now hold: a newline written by
+`@<br>`/`@<raw>` was folded by the paragraph join; tabs were expanded in every
+code block (the builders expand them in a `//list` body only); ordered items
+were renumbered instead of keeping their written numbers; trailing empty lines
+of a numbered block lost their numbers; `|text|` was taken as a raw/embed
+target; and commands the builder lacks (`//hr`, `//parasep`, …) were printed
+instead of rejected. One builder quirk is left unmatched on purpose
+(spec-questions #9).
 - `@<raw>{|latex|...}` in the generator must carry a brace-free control *symbol*
   (e.g. `\,`). A `{` / `}` breaks the inline parser (a literal `{}` comes out as
   `{\}`), and a bare control *word* (`\TeX`, `\LaTeX`) has upTeX absorb the next

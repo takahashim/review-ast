@@ -138,7 +138,8 @@ module ReVIEW
       end
 
       def visit_paragraph(node)
-        content = join_paragraph_lines(render_children(node).chomp)
+        # chomp: as puts prints it, a trailing @<br> is the line's own newline.
+        content = render_source_lines(node.children).chomp
         return '' if content.empty?
 
         # //noindent has no typographic effect in a text dump, so TOP passes it
@@ -158,11 +159,12 @@ module ReVIEW
             result += visit_unordered_list_item(item)
           end
         when :ol
-          # //olnum sets where the numbering starts; without start_number every
-          # list restarted at 1 and silently renumbered the author's items.
+          # TOPBuilder#ol_item prints the number each item was written with
+          # (//olnum does not renumber a text list). Counting from
+          # start_number is for a list with no written numbers.
           start = node.start_number || 1
           node.children.each_with_index do |item, index|
-            result += visit_ordered_list_item(item, start + index)
+            result += visit_ordered_list_item(item, item.number || (start + index))
           end
         when :dl
           node.children.each do |item|
@@ -207,17 +209,18 @@ module ReVIEW
       # them, with join_lines_to_paragraph.
       def list_item_parts(node)
         breaks = node.source_line_breaks
-        text = +''
+        inline = []
+        inline_breaks = []
         nested = +''
         node.children.each_with_index do |child, index|
           if child.is_a?(ReVIEW::AST::ListNode)
             nested << visit(child)
           else
-            text << "\n" if !text.empty? && breaks.include?(index)
-            text << visit(child)
+            inline_breaks << inline.size if breaks.include?(index)
+            inline << child
           end
         end
-        [join_paragraph_lines(text.chomp), nested]
+        [render_source_lines(inline, breaks: inline_breaks).chomp, nested]
       end
 
       def visit_item(node)
@@ -276,8 +279,10 @@ module ReVIEW
 
         # Add line numbers if needed
         if node.line_numbers
-          code_content = render_children(node).chomp
-          lines = code_content.split("\n")
+          # -1: empty lines at the end of the block are numbered too (each
+          # code line renders with its own "\n", so the last field is empty).
+          lines = render_children(node).split("\n", -1)
+          lines.pop if lines.last && lines.last.empty?
           # //firstlinenum sets where the numbering starts (Builder#line_num);
           # this used to be hardcoded to 1, so TOP silently ignored the directive.
           first_line_number = node.first_line_num || 1
@@ -289,6 +294,8 @@ module ReVIEW
           code_content = render_children(node)
           # Remove trailing newline if present to avoid double newlines
           code_content = code_content.chomp if code_content.end_with?("\n")
+          # TOPBuilder expands tabs in a //list body only (list_body).
+          code_content = code_content.split("\n", -1).map { |line| detab(line) }.join("\n") if code_type == :list
           result += code_content
           result += "\n"
         end
@@ -968,8 +975,7 @@ module ReVIEW
 
       def visit_embed(node)
         # Check if content should be output for this renderer
-        # TOP format accepts 'top' and 'text' as target builders
-        return '' unless node.targeted_for?('top') || node.targeted_for?('text')
+        return '' unless node.targeted_for?('top')
 
         # Get content
         content = node.content || ''

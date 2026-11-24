@@ -136,6 +136,9 @@ module ReVIEW
         # divergences.
         roll = @r.rand(16)
         roll = 17 if roll == 7 && cell_safe # route @<raw> to the decor default
+        # TOP's @<balloon> writes a tab, which TOPBuilder then splits the row
+        # on: an extra cell (doc/spec-questions.md #9). Not in cells either.
+        roll = 17 if roll == 9 && cell_safe
         case roll
         when 0 then "@<m>{#{pick(MATH_INLINE)}}" # inline math (brace-free)
         when 1 then "@<ruby>{#{pick(JA_WORDS)},#{safe_word}}" # ruby

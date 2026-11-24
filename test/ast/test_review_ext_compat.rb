@@ -244,9 +244,14 @@ class TestReviewExtCompat < Test::Unit::TestCase
 
     See @<list>{l1}; @<ruby>{漢字, かんじ} and @<href>{http://example.com, Example}.
 
+    Later@<fn>{f1}.
+
     //emlist[Code & caption]{
-    a < b @<b>{bold}
+    a < b @<b>{bold}@<fn>{f2}
     //}
+
+    //footnote[f2][Defined first, referred to from inside the redefined block]
+    //footnote[f1][Defined second]
 
     //list[l1][The @<b>{list}]{
     puts 1
@@ -280,6 +285,7 @@ class TestReviewExtCompat < Test::Unit::TestCase
 
     latex = assert_same_as_legacy('latex', ReVIEW::AST::Diff::Latex)
     assert_include(latex, '\\begin{myemlist}{Code \\& caption}')
+    assert_include(latex, '\\footnote{Defined first, referred to from inside')
     assert_include(latex, '\\mytable{t1}{3}')
     assert_include(latex, '\\myruby{漢字, かんじ}')
   end

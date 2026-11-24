@@ -67,7 +67,8 @@ module ReVIEW
       end
 
       def visit_paragraph(node)
-        "#{join_paragraph_lines(render_children(node))}\n"
+        # As puts prints it: a trailing @<br> is the line's own newline.
+        "#{render_source_lines(node.children).chomp}\n"
       end
 
       def visit_list(node)
@@ -103,19 +104,23 @@ module ReVIEW
       # nested list on the lines after it -- not folded into the item's line.
       def visit_list_item(node, type = :ul)
         breaks = node.source_line_breaks
-        inline = +''
+        inline = []
+        inline_breaks = []
         nested = +''
         node.children.each_with_index do |child, index|
           if child.is_a?(ReVIEW::AST::TextNode) || child.is_a?(ReVIEW::AST::InlineNode)
-            inline << "\n" if !inline.empty? && breaks.include?(index)
-            inline << visit(child)
+            inline_breaks << inline.size if breaks.include?(index)
+            inline << child
           else
             nested << visit_nested_block(child)
           end
         end
-        text = join_paragraph_lines(inline).strip
+        text = render_source_lines(inline, breaks: inline_breaks).strip
 
-        line = type == :ol ? "#{@ol_num}　#{text}\n" : "#{text}\n"
+        # PLAINTEXTBuilder#ol_item prints the number the item was written
+        # with (//olnum does not renumber a text list); the counter is for a
+        # list with no written numbers.
+        line = type == :ol ? "#{node.number || @ol_num}　#{text}\n" : "#{text}\n"
         line + nested
       end
 
@@ -161,7 +166,8 @@ module ReVIEW
         caption = render_caption_inline(node.caption_node)
         lines_content = render_children(node)
 
-        lines = lines_content.split("\n")
+        # -1: empty lines at the end of the block are numbered too.
+        lines = lines_content.split("\n", -1)
         lines.pop if lines.last && lines.last.empty?
 
         first_line_number = node.first_line_num || 1
@@ -181,7 +187,7 @@ module ReVIEW
         result += "\n" if caption_top?('list') && !caption.empty?
 
         lines.each_with_index do |line, i|
-          result += "#{(i + first_line_number).to_s.rjust(2)}: #{detab(line)}\n"
+          result += "#{(i + first_line_number).to_s.rjust(2)}: #{line}\n"
         end
 
         result += "\n" unless caption_top?('list')
@@ -191,7 +197,9 @@ module ReVIEW
         result
       end
 
-      # Regular code block (emlist, cmd, source, etc.)
+      # Regular code block (emlist, cmd, source, etc.). Its lines are printed
+      # as written: PLAINTEXTBuilder expands tabs in a //list body only
+      # (list_body), not in these or in the numbered blocks.
       def render_regular_code_block(node)
         result = +''
         caption = render_caption_inline(node.caption_node)
@@ -201,7 +209,7 @@ module ReVIEW
         result += "#{caption}\n" if caption_top?('list') && !caption.empty?
 
         lines_content.each_line do |line|
-          result += detab(line.chomp) + "\n"
+          result += line.chomp + "\n"
         end
 
         result += "#{caption}\n" unless caption_top?('list') || caption.empty?
@@ -494,7 +502,7 @@ module ReVIEW
 
       def visit_embed(node)
         # Check if content should be output for this renderer
-        return '' unless node.targeted_for?('plaintext') || node.targeted_for?('text')
+        return '' unless node.targeted_for?('plaintext')
 
         # Get content
         content = node.content || ''
@@ -561,7 +569,7 @@ module ReVIEW
 
       def render_inline_raw(_type, _content, node)
         # Convert \n to actual newlines like PLAINTEXTBuilder
-        if node.targeted_for?('plaintext') || node.targeted_for?('text')
+        if node.targeted_for?('plaintext')
           (node.content || '').gsub('\\n', "\n")
         else
           ''
@@ -570,7 +578,7 @@ module ReVIEW
 
       def render_inline_embed(_type, _content, node)
         # Convert \n to actual newlines like PLAINTEXTBuilder
-        if node.targeted_for?('plaintext') || node.targeted_for?('text')
+        if node.targeted_for?('plaintext')
           (node.content || '').gsub('\\n', "\n")
         else
           ''
@@ -696,7 +704,7 @@ module ReVIEW
         return '' unless caption_node
 
         # A caption's source line breaks fold the same way a paragraph's do.
-        join_paragraph_lines(render_children(caption_node))
+        render_source_lines(caption_node.children)
       end
 
       # The numbering prefix for a headline, as Builder#headline_prefix produces

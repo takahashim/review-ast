@@ -121,8 +121,8 @@ module ReVIEW
       end
 
       def visit_paragraph(node)
-        content = render_children(node)
-        content = join_paragraph_lines(content).strip
+        # render_source_lines: a newline @<raw> writes stays, as in HTMLBuilder.
+        content = render_source_lines(node.children).strip
 
         # Check for noindent attribute
         if node.noindent?

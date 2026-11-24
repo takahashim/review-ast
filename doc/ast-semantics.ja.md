@@ -78,7 +78,7 @@ LaTeX は DVI 一致(TeX の組版結果ファイルどうしの比較。TeX ソ
 | `MinicolumnNode` | 注意書きの小さな囲み | `minicolumn_type` | `//note`, `//memo`, `//tip`, `//info`, `//warning`, `//important`, `//caution`, `//notice` |
 | `FootnoteNode` | 脚注と後注の定義 | `id`, `footnote_type`(`footnote`/`endnote`) | `//footnote`, `//endnote` |
 | `TexEquationNode` | 別行立て数式 | `id`, `caption_node` | `//texequation` |
-| `EmbedNode` | 指定ビルダー向けの生の埋め込み。Markdown 入力の生 HTML ブロックもここに載る(`embed_type: :block`、対象ビルダーは html のみ) | `embed_type`, 対象ビルダー, `content` | `//embed`, `@<embed>`, `//raw`, `@<raw>`, Markdown の HTML ブロック |
+| `EmbedNode` | 指定ビルダー向けの生の埋め込み。`embed_type` は元の命令を表す: `:block`(`//embed`)、`:raw`(`//raw`)、`:inline`(`@<raw>`)、`:inline_embed`(`@<embed>`)。raw 系はリテラルの `\n` を改行にし、embed 系はそのまま出す。Markdown 入力の生 HTML ブロックもここに載る(`embed_type: :block`、対象ビルダーは html のみ) | `embed_type`, 対象ビルダー, `content` | `//embed`, `@<embed>`, `//raw`, `@<raw>`, Markdown の HTML ブロック |
 
 ### 汎用ブロックと一時ノード
 
