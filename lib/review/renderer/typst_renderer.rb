@@ -69,7 +69,7 @@ module ReVIEW
       def initialize(chapter)
         super
 
-        @sec_counter = SecCounter.new(5, @chapter) if @chapter
+        @sec_counter = ReVIEW::AST::SectionCounter.new(5, @chapter) if @chapter
         @inline_context = Typst::InlineContext.new(
           config: config,
           render_context: render_context,

@@ -63,7 +63,7 @@ module ReVIEW
         @subsection = 0
         @subsubsection = 0
         @subsubsubsection = 0
-        @sec_counter = SecCounter.new(5, @chapter) if @chapter
+        @sec_counter = ReVIEW::AST::SectionCounter.new(5, @chapter) if @chapter
 
         # Initialize table state
         @tablewidth = nil

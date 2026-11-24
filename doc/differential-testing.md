@@ -222,6 +222,27 @@ or is found ignoring, a config key. Settings the corpora cannot exercise (a
 `words_file`, `\,` in `@<href>`) are pinned per fragment in
 `test/ast/test_builder_compat_fragments.rb`.
 
+## Tracking Re:VIEW master
+
+The builders are the oracle, so a change in Re:VIEW itself changes what
+"parity" means. `REVIEW_HEAD=master bundle exec rake test` (or any branch name)
+runs the suite against Re:VIEW from GitHub instead of the released gem; the
+nightly workflow's `review-head` job does this every day.
+
+Where an unreleased upstream change can be followed without breaking parity
+with the released gem, the renderer follows the builder that is installed
+(TOP's `@<em>`: `TopRenderer#em_marked_like_i?`). Known upstream changes not
+followed yet, to revisit when they are released:
+
+- `Builder#parse_table_rows` splits a row after `rstrip` instead of `strip`
+  (kmuto/review#1972), so a row with leading whitespace gets an empty first
+  cell. The AST table processor still strips both ends.
+- `IDGXMLBuilder` pads a row with fewer cells than the table when a table
+  width is set (`pad_table_row`). The IDGXML renderer does not pad.
+
+Neither shows up in the corpora, which is why the suite passes against master
+today; a fragment test should pin each once it is followed.
+
 ## Scope and limits
 
 - DVI comparison is LaTeX-only. HTML/IDGXML keep using DOM/text normalization.

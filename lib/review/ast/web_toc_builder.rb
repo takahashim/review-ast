@@ -10,6 +10,8 @@ require 'review/htmlutils'
 require 'review/sec_counter'
 require_relative 'compiler'
 require_relative 'headline_node'
+require_relative 'section_counter'
+require_relative 'chapter_title'
 
 module ReVIEW
   module AST
@@ -53,15 +55,19 @@ module ReVIEW
 
       def chapter_li(chap)
         href = "#{chap.id}.#{@htmlext}"
-        sections = section_entries(chap)
+        ast = compile(chap)
+        sections = section_entries(chap, ast)
         inner = sections.empty? ? '' : "\n#{render_sections(sections, href)}\n"
-        %Q(<li><a href="#{href}">#{escape(chapter_label(chap))}</a>#{inner}</li>)
+        %Q(<li><a href="#{href}">#{escape(chapter_label(chap, ast))}</a>#{inner}</li>)
+      end
+
+      def compile(chap)
+        ReVIEW::AST::Compiler.for_chapter(chap).compile_to_ast(chap, reference_resolution: false)
       end
 
       # [{level:, fragment:, text:}, ...] in document order, sections only.
-      def section_entries(chap)
-        ast = ReVIEW::AST::Compiler.for_chapter(chap).compile_to_ast(chap, reference_resolution: false)
-        sec_counter = ReVIEW::SecCounter.new(5, chap)
+      def section_entries(chap, ast = compile(chap))
+        sec_counter = ReVIEW::AST::SectionCounter.new(5, chap)
         entries = []
         each_headline(ast) do |node|
           if node.nonum? || node.notoc? || node.nodisp?
@@ -115,9 +121,17 @@ module ReVIEW
         node.children.each { |child| each_headline(child, &block) }
       end
 
-      def chapter_label(chap)
-        num = chap.format_number(true)
-        num.empty? ? chap.title : "#{num} #{chap.title}"
+      # Chapter#format_number misses Markdown appendices (see
+      # RenderContext.catalog_section), so number from the AST's own type.
+      def chapter_label(chap, ast)
+        num = ChapterNumberFormatter.full(chap.number, RenderContext.chapter_type(chap))
+        title = chapter_title(chap, ast)
+        num.empty? ? title : "#{num} #{title}"
+      end
+
+      # A Markdown chapter's title comes from its AST (ChapterTitle).
+      def chapter_title(chap, ast)
+        ChapterTitle.of(chap, ast)
       end
 
       def part_label(part)

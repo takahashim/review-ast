@@ -353,6 +353,10 @@ module ReVIEW
         chapter = find_chapter_by_id(node.ref_id)
         raise CompileError, "Chapter reference not found: #{node.ref_id}" unless chapter
 
+        # A Markdown chapter's title comes from its AST (BookUnit#title only
+        # parses Re:VIEW "=" headlines); indexing it sets the title.
+        registry_for(chapter) if markdown_chapter?(chapter)
+
         ResolvedData.chapter(
           chapter_number: chapter.number,
           chapter_id: node.ref_id,
@@ -525,6 +529,10 @@ module ReVIEW
       # @return [Symbol] One of :chapter, :appendix, :part, :predef
       def chapter_type(chapter)
         ReVIEW::AST::RenderContext.chapter_type(chapter)
+      end
+
+      def markdown_chapter?(chapter)
+        chapter.respond_to?(:path) && chapter.path.to_s.end_with?('.md')
       end
     end
   end

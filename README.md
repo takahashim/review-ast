@@ -32,6 +32,8 @@ Current scope:
     instead of LaTeX; needs Chrome/Chromium and the `vivlio-pdf` gem
   - `review-ast-typstmaker` — PDF through Typst instead of LaTeX; needs the
     `typst` binary
+  - `review-ast-index` / `review-ast-vol` — `review-index` / `review-vol` with
+    chapters read by the AST, so a Markdown book is listed with its titles
 
 A book's `review-ext.rb` keeps working: commands it declares with
 `ReVIEW::Compiler.defblock`/`definline` are rendered by the builder methods it
@@ -62,6 +64,10 @@ bundle exec review-ast-compile --target html chapter.re
 ```bash
 bundle exec rake test
 ```
+
+`REVIEW_HEAD=master bundle install && REVIEW_HEAD=master bundle exec rake test`
+runs the same suite against Re:VIEW's master branch (see
+[doc/differential-testing.md](doc/differential-testing.md#tracking-review-master)).
 
 The test suite includes comparator tests that render sample books through both
 the AST HTML renderer and Re:VIEW's own `HTMLBuilder`, asserting the two outputs

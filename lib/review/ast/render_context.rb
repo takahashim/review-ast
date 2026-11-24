@@ -31,16 +31,34 @@ module ReVIEW
       # here so cross-chapter references and the current chapter classify alike.
       def self.chapter_type(chapter)
         return nil unless chapter
+        return :part if chapter.is_a?(ReVIEW::Book::Part)
 
-        if chapter.is_a?(ReVIEW::Book::Part)
-          :part
-        elsif chapter.on_predef?
-          :predef
-        elsif chapter.on_appendix?
-          :appendix
-        else
-          :chapter
+        case catalog_section(chapter)
+        when :predef then :predef
+        when :appendix then :appendix
+        else :chapter
         end
+      end
+
+      CATALOG_SECTIONS = { predef: :read_predef, appendix: :read_appendix, postdef: :read_postdef }.freeze
+
+      # The catalog section (:predef, :appendix, :postdef) a chapter is listed
+      # in, or nil for the main chapters. Book::Chapter#on_appendix? and its
+      # siblings compare the catalog entry with "<id><book.ext>", and ext is
+      # ".re" unless the book sets it -- so a Markdown chapter (appA.md) was
+      # never on any section, and an appendix came out numbered "第1章". Compare
+      # with "<id><the chapter file's own extension>" instead, which is the
+      # same test for a .re chapter.
+      def self.catalog_section(chapter)
+        book = chapter.respond_to?(:book) ? chapter.book : nil
+        return unless book
+
+        name = "#{chapter.id}#{File.extname(chapter.path.to_s)}"
+        CATALOG_SECTIONS.each do |section, reader|
+          entries = book.respond_to?(reader) ? Array(book.public_send(reader)) : []
+          return section if entries.any? { |entry| entry.to_s.strip == name }
+        end
+        nil
       end
 
       # Build from a chapter (nil-safe). Values are captured eagerly; no reference

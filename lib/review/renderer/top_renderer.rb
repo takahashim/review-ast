@@ -99,7 +99,7 @@ module ReVIEW
         # Section numbering, as in the legacy builders (LaTeX/HTML/IDGXML
         # renderers already do this; text did not, so section numbers were
         # missing from its output entirely).
-        @sec_counter = SecCounter.new(5, @chapter) if @chapter
+        @sec_counter = ReVIEW::AST::SectionCounter.new(5, @chapter) if @chapter
       end
 
       # Format type for this renderer
@@ -338,6 +338,7 @@ module ReVIEW
 
         result = +''
         @table_row_separator_count = 0
+        @table_header_row_count = node.header_rows.size
 
         result += "\n"
         result += "◆→開始:#{TITLES[:table]}←◆\n"
@@ -376,10 +377,11 @@ module ReVIEW
 
         result = cells.join("\t") + "\n"
 
-        # Add separator after header rows
+        # TOPBuilder#table_rows draws the rule after the header rows, and only
+        # for a table that has some (a source separator line); a table
+        # without one gets no rule.
         @table_row_separator_count += 1
-        # Check if this should be treated as header (simplified logic)
-        if @table_row_separator_count == 1 && should_add_table_separator?
+        if @table_header_row_count.to_i > 0 && @table_row_separator_count == @table_header_row_count && should_add_table_separator?
           result += "#{'-' * 12}\n"
         end
 
@@ -500,6 +502,54 @@ module ReVIEW
         result
       end
 
+      # TOPBuilder#base_block (//box, //insn, //bpo): the caption ("■...")
+      # above or below the lines per caption_position (list).
+      def visit_block_box(node)
+        top_block(node, caption_top: caption_top?('list'))
+      end
+
+      alias_method :visit_block_insn, :visit_block_box
+      alias_method :visit_block_bpo, :visit_block_box
+
+      # TOPBuilder#base_parablock (//point, //term): the caption always above.
+      def visit_block_point(node)
+        top_block(node, caption_top: true)
+      end
+
+      alias_method :visit_block_term, :visit_block_point
+
+      # TOPBuilder#comment: only in draft mode, as "◆→...←◆".
+      def visit_block_comment(node)
+        return '' unless config['draft']
+
+        lines = node.children.map { |child| child.respond_to?(:content) ? child.content.to_s : render_children(child) }
+        comment = node.args.first
+        lines.unshift(comment) unless comment.nil? || comment.empty?
+        "◆→#{lines.join("\n")}←◆\n"
+      end
+
+      # //hr, //parasep and //pagebreak have no TOPBuilder method (a Markdown
+      # thematic break is an //hr); they leave no mark.
+      def visit_block_hr(_node)
+        ''
+      end
+
+      alias_method :visit_block_parasep, :visit_block_hr
+      alias_method :visit_block_pagebreak, :visit_block_hr
+
+      def top_block(node, caption_top:)
+        title = TITLES[node.block_type.to_sym] || node.block_type.to_s
+        caption = node.caption_node ? render_caption_inline(node.caption_node) : ''
+        body = render_children(node)
+        body += "\n" unless body.empty? || body.end_with?("\n")
+
+        result = "\n◆→開始:#{title}←◆\n"
+        result << "■#{caption}\n" if caption_top && !caption.empty?
+        result << body
+        result << "■#{caption}\n" if !caption_top && !caption.empty?
+        result << "◆→終了:#{title}←◆\n\n"
+      end
+
       # Block elements from todo-top.md
 
       def visit_block_lead(node)
@@ -583,8 +633,10 @@ module ReVIEW
         case type
         when :b, :strong, :wb # Builder#inline_wb is inline_b of the word
           "★#{content}☆"
-        when :i, :em
+        when :i
           "▲#{content}☆"
+        when :em
+          em_marked_like_i? ? "▲#{content}☆" : content
         when :code, :tt
           "△#{content}☆"
         when :ttb, :ttbold
@@ -700,6 +752,15 @@ module ReVIEW
 
         @sec_counter.inc(level)
         @sec_counter.prefix(level, config['secnolevel'] || DEFAULT_SECNOLEVEL).to_s
+      end
+
+      # TOPBuilder in Re:VIEW 5.11 leaves @<em> plain (it inherits
+      # PLAINTEXTBuilder#inline_em); later Re:VIEW aliases it to inline_i and
+      # marks it. Follow the installed builder.
+      def em_marked_like_i?
+        return @em_marked_like_i if defined?(@em_marked_like_i)
+
+        @em_marked_like_i = ReVIEW::TOPBuilder.instance_method(:inline_em).original_name == :inline_i
       end
 
       def should_add_table_separator?
