@@ -100,7 +100,8 @@ module ReVIEW
         def ast_converter
           @ast_converter ||= AstHtmlConverter.new(
             ReVIEW::Book::Base.new(@basedir, config: @config),
-            img_math: @img_math
+            img_math: @img_math,
+            img_graph: @img_graph
           )
         end
       end

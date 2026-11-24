@@ -31,8 +31,13 @@ module ReVIEW
         'blockdiag' => :blockdiag,
         'seqdiag' => :blockdiag,
         'actdiag' => :blockdiag,
-        'nwdiag' => :blockdiag
+        'nwdiag' => :blockdiag,
+        'aafigure' => :aafigure,
+        'plantuml' => :plantuml
       }.freeze
+
+      # Where Builder#graph_plantuml looks for plantuml.jar, in order.
+      PLANTUML_JARS = ['plantuml.jar', '/usr/share/plantuml/plantuml.jar', '/usr/share/java/plantuml.jar'].freeze
 
       # @param imagedir [String] The book's image directory
       # @param target_name [String] Builder name, used as the subdirectory
@@ -100,6 +105,22 @@ module ReVIEW
 
       def blockdiag(path, source_path, _content, command)
         system(command, '-a', '-T', @image_ext, '-o', path, source_path)
+      end
+
+      def aafigure(path, source_path, _content, _command)
+        system('aafigure', '-t', @image_ext, '-o', path, source_path)
+      end
+
+      # Builder#graph_plantuml: plantuml writes "<source>.<ext>" next to its
+      # input, which is then moved into place. It has no PDF output, so a PDF
+      # target gets EPS, as the builder does.
+      def plantuml(path, source_path, _content, _command)
+        jar = PLANTUML_JARS.find { |candidate| File.exist?(candidate) }
+        raise ReVIEW::ApplicationError, 'missing plantuml.jar. Please put plantuml.jar at the working folder.' unless jar
+
+        ext = @image_ext == 'pdf' ? 'eps' : @image_ext
+        system('java', '-jar', jar, "-t#{ext}", '-charset', 'UTF-8', source_path)
+        FileUtils.mv("#{source_path}.#{ext}", path) if File.exist?("#{source_path}.#{ext}")
       end
     end
   end

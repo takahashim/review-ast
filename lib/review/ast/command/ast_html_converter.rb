@@ -19,12 +19,14 @@ module ReVIEW
       # sidebar) is chosen by HtmlRenderer from config.maker, so the same converter
       # serves both makers.
       class AstHtmlConverter
-        def initialize(book, img_math:, web_toc: nil)
+        def initialize(book, img_math:, web_toc: nil, img_graph: nil)
           @book = book
           # Match ReVIEW::Converter.new, which sets the builder so image paths
           # resolve under <imagedir>/html/... as the legacy converter would.
           @book.config['builder'] = 'html'
           @img_math = img_math
+          # The maker's ImgGraph, which draws deferred Mermaid //graph images.
+          @img_graph = img_graph
           @web_toc = web_toc
         end
 
@@ -37,6 +39,7 @@ module ReVIEW
           compiler = ReVIEW::AST::Compiler.for_chapter(chapter)
           ast_root = compiler.compile_to_ast(chapter, registry_provider: registry_provider)
           renderer = ReVIEW::Renderer::HtmlRenderer.new(chapter, img_math: @img_math, web_toc: @web_toc)
+          renderer.img_graph = @img_graph if @img_graph
           File.write(output_path, renderer.render(ast_root))
         end
 

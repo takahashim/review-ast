@@ -21,6 +21,11 @@ module ReVIEW
   module Renderer
     class LatexRenderer < Base
       # review-ext.rb methods on this builder render the book's own commands.
+      # LATEXBuilder#image_ext: the format //graph generators are asked for.
+      def image_ext
+        'pdf'
+      end
+
       def legacy_builder_class
         require 'review/latexbuilder'
         ReVIEW::LATEXBuilder

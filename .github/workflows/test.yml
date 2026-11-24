@@ -19,6 +19,12 @@ jobs:
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
+      # //graph runs external generators; with them installed on one job,
+      # test_graph.rb compares the output with review-compile (it is omitted
+      # where they are missing).
+      - name: Install //graph generators
+        if: matrix.ruby == '3.4'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends graphviz gnuplot-nox
       - run: bundle exec rake test
 
   lint:

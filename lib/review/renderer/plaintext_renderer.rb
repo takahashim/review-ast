@@ -15,6 +15,11 @@ module ReVIEW
   module Renderer
     class PlaintextRenderer < Base
       # review-ext.rb methods on this builder render the book's own commands.
+      # PLAINTEXTBuilder#image_ext: the format //graph generators are asked for.
+      def image_ext
+        'png'
+      end
+
       def legacy_builder_class
         require 'review/plaintextbuilder'
         ReVIEW::PLAINTEXTBuilder

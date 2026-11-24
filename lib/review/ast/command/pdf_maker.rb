@@ -62,7 +62,7 @@ module ReVIEW
         def create_converter(book)
           # Create a wrapper that makes Renderer compatible with Converter interface
           # Renderer will be created per chapter in the adapter
-          @renderer_adapter = RendererConverterAdapter.new(book)
+          @renderer_adapter = RendererConverterAdapter.new(book, img_graph: @img_graph)
         end
 
         # Override the converter creation point in build_pdf
@@ -126,8 +126,11 @@ module ReVIEW
       class RendererConverterAdapter
         attr_reader :compile_errors_list
 
-        def initialize(book)
+        # img_graph: the maker's ImgGraph, which draws deferred Mermaid
+        # //graph images once every chapter is converted.
+        def initialize(book, img_graph: nil)
           @book = book
+          @img_graph = img_graph
           @config = book.config
           @compile_errors = false
           @compile_errors_list = []
@@ -153,6 +156,7 @@ module ReVIEW
 
             # Create renderer with current chapter
             renderer = ReVIEW::Renderer::LatexRenderer.new(chapter)
+            renderer.img_graph = @img_graph if @img_graph
 
             # Render to LaTeX (AST::Indexer will handle indexing during this process)
             latex_output = renderer.render(ast_root)

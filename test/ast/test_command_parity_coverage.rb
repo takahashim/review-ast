@@ -157,8 +157,8 @@ class TestCommandParityCoverage < Test::Unit::TestCase
               'FileNotFound during index generation. Covered with book context by ' \
               'test_idgxml_renderer_builder_comparison.rb#test_syntax_book_bib.',
     graph: 'shells out to dot/gnuplot and writes generated images into the book ' \
-           'imagedir, so it is not safe to run on every CI push. The html and latex ' \
-           'renderers also leave it unimplemented (ast-semantics.ja.md section 4).'
+           'imagedir, and the builder only finds the image in a book laid out on disk. ' \
+           'Compared through review-compile in test_graph.rb instead.'
   }.freeze
 
   INLINE_EXCLUSIONS = {

@@ -45,10 +45,8 @@ The **parity-first** rule defines correctness of the AST pipeline, for now, as
 differs per format. LaTeX is DVI-identical (the comparison is between typeset
 results (DVI files), not between the bytes of the TeX source), IDGXML is
 byte-identical, and HTML is rendered-equivalent (equal as a browser rendering).
-There are only two exceptions to the rule: the places listed in the
-[divergence registry](#4-divergence-registry), and a command not yet
-implemented in a renderer (`//graph` in the LaTeX renderer; see the end of the
-divergence registry).
+The only exceptions to the rule are the places listed in the
+[divergence registry](#4-divergence-registry).
 
 ## 1. Node inventory
 
@@ -315,11 +313,11 @@ the builder behaviour is a bug or a builder-specific quirk.
 | 7 | `@<tcy>` in IDGXML | the generic `Builder#inline_tcy` writes the text unescaped | emits the same `[rotate 90 degree]` note but escapes the text (intentionally incompatible) | fix-now | open |
 | 8 | `@<chapref>` in the text formats | with `chapterlink` on, writes a `<link href="…">` element into plain text | prints the reference text alone (intentionally incompatible) | fix-now | open |
 
-Besides these, one thing is simply unimplemented rather than divergent (see
-`doc/differential-testing.md`): `//graph` (external-tool image) is not
-implemented in the AST LaTeX renderer. (`@<w>`/`@<wb>` now match the builders
-in every format, including loading `words_file` and degrading an unknown word
-to `[missing word: id]`.)
+No command is left unimplemented in a renderer whose builder supports it:
+`//graph` (external-tool image) now runs the generator and renders the image in
+every format, as Builder#graph does, and `@<w>`/`@<wb>` match the builders in
+every format, including loading `words_file` and degrading an unknown word to
+`[missing word: id]`.
 
 One non-divergent point worth stating: the interpretation of `//tsize` (table
 column widths) differs per format.
