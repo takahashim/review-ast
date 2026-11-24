@@ -584,17 +584,7 @@ module ReVIEW
       def visit_graph(node)
         # Args: [id, command, caption]
         id = node.args[0]
-        command = node.args[1]
-
-        content = node.children.map { |child| child.is_a?(ReVIEW::AST::TextNode) ? child.content : '' }.join("\n")
-        content += "\n" unless content.empty?
-
-        file_path =
-          if command == 'mermaid'
-            deferred_mermaid_path(id, content)
-          else
-            graph_image.generate(id: id, command: command, content: content)
-          end
+        file_path = generate_graph_image(node)
 
         # Now render as a regular numbered image using the just-generated file
         # path directly (no chapter image index needed).
@@ -1705,27 +1695,6 @@ module ReVIEW
       # Get tabwidth setting (default to 8)
       def tabwidth
         config['tabwidth'] || 8
-      end
-
-      # Graph generation helper methods (for non-mermaid graphs)
-      def graph_image
-        @graph_image ||= GraphImage.new(imagedir: render_context.imagedir,
-                                        target_name: 'idgxml',
-                                        image_ext: image_ext)
-      end
-
-      # Mermaid images are drawn in a browser after the build, so ImgGraph only
-      # records the request here. Without playwright there is nothing to defer
-      # to, and the markup falls back to the path the image would have had.
-      def deferred_mermaid_path(id, content)
-        require 'playwrightrunner'
-        unless @img_graph
-          require 'review/img_graph'
-          @img_graph = ReVIEW::ImgGraph.new(config, 'idgxml')
-        end
-        @img_graph.defer_mermaid_image(content, id)
-      rescue LoadError
-        graph_image.file_path(id)
       end
     end
   end

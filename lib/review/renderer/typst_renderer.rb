@@ -402,15 +402,7 @@ module ReVIEW
       # so this decides only what markup to emit (same split as IdgxmlRenderer).
       def visit_block_graph(node)
         id = node.args[0]
-        command = node.args[1]
-        source = node.children.map { |child| child.is_a?(ReVIEW::AST::TextNode) ? child.content : '' }.join("\n")
-        source += "\n" unless source.empty?
-
-        path = if command == 'mermaid'
-                 deferred_mermaid_path(id, source)
-               else
-                 graph_image.generate(id: id, command: command, content: source)
-               end
+        path = generate_graph_image(node)
 
         caption = node.caption_node ? render_children(node.caption_node) : nil
 
@@ -598,25 +590,6 @@ module ReVIEW
       # and every //graph generator can emit it.
       def image_ext
         'svg'
-      end
-
-      def graph_image
-        @graph_image ||= GraphImage.new(imagedir: render_context.imagedir,
-                                        target_name: BUILDER_NAME,
-                                        image_ext: image_ext)
-      end
-
-      # Mermaid diagrams are drawn in a browser after the build; without
-      # playwright there is nothing to defer to and the path is used as-is.
-      def deferred_mermaid_path(id, content)
-        require 'playwrightrunner'
-        unless @img_graph
-          require 'review/img_graph'
-          @img_graph = ReVIEW::ImgGraph.new(config, BUILDER_NAME)
-        end
-        @img_graph.defer_mermaid_image(content, id)
-      rescue LoadError
-        graph_image.file_path(id)
       end
 
       # The image's alternative text.

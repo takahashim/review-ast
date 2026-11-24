@@ -16,6 +16,11 @@ module ReVIEW
   module Renderer
     class TopRenderer < Base
       # review-ext.rb methods on this builder render the book's own commands.
+      # TOPBuilder (inherited from PLAINTEXTBuilder)#image_ext: the format //graph generators are asked for.
+      def image_ext
+        'png'
+      end
+
       def legacy_builder_class
         require 'review/topbuilder'
         ReVIEW::TOPBuilder

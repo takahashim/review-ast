@@ -185,17 +185,18 @@ tests. Two operational notes learned here:
   Both make the input un-typesettable for *both* paths — pure skip noise, not a
   divergence. This was worth several DVI skips until the content was constrained.
 
-## Known gaps (unimplemented in the AST LaTeX renderer)
+## Known gaps
 
-Constructs the builder supports but the AST LaTeX renderer does not yet. They are
-deliberately kept out of the PBT generator (so they don't flag every run) until
-implemented. The runner classifies them as `renderer_error` (a divergence) if
-they do appear.
-
-- **`//graph`** — generates an image with an external tool (Graphviz/Gnuplot/…)
-  and then renders it as an image. Implementing it means running the tool and
-  emitting a file from the renderer (a side effect the AST renderer otherwise
-  avoids), plus matching the builder's image path/binding. Deferred; niche.
+None left: every construct the builders support is implemented in the
+renderers. `//graph`, the last one, runs its generator (Graphviz, gnuplot,
+blockdiag, aafigure, PlantUML; Mermaid is deferred to the maker's ImgGraph) and
+renders the image, in every format. It stays out of the PBT generator and the
+per-command sweep because it writes image files and needs the tools installed;
+`test/ast/test_graph.rb` compares it with `review-compile` when dot and gnuplot
+are present (the CI test job installs them) and is omitted otherwise. One
+deliberate difference: without playwright-runner, Builder#graph_mermaid stops
+the build, while the renderers warn and refer to the image Mermaid would have
+drawn.
 
 Constructs the builder itself does **not** support for LaTeX, which the AST
 renderer nonetheless implements (a benign superset — a valid LaTeX book cannot

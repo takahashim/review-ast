@@ -15,6 +15,8 @@ require 'review/textutils'
 require 'review/ast/inline_processor'
 require 'review/ast/block_processor'
 require 'review/renderer/legacy_extension_bridge'
+require 'review/renderer/graph_image'
+require 'review/ast/image_node'
 require 'review/ast/section_counter'
 
 module ReVIEW
@@ -71,6 +73,10 @@ module ReVIEW
       end
 
       attr_reader :text_formatter, :render_context
+
+      # The maker's ImgGraph, which draws deferred Mermaid diagrams in a
+      # browser at the end of the build (EPUBMaker, PDFMaker, IDGXMLMaker).
+      attr_writer :img_graph
 
       # Builder#detab: expand tabs to the book's `tabwidth` when it is set,
       # TextUtils' default of 8 otherwise. An explicit width wins.
@@ -295,6 +301,67 @@ module ReVIEW
         else
           raise NotImplementedError, "Unknown block type: #{node.block_type}"
         end
+      end
+
+      # //graph, as Builder#graph does it: produce the image file with the
+      # generator the block names, then render the block as the image it now
+      # is (the builder ends with image(lines, id, caption)) -- here through
+      # this renderer's own visit_image. IDGXML and Typst write their own
+      # markup but share the generation below.
+      def visit_block_graph(node)
+        image = ReVIEW::AST::ImageNode.new(location: node.location, id: node.args[0], caption_node: node.caption_node)
+        image.image_path = generate_graph_image(node)
+        image.definition_number = node.definition_number
+        visit_image(image)
+      end
+
+      # The builder name that names the image subdirectory
+      # (<imagedir>/<target_name>/<id>.<image_ext>), as Builder#target_name.
+      def target_name
+        format_type.to_s
+      end
+
+      # The image format this renderer asks //graph generators for, as each
+      # builder's #image_ext.
+      def image_ext
+        raise NotImplementedError, "#{self.class} must implement #image_ext"
+      end
+
+      # Run the //graph block's generator and return the image's path.
+      def generate_graph_image(node)
+        id, command = node.args
+        content = node.children.map { |child| child.is_a?(ReVIEW::AST::TextNode) ? child.content : '' }.join("\n")
+        content += "\n" unless content.empty?
+
+        return deferred_mermaid_path(id, content) if command == 'mermaid'
+
+        # Builder#graph dispatches to graph_<command> and fails on a command
+        # it has no method for.
+        unless GraphImage::GENERATORS.key?(command)
+          raise ReVIEW::CompileError, "unknown graph command: #{command}#{node.location&.format_for_error}"
+        end
+
+        graph_image.generate(id: id, command: command, content: content)
+      end
+
+      def graph_image
+        @graph_image ||= GraphImage.new(imagedir: render_context.imagedir, target_name: target_name, image_ext: image_ext)
+      end
+
+      # Mermaid diagrams are drawn in a browser after the build, so ImgGraph
+      # only records the request here. Builder#graph_mermaid stops the build
+      # when playwright-runner is missing; the AST renderers warn and point at
+      # the path the image would have had.
+      def deferred_mermaid_path(id, content)
+        require 'playwrightrunner'
+        @img_graph ||= begin
+          require 'review/img_graph'
+          ReVIEW::ImgGraph.new(config, target_name)
+        end
+        @img_graph.defer_mermaid_image(content, id)
+      rescue LoadError
+        ReVIEW.logger.warn("could not handle Mermaid of //graph[#{id}] (playwright-runner is not installed)")
+        graph_image.file_path(id)
       end
 
       # Parse metric option for images and tables
