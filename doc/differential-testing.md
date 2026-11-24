@@ -192,7 +192,9 @@ tests. Two operational notes learned here:
 
 The same runner compares the other formats with `--mode html` (CSS white-space
 model), `idgxml` (byte for byte), and `plaintext` / `top` (non-blank lines,
-`Diff::TextLines`); the nightly workflow runs those four over 500 seeds. The
+`Diff::TextLines`); the nightly workflow runs those four and `canonical` over
+500 seeds, each under the default settings, `review_version: 2.0` and
+`language: en` (`--config`). The
 first text-mode sweep found, and the fragment tests in
 `test/ast/test_builder_compat_fragments.rb` now hold: a newline written by
 `@<br>`/`@<raw>` was folded by the paragraph join; tabs were expanded in every

@@ -658,6 +658,12 @@ module ReVIEW
         # Process cell content while maintaining table context to collect footnotes
         # Note: table context should already be set by visit_table
         content = render_children(node)
+        # Builder#parse_table_rows strips the row after its inlines are
+        # compiled, so the first cell loses its leading and the last its
+        # trailing whitespace (version 2's @<m> pads with spaces).
+        siblings = node.parent&.children || [node]
+        content = content.lstrip if col_index == 0
+        content = content.rstrip if node.equal?(siblings.last)
 
         # Get cellwidth for this column straight from the owning TableNode via the
         # parent chain (cell -> row -> table), rather than a renderer ivar that

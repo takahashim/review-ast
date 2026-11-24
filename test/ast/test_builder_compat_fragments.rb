@@ -418,6 +418,9 @@ class TestBuilderCompatFragments < Test::Unit::TestCase
       "//image[i1][Cap]{\nart\n//}\n\n//indepimage[i2][Cap2]\n"
     ]
     sources.each { |source| assert_parity(source, formats: [:latex], config: REVIEW_V2) }
+    # Version 2's @<m> pads with spaces; the builder strips the compiled row,
+    # so a row's first and last cells lose them (found by the PBT).
+    assert_parity("//table[t1][C]{\n@<m>{x}\tB @<m>{y}\n------------\nC\t@<m>{z}\n//}\n", formats: [:latex], config: REVIEW_V2)
     listings = REVIEW_V2.merge('highlight' => { 'latex' => 'listings' })
     assert_parity("//emlist{\nno title\n//}\n\n//emlist[T]{\ntitle\n//}\n\n//list[l1][C]{\nx\n//}\n", formats: [:latex], config: listings)
   end
