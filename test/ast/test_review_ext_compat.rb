@@ -187,6 +187,20 @@ class TestReviewExtCompat < Test::Unit::TestCase
     assert_match(/review-ext\.rb redefines HTMLBuilder#headline, which the AST renderer does not call/, err)
   end
 
+  # A builder helper (here HTMLBuilder#table_begin, as a real book redefines
+  # it to add a CSS class) is as unroutable as a structural hook; it was
+  # ignored without a word. A helper Re:VIEW does not define is the book's own
+  # and is not reported.
+  def test_redefined_builder_helper_is_reported
+    ext = REVIEW_EXT.sub("  class HTMLBuilder\n", "  class HTMLBuilder\n    def table_begin(_ncols); puts '<table class=\"x\">'; end\n    " \
+                                                  "def my_own_helper; end\n")
+    File.write(File.join(@dir, 'review-ext.rb'), ext)
+    _, err = ast('html')
+    assert_match(/review-ext\.rb redefines HTMLBuilder#table_begin, which the AST renderer does not call/, err)
+    assert_not_match(/my_own_helper/, err)
+    assert_not_match(/HTMLBuilder#(mybox|mymark|inline_mykbd|inline_u)\b/, err)
+  end
+
   # Redefinitions of built-in commands: a block (emlist, list, table), a
   # minicolumn's ends (note_begin / note_end) and special inlines (ruby,
   # href, a reference). The legacy path uses them, so the AST path must too --

@@ -53,7 +53,11 @@ the AST does not go through those builder methods:
 - structural hooks (`headline`, `paragraph`, `ul_item`, `ol_item`, `dt`, `dd`,
   `column_begin`, `column_end`, `result`, …);
 - the parser directives the AST lowers onto the next block (`noindent`,
-  `olnum`, `firstlinenum`, `tsize`, `beginchild`, `endchild`).
+  `olnum`, `firstlinenum`, `tsize`, `beginchild`, `endchild`);
+- any other method of Re:VIEW's builder that is not a command, a
+  minicolumn's `_begin`/`_end` or an `inline_*` method: the helpers the
+  builders' own commands call, such as `table_begin`, `image_header` or
+  `list_header`.
 
 Each such redefinition is reported once per run with a warning:
 
