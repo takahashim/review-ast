@@ -323,6 +323,27 @@ class TestBuilderCompatFragments < Test::Unit::TestCase
     assert_text_lines_parity(source)
   end
 
+  # //planning, //shoot and the other captionblocks are declared by the
+  # builders themselves and written by them; IDGXML used to render them with
+  # methods that found no content (and crashed on //shoot[caption]).
+  def test_builder_declared_captionblocks
+    source = "//planning[Plan @<b>{x}]{\nline1 @<b>{bold}\nline2\n\npara2\n//}\n\n//shoot[Shot]{\ns\n//}\n\n//shoot{\nt\n//}\n\n" \
+             "//security[Sec]{\nu\n//}\n\n//best{\nv\n//}\n"
+    assert_parity(source, formats: %i[html idgxml])
+    assert_text_lines_parity(source)
+    assert_parity("//expert{\ne\n//}\n\n//reference{\nr\n//}\n\n//practice{\np\n//}\n\n//link[L]{\nl\n//}\n", formats: [:idgxml])
+  end
+
+  # IDGXMLBuilder prints raw content (//embed, //raw, //rawblock), so its
+  # newlines -- and none before it -- reach the output under nolf.
+  def test_idgxml_raw_content_keeps_its_newlines
+    ["== S\n\n//raw[a1]\n", "//list[l1][LC]{\nx\n//}\n\n//embed{\n<a/>\n<b/>\nline\n//}\n\nafter\n",
+     "===[column] C\n\ntext\n\n===[/column]\n\n//embed[idgxml]{\nline1\n//}\n",
+     "para\n\n//rawblock{\nline1 @<b>{bold} &lt;x&gt;\nline2\n//}\n\nafter\n"].each do |source|
+      assert_parity(source, formats: [:idgxml])
+    end
+  end
+
   GENERATOR_ROUND_TRIP = ["//image[i1][Cap]{\nart @<b>{x}\n  art2\n//}\n", "//image[i1][][scale=0.5]{\n//}\n",
                           "//indepimage[i1]{\nart\n//}\n", "//bpo{\nline1 @<b>{bold}\n\nline3\n//}\n",
                           "//box[Cap]{\nline1\n\nline3\n//}\n", "//insn[Cap]{\nline1\n//}\n",

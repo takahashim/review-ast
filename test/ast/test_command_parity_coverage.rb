@@ -104,7 +104,8 @@ class TestCommandParityCoverage < Test::Unit::TestCase
     label: "text\n\n//label[lbl]\n\nmore\n",
     printendnotes: "text@<endnote>{e1}\n\n//endnote[e1][body]\n\n//printendnotes\n",
     hr: "text\n\n//hr\n\nmore\n",
-    bpo: "//bpo{\nbpo body\n//}",
+    bpo: "//bpo{\nbpo @<b>{body}\n\nline3\n//}",
+    rawblock: "text\n\n//rawblock{\nraw @<b>{body} &lt;x&gt;\nline2\n//}\n\nmore\n",
     parasep: "text\n\n//parasep\n\nmore\n",
 
     # Directives (removed during lowering; the effect must land on the target
@@ -191,7 +192,8 @@ class TestCommandParityCoverage < Test::Unit::TestCase
     bpo: { latex: 'LATEXBuilder has no #bpo.' },
     insn: { html: 'HTMLBuilder has no #insn.', latex: 'LATEXBuilder has no #insn.' },
     term: { html: 'HTMLBuilder has no #term.', latex: 'LATEXBuilder has no #term.' },
-    parasep: { idgxml: 'IDGXMLBuilder has no #parasep.' }
+    parasep: { idgxml: 'IDGXMLBuilder has no #parasep.' },
+    rawblock: { html: 'HTMLBuilder has no #rawblock.', latex: 'LATEXBuilder has no #rawblock.' }
   }.freeze
 
   INLINE_FORMAT_EXCLUSIONS = {

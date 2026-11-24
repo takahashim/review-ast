@@ -467,6 +467,11 @@ module ReVIEW
         ''
       end
 
+      # IDGXMLBuilder's raw output; nothing in Typst.
+      def visit_block_rawblock(_node)
+        ''
+      end
+
       # ---------------------------------------------------------- footnotes
 
       # A //footnote definition emits nothing: its body is rendered at the first
