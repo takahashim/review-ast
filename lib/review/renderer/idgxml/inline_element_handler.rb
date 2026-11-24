@@ -296,7 +296,8 @@ module ReVIEW
           data = ref_node.resolved_data
           if data.caption_node
             # Render the stored AST node when available to preserve inline markup
-            rendered = @ctx.render_caption_inline(data.caption_node)
+            # IDGXMLBuilder#inline_fn strips the footnote's text first.
+            rendered = @ctx.render_caption_inline(data.caption_node).strip
             %Q(<footnote>#{rendered}</footnote>)
           else
             # Fallback: use caption_text

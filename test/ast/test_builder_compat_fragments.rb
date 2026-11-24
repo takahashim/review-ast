@@ -471,6 +471,24 @@ class TestBuilderCompatFragments < Test::Unit::TestCase
     end
   end
 
+  # Found on youten/howto-create-vr-contents2, keymakers/neoJPbook and
+  # engineers-lt/rooting-book-1.
+  def test_idgxml_footnote_item_and_block_paragraph_details
+    # IDGXMLBuilder#inline_fn strips the footnote's text; #ol_item/#ul_item
+    # chomp the item, the newline an @<br>{} at its end writes included; only
+    # #paragraph turns a leading tab into inlist -- a block's lines keep it.
+    ["A@<fn>{f1}.\n\n//footnote[f1][@<href>{http://x.example/} ]\n", " 1. one@<br>{}\n 2. two\n\n * u1@<br>{}\n * u2\n",
+     "//lead{\n\tthis line\n\tthe next\n//}\n\n\ttop para\n", "//quote{\n\tq\n//}\n\n//note[N]{\n\ttabbed\n//}\n"].each do |source|
+      assert_parity(source, formats: [:idgxml])
+    end
+  end
+
+  def test_plaintext_item_keeps_an_inline_trailing_space
+    # PLAINTEXTBuilder#inline_fn writes " 注1 "; at the end of an item the
+    # space stays.
+    assert_text_lines_parity(" * item@<fn>{f1}\n\n//footnote[f1][F]\n")
+  end
+
   GENERATOR_ROUND_TRIP = ["//image[i1][Cap]{\nart @<b>{x}\n  art2\n//}\n", "//image[i1][][scale=0.5]{\n//}\n",
                           "//indepimage[i1]{\nart\n//}\n", "//bpo{\nline1 @<b>{bold}\n\nline3\n//}\n",
                           "//box[Cap]{\nline1\n\nline3\n//}\n", "//insn[Cap]{\nline1\n//}\n",
