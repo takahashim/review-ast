@@ -17,6 +17,8 @@ require 'review/ast/block_processor'
 require 'review/renderer/legacy_extension_bridge'
 require 'review/renderer/graph_image'
 require 'review/ast/image_node'
+require 'review/ast/minicolumn_node'
+require 'review/ast/extension_block_node'
 require 'review/ast/section_counter'
 
 module ReVIEW
@@ -248,11 +250,48 @@ module ReVIEW
         return unless builder_class
 
         type = node.inline_type
-        return if ReVIEW::AST::InlineProcessor::DEFAULT_INLINE_HANDLERS.key?(type)
         return unless LegacyExtensionBridge.extension_method?(builder_class, :"inline_#{type}")
         return if LegacyExtensionBridge.extension_method?(self.class, :"render_inline_#{type}")
 
-        extension_bridge.render_inline(type, node.args.first.to_s, node.location)
+        # The argument as the legacy compiler passes it. A special inline
+        # (ruby, href, references ...) keeps parsed fields in args, so only its
+        # source_arg will do; a tree loaded from JSON has none.
+        arg = node.source_arg
+        arg ||= node.args.first.to_s unless ReVIEW::AST::InlineProcessor::DEFAULT_INLINE_HANDLERS.key?(type)
+        return unless arg
+
+        extension_bridge.render_inline(type, arg, node.location)
+      end
+
+      # Every node passes here first: a block whose builder method review-ext.rb
+      # redefined is written by that method (LegacyExtensionBridge).
+      def visit(node)
+        delegated = render_overridden_block(node)
+        return delegated if delegated
+
+        super
+      end
+      public :visit
+
+      # A built-in block command (or a minicolumn's ends) that review-ext.rb
+      # redefined on this format's builder, rendered by the redefinition from
+      # the command's legacy form. nil when it is not redefined, the node has
+      # no legacy form (a tree loaded from JSON), or the format has no builder.
+      def render_overridden_block(node)
+        command = node.respond_to?(:source_command) && node.source_command
+        return unless command
+        return if node.is_a?(ReVIEW::AST::ExtensionBlockNode) || legacy_builder_class.nil?
+
+        minicolumn = node.is_a?(ReVIEW::AST::MinicolumnNode)
+        return unless LegacyExtensionBridge.block_overridden?(legacy_builder_class, command.name, minicolumn: minicolumn)
+
+        bridge = extension_bridge
+
+        if minicolumn
+          bridge.render_minicolumn(command.name, command.args, node.location) { render_children(node) }
+        else
+          bridge.render_command(command.name, command.args, command.lines, node.location)
+        end
       end
 
       def extension_bridge

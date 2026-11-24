@@ -25,7 +25,10 @@ class TestDeserializeFieldFidelity < Test::Unit::TestCase
     %w[ListItemNode @item_number]
   ].freeze
 
-  STRUCTURAL = %i[@children @parent @location].freeze
+  # @source_command / @source_arg hold the command in the legacy compiler's
+  # form for a review-ext.rb redefinition to render; they are transient by
+  # design (doc/review-ext.md) and never serialized.
+  STRUCTURAL = %i[@children @parent @location @source_command @source_arg].freeze
 
   FIXTURE = <<~RE
     = 章タイトル

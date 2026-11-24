@@ -121,6 +121,13 @@ module ReVIEW
 
       # Create inline AST node from parsed token
       def create_inline_ast_node_from_token(token, parent_node)
+        before = parent_node.children.size
+        build_inline_ast_node(token, parent_node)
+        added = parent_node.children[before..]
+        added.first.source_arg = token.content if added.size == 1 && added.first.is_a?(AST::InlineNode)
+      end
+
+      def build_inline_ast_node(token, parent_node)
         command = token.command.to_sym
         content = token.content
 

@@ -181,9 +181,22 @@ module ReVIEW
         end
 
         # Process block using Block-Scoped Compilation
-        @ast_compiler.with_block_context(block_data) do |context|
+        parent = @ast_compiler.current_ast_node
+        before = parent.children.size
+        result = @ast_compiler.with_block_context(block_data) do |context|
           send(handler_method, context)
         end
+        record_source_command(parent.children[before..], block_data)
+        result
+      end
+
+      # Stamp the block's legacy form on the one node it produced (see
+      # Node#source_command). A command that produced no node (a directive is
+      # lowered later; //comment may vanish) or several is left alone.
+      def record_source_command(added, block_data)
+        return unless added&.size == 1
+
+        added.first.source_command ||= AST::Node::SourceCommand.new(block_data.name, block_data.args, block_data.lines)
       end
 
       private

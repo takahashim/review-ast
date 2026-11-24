@@ -7,6 +7,12 @@ module ReVIEW
     class InlineNode < Node
       attr_reader :inline_type, :args, :target_chapter_id, :target_item_id
 
+      # The argument exactly as the legacy compiler hands it to the builder's
+      # inline_<type> method ("漢字, かんじ" for @<ruby>). Set at parse time,
+      # for a review-ext.rb redefinition of that method (LegacyExtensionBridge);
+      # not serialized.
+      attr_accessor :source_arg
+
       def initialize(location:, inline_type: nil, args: nil,
                      target_chapter_id: nil, target_item_id: nil, **kwargs)
         super(location: location, **kwargs)
