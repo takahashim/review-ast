@@ -7,3 +7,13 @@ Gemfile.lock
 # TypstMaker の中間生成物と出力
 *-typst/
 *-typst.pdf
+
+# サンプル本の maker 出力（EPUB/PDF/テキスト/IDGXML/Web の作業ディレクトリと成果物）
+samples/*/*-epub/
+samples/*/*-pdf/
+samples/*/*-pdf.orig/
+samples/*/*-text/
+samples/*/*-idgxml/
+samples/*/*.epub
+samples/*/*.pdf
+samples/*/webroot/
