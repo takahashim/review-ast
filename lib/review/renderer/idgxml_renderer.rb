@@ -256,8 +256,11 @@ module ReVIEW
           return %Q(<p aid:pstyle="noindent" noindent='1'>#{content}</p>)
         end
 
-        # Check for tab indentation (inlist attribute)
-        if content =~ /\A(\t+)/
+        # Check for tab indentation (inlist attribute). Only IDGXMLBuilder#
+        # paragraph does this; a block's lines (//lead, //quote ...) go through
+        # split_paragraph and keep their tabs. (A minicolumn's paragraphs are
+        # paragraphs.)
+        if content =~ /\A(\t+)/ && !block_paragraph?(node)
           indent_level = $1.size
           content_without_tabs = content.sub(/\A\t+/, '')
           return %Q(<p inlist="#{indent_level}">#{content_without_tabs}</p>)
@@ -265,6 +268,10 @@ module ReVIEW
 
         # Regular paragraph
         "<p>#{content}</p>"
+      end
+
+      def block_paragraph?(node)
+        node.parent.is_a?(ReVIEW::AST::BlockNode)
       end
 
       def visit_text(node)
@@ -822,7 +829,11 @@ module ReVIEW
 
         parts << format_inline_buffer(inline_buffer) unless inline_buffer.empty?
         content = parts.compact.join
-        content.end_with?("\n") ? content.chomp : content
+        # IDGXMLBuilder chomps the item: one trailing newline goes, the one an
+        # @<br>{} at its end writes (a protected newline here) included.
+        return content.chomp if content.end_with?("\n")
+
+        content.delete_suffix(PROTECTED_NEWLINE)
       end
 
       def ast_compiler

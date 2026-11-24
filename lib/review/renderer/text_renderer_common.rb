@@ -26,6 +26,19 @@ module ReVIEW
         node.content || ''
       end
 
+      # A definition's paragraphs, as PLAINTEXTBuilder/TOPBuilder#dd split its
+      # lines (split_paragraph): a blank line inside the definition -- an empty
+      # paragraph node -- separates them, and each is one line of text.
+      def definition_paragraphs(node)
+        groups = node.children.slice_when { |a, b| blank_definition_line?(a) || blank_definition_line?(b) }
+        groups = groups.reject { |group| group.all? { |child| blank_definition_line?(child) } }
+        groups.map { |group| group.map { |child| visit(child) }.join.delete("\n") }
+      end
+
+      def blank_definition_line?(node)
+        node.is_a?(ReVIEW::AST::ParagraphNode) && node.children.empty?
+      end
+
       def visit_block_blankline(_node)
         "\n"
       end

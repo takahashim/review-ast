@@ -284,10 +284,13 @@ module ReVIEW
       def join_source_lines(lines)
         return lines.join("\n") unless config['join_lines_by_lang']
 
+        # Each pair of adjacent lines, as join_lines_to_paragraph pairs them:
+        # an empty line (a blank one inside a definition) separates, and adds
+        # no space on either side.
         lang = config['language'] || 'ja'
         result = +''
-        lines.each do |line|
-          result << ' ' if !result.empty? && add_space?(result[-1], line[0], lang, true)
+        lines.each_with_index do |line, index|
+          result << ' ' if index > 0 && add_space?(lines[index - 1], line, lang, true)
           result << line
         end
         result
@@ -658,6 +661,12 @@ module ReVIEW
         # Process cell content while maintaining table context to collect footnotes
         # Note: table context should already be set by visit_table
         content = render_children(node)
+        # Builder#parse_table_rows strips the row after its inlines are
+        # compiled, so the first cell loses its leading and the last its
+        # trailing whitespace (version 2's @<m> pads with spaces).
+        siblings = node.parent&.children || [node]
+        content = content.lstrip if col_index == 0
+        content = content.rstrip if node.equal?(siblings.last)
 
         # Get cellwidth for this column straight from the owning TableNode via the
         # parent chain (cell -> row -> table), rather than a renderer ivar that
@@ -749,11 +758,11 @@ module ReVIEW
         case node.list_type
         when :ul
           # Unordered list - generate LaTeX itemize environment
-          items = node.children.map { |item| "\\item #{render_list_item_content(item)}" }.join("\n")
+          items = node.children.map { |item| "\\item #{list_item_text(item)}" }.join("\n")
           "\n\\begin{itemize}\n#{items}\n\\end{itemize}\n\n"
         when :ol
           # Ordered list - generate LaTeX enumerate environment
-          items = node.children.map { |item| "\\item #{render_list_item_content(item)}" }.join("\n")
+          items = node.children.map { |item| "\\item #{list_item_text(item)}" }.join("\n")
 
           # Check if this list has start_number
           if node.start_number && node.start_number != 1
@@ -773,6 +782,12 @@ module ReVIEW
 
       def visit_list_item(node)
         raise NotImplementedError, 'List item processing should be handled by visit_list, not as standalone items'
+      end
+
+      # An item's text as LATEXBuilder#ul_item/#ol_item writes it: a leading
+      # "[" becomes \lbrack{}, or \item would take "[...]" as its label.
+      def list_item_text(item)
+        render_list_item_content(item).sub(/\A\[/) { '\\lbrack{}' }
       end
 
       # Render a list item's children, reinserting the source newline between

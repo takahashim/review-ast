@@ -9,8 +9,8 @@ name: nightly
 # comparison, which is where real divergences turn up but which costs more than
 # a PR should pay.
 #
-# Neither mode needs TeX or any external document, so this depends on nothing
-# outside the repository.
+# None of the modes needs TeX or any external document, so this depends on
+# nothing outside the repository.
 
 on:
   schedule:
@@ -29,9 +29,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # canonical is LaTeX without TeX (a whitespace-normalized text diff);
         # html compares under the CSS white-space model, idgxml byte for byte,
         # plaintext and top by non-blank lines.
-        mode: [html, idgxml, plaintext, top]
+        mode: [canonical, html, idgxml, plaintext, top]
+        # The book settings that changed the most output when first swept:
+        # Re:VIEW 2's older macros and English quotes. '' is the default.
+        config: ['', 'review_version=2.0', 'language=en']
     steps:
       - uses: actions/checkout@v4
       - uses: ruby/setup-ruby@v1
@@ -39,10 +43,13 @@ jobs:
           ruby-version: '3.4'
           bundler-cache: true
       - name: Compare generated documents against the legacy builders
+        env:
+          PBT_CONFIG: ${{ matrix.config }}
         run: |
           bundle exec ruby tools/pbt/runner.rb \
             --mode ${{ matrix.mode }} \
-            --seeds ${{ github.event.inputs.seeds || 500 }}
+            --seeds ${{ github.event.inputs.seeds || 500 }} \
+            ${PBT_CONFIG:+--config "$PBT_CONFIG"}
 
   # The test suite against Re:VIEW's master branch instead of the released gem.
   # review-ast subclasses Re:VIEW's makers and relies on their internals, and

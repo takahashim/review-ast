@@ -418,6 +418,9 @@ class TestBuilderCompatFragments < Test::Unit::TestCase
       "//image[i1][Cap]{\nart\n//}\n\n//indepimage[i2][Cap2]\n"
     ]
     sources.each { |source| assert_parity(source, formats: [:latex], config: REVIEW_V2) }
+    # Version 2's @<m> pads with spaces; the builder strips the compiled row,
+    # so a row's first and last cells lose them (found by the PBT).
+    assert_parity("//table[t1][C]{\n@<m>{x}\tB @<m>{y}\n------------\nC\t@<m>{z}\n//}\n", formats: [:latex], config: REVIEW_V2)
     listings = REVIEW_V2.merge('highlight' => { 'latex' => 'listings' })
     assert_parity("//emlist{\nno title\n//}\n\n//emlist[T]{\ntitle\n//}\n\n//list[l1][C]{\nx\n//}\n", formats: [:latex], config: listings)
   end
@@ -443,6 +446,47 @@ class TestBuilderCompatFragments < Test::Unit::TestCase
     [config, config.merge(REVIEW_V2)].each { |c| assert_parity(source, formats: [:html], config: c) }
   ensure
     Thread.current[:stub_img_math] = nil
+  end
+
+  # Found on youten/howto-create-vr-contents2: an item starting with "["
+  # gets \\lbrack{}, or \\item would take "[...]" as its label.
+  def test_latex_item_starting_with_a_bracket
+    assert_parity(" * [C-1-2] @<code>{x} item\n * normal [x]\n\n 1. [A] one\n", formats: [:latex])
+  end
+
+  # A definition runs, as ReVIEW::Compiler#compile_dlist reads it, until a
+  # line in column 1, the next term or a list item -- across blank and
+  # whitespace-only lines (found on engineers-lt/rooting-book-1). Its blank
+  # lines split it into paragraphs in LaTeX and the text formats.
+  DEFINITIONS = [" : t1\n    a\u3000\n    \u3000\n     \n    b\n\n : t2\n    c\n\npara\n",
+                 " : t1\n\tx\n\n\ty\n\nafter\n", " : t1\n\tx\n\n : t2\n\ty\n", " : t1\n\tx\n * item\n\nafter\n",
+                 " : t1\n\tx\n\n  indented para\n\nafter\n", " : t1\n\tx\n\#@ comment\n\ty\n"].freeze
+
+  def test_definition_runs_across_blank_lines
+    DEFINITIONS.each do |source|
+      [{}, { 'join_lines_by_lang' => true }].each do |config|
+        assert_parity(source, config: config)
+        assert_text_lines_parity(source, config: config)
+      end
+    end
+  end
+
+  # Found on youten/howto-create-vr-contents2, keymakers/neoJPbook and
+  # engineers-lt/rooting-book-1.
+  def test_idgxml_footnote_item_and_block_paragraph_details
+    # IDGXMLBuilder#inline_fn strips the footnote's text; #ol_item/#ul_item
+    # chomp the item, the newline an @<br>{} at its end writes included; only
+    # #paragraph turns a leading tab into inlist -- a block's lines keep it.
+    ["A@<fn>{f1}.\n\n//footnote[f1][@<href>{http://x.example/} ]\n", " 1. one@<br>{}\n 2. two\n\n * u1@<br>{}\n * u2\n",
+     "//lead{\n\tthis line\n\tthe next\n//}\n\n\ttop para\n", "//quote{\n\tq\n//}\n\n//note[N]{\n\ttabbed\n//}\n"].each do |source|
+      assert_parity(source, formats: [:idgxml])
+    end
+  end
+
+  def test_plaintext_item_keeps_an_inline_trailing_space
+    # PLAINTEXTBuilder#inline_fn writes " 注1 "; at the end of an item the
+    # space stays.
+    assert_text_lines_parity(" * item@<fn>{f1}\n\n//footnote[f1][F]\n")
   end
 
   GENERATOR_ROUND_TRIP = ["//image[i1][Cap]{\nart @<b>{x}\n  art2\n//}\n", "//image[i1][][scale=0.5]{\n//}\n",

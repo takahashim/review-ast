@@ -240,16 +240,13 @@ module ReVIEW
         # Handle definition content (all children are definition content).
         # TOPBuilder#dd deletes the newlines inside a definition so it prints on
         # one line; keeping them broke the leading tab across the wrapped lines.
-        definition = if node.children && !node.children.empty?
-                       node.children.map { |child| visit(child) }.join.delete("\n")
-                     end
+        # A blank line inside it starts a new paragraph, each on its own
+        # tab-indented line (split_paragraph).
+        definition = definition_paragraphs(node).map { |paragraph| "\t#{paragraph}\n" }.join
 
         # TOPBuilder#dt brackets the term on both sides ("★#{line}☆"); the
         # opening marker was missing here.
-        result = "★#{term}☆\n"
-        result += "\t#{definition}\n" if definition
-
-        result
+        "★#{term}☆\n#{definition}"
       end
 
       # Common code block rendering method used by all code block types

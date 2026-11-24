@@ -535,10 +535,10 @@
           "type": "array"
         },
         "children": {
-          "type": [
-            "array",
-            "node_array"
-          ],
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/node"
+          },
           "description": "Child nodes. Absent on leaf nodes."
         },
         "image_path": {

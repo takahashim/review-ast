@@ -25,11 +25,19 @@ require 'review/ast/diff/text_lines'
 # keep diverging, so the list cannot go stale.
 class TestReviewCommandSweep < Test::Unit::TestCase
   FORMATS = {
-    html: [-> { ReVIEW::Test::HtmlComparator.new }, ReVIEW::AST::Diff::Html],
-    latex: [-> { ReVIEW::Test::LatexComparator.new }, ReVIEW::AST::Diff::Latex],
-    idgxml: [-> { ReVIEW::Test::IdgxmlComparator.new }, ReVIEW::AST::Diff::ByteExact],
-    plaintext: [-> { ReVIEW::Test::TextComparator.new(format: :plaintext) }, ReVIEW::AST::Diff::TextLines],
-    top: [-> { ReVIEW::Test::TextComparator.new(format: :top) }, ReVIEW::AST::Diff::TextLines]
+    html: [->(config) { ReVIEW::Test::HtmlComparator.new(config: config) }, ReVIEW::AST::Diff::Html],
+    latex: [->(config) { ReVIEW::Test::LatexComparator.new(config: config) }, ReVIEW::AST::Diff::Latex],
+    idgxml: [->(config) { ReVIEW::Test::IdgxmlComparator.new(config: config) }, ReVIEW::AST::Diff::ByteExact],
+    plaintext: [->(config) { ReVIEW::Test::TextComparator.new(format: :plaintext, config: config) }, ReVIEW::AST::Diff::TextLines],
+    top: [->(config) { ReVIEW::Test::TextComparator.new(format: :top, config: config) }, ReVIEW::AST::Diff::TextLines]
+  }.freeze
+
+  # The sweep runs under each; the settings that changed the most output when
+  # they were first swept (Re:VIEW 2's older macros, English quotes).
+  CONFIGS = {
+    default: {},
+    review_version2: { 'review_version' => 2.0 },
+    language_en: { 'language' => 'en' }
   }.freeze
 
   # Targets for the reference commands, before each fragment; //printendnotes
@@ -121,9 +129,9 @@ class TestReviewCommandSweep < Test::Unit::TestCase
   end
 
   # nil when the two paths agree.
-  def divergence(format, source)
+  def divergence(format, source, config)
     comparator_factory, diff_class = FORMATS.fetch(format)
-    comparator = comparator_factory.call
+    comparator = comparator_factory.call(Marshal.load(Marshal.dump(config)))
     builder = outcome { comparator.convert_with_builder(PROLOGUE + source + EPILOGUE) }
     renderer = outcome { comparator.convert_with_renderer(PROLOGUE + source + EPILOGUE) }
     return if builder.is_a?(Exception) && renderer.is_a?(Exception)
@@ -140,21 +148,26 @@ class TestReviewCommandSweep < Test::Unit::TestCase
     e
   end
 
-  def sweep
-    @sweep ||= fragments.flat_map do |command, source|
+  def sweep(config_name = :default)
+    @sweep ||= {}
+    @sweep[config_name] ||= fragments.flat_map do |command, source|
       FORMATS.each_key.filter_map do |format|
-        problem = divergence(format, source)
+        problem = divergence(format, source, CONFIGS.fetch(config_name))
         [command, format, source, problem] if problem
       end
     end
   end
 
-  def test_every_declared_command_agrees_in_every_format
-    failures = sweep.reject { |command, format, _source, _problem| known?(command, format) }
-    message = failures.map { |command, format, source, problem| "#{command} (#{format}) #{source.inspect}\n  #{problem}" }
-    assert(failures.empty?, "the paths disagree:\n#{message.join("\n")}")
+  CONFIGS.each_key do |config_name|
+    define_method("test_every_declared_command_agrees_in_every_format_#{config_name}") do
+      failures = sweep(config_name).reject { |command, format, _source, _problem| known?(command, format) }
+      message = failures.map { |command, format, source, problem| "#{command} (#{format}) #{source.inspect}\n  #{problem}" }
+      assert(failures.empty?, "the paths disagree under #{config_name}:\n#{message.join("\n")}")
+    end
   end
 
+  # Checked under the default settings only: an entry needs to diverge
+  # there, not under every configuration.
   def test_known_differences_still_differ
     diverging = sweep.to_set { |command, format, _source, _problem| [command, format] }
     stale = KNOWN_DIFFERENCES.flat_map do |command, by_formats|

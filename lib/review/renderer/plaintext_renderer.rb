@@ -115,7 +115,10 @@ module ReVIEW
             nested << visit_nested_block(child)
           end
         end
-        text = render_source_lines(inline, breaks: inline_breaks).strip
+        # Not stripped: the source lines were (by the parser, as
+        # ReVIEW::Compiler strips them), but a trailing space an inline writes
+        # (@<fn>'s " 注1 ") stays, as in PLAINTEXTBuilder#ul_item.
+        text = render_source_lines(inline, breaks: inline_breaks)
 
         # PLAINTEXTBuilder#ol_item prints the number the item was written
         # with (//olnum does not renumber a text list); the counter is for a
@@ -141,11 +144,8 @@ module ReVIEW
                  ''
                end
 
-        # Handle definition content
-        definition_parts = node.children.map { |child| visit(child) }
-        definition = definition_parts.join.delete("\n")
-
-        "#{term}\n#{definition}\n"
+        # Handle definition content: one line per paragraph (PLAINTEXTBuilder#dd).
+        "#{term}\n" + definition_paragraphs(node).map { |paragraph| "#{paragraph}\n" }.join
       end
 
       def text_block(node, caption_top:)

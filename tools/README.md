@@ -49,7 +49,8 @@ to the TeXLive version, so cross-machine comparison requires a pinned toolchain.
 the matching AST renderer (`LATEXBuilder` / `LatexRenderer` by default), asserts
 they agree, and on a counterexample **shrinks** the document to a minimal
 reproducer. `--mode html`, `idgxml`, `plaintext` and `top` compare those formats
-instead (the nightly workflow runs these four).
+instead. The nightly workflow runs these four and `canonical`, each with the
+default settings, `--config review_version=2.0` and `--config language=en`.
 
 ```sh
 # fast structural pass (canonical comparison, no TeX)

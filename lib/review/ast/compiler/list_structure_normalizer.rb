@@ -21,14 +21,14 @@ module ReVIEW
       # ListStructureNormalizer - Processes //beginchild and //endchild commands in AST
       #
       # This processor transforms the flat structure created by //beginchild and //endchild
-      # into proper nested list structures. It also handles definition list paragraph splitting.
+      # into proper nested list structures.
       #
       # Processing:
       # 1. Finds //beginchild and //endchild block pairs
       # 2. Moves nodes between them into the last list item
       # 3. Removes the //beginchild and //endchild block nodes
-      # 4. Merges consecutive lists of the same type
-      # 5. Splits definition list paragraphs into separate terms
+      # 4. Merges consecutive definition lists (ReVIEW::Compiler#compile_dlist
+      #    reads one across blank lines)
       #
       # Execution Order (in AST::Compiler):
       # 1. OlnumProcessor - Sets start_number on ordered lists
@@ -98,16 +98,6 @@ module ReVIEW
               next
             end
 
-            if paragraph_node?(child) &&
-               last_list_context &&
-               last_list_context[:list_type] == :dl &&
-               definition_paragraph?(child)
-              transfer_definition_paragraph(last_list_context, child)
-              last_list_context[:item] = last_list_context[:list_node].children.last
-              idx += 1
-              next
-            end
-
             normalize_node(child)
             normalized_children << child
             last_list_context = last_list_context_for(child)
@@ -166,15 +156,6 @@ module ReVIEW
           node.is_a?(ReVIEW::AST::DirectiveNode) && node.directive_type == :endchild
         end
 
-        def paragraph_node?(node)
-          node.is_a?(ReVIEW::AST::ParagraphNode)
-        end
-
-        def definition_paragraph?(paragraph)
-          text = paragraph_text(paragraph)
-          text.lines.any? { |line| line =~ /\A\s*[:\t]/ }
-        end
-
         def last_list_context_for(node)
           return nil unless node.is_a?(ReVIEW::AST::ListNode) && node.children.any?
 
@@ -205,49 +186,6 @@ module ReVIEW
           end
 
           merged
-        end
-
-        def transfer_definition_paragraph(context, paragraph)
-          list_node = context[:list_node]
-          current_item = context[:item]
-          text = paragraph_text(paragraph)
-
-          text.each_line do |line|
-            stripped = line.strip
-            next if stripped.empty?
-
-            if line.lstrip.start_with?(':')
-              term_text = line.sub(/\A\s*:\s*/, '').strip
-              term_children = parse_inline_nodes(term_text)
-              new_item = ReVIEW::AST::ListItemNode.new(location: paragraph.location, level: 1, term_children: term_children)
-              list_node.add_child(new_item)
-              current_item = new_item
-            else
-              inline_nodes = parse_inline_nodes(stripped)
-              inline_nodes = [ReVIEW::AST::TextNode.new(content: stripped)] if inline_nodes.empty?
-              inline_nodes.each { |node| current_item.add_child(node) }
-            end
-          end
-
-          context[:item] = list_node.children.last
-        end
-
-        def paragraph_text(paragraph)
-          paragraph.children.map do |child|
-            if child.leaf_node?
-              child.content
-            else
-              ''
-            end
-          end.join
-        end
-
-        def parse_inline_nodes(text)
-          return [] if text.nil? || text.empty?
-
-          temp_node = ReVIEW::AST::ParagraphNode.new(location: nil)
-          @compiler.inline_processor.parse_inline_elements(text, temp_node)
-          temp_node.children
         end
       end
     end
