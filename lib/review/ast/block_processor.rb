@@ -10,6 +10,7 @@ require 'review/lineinput'
 require 'stringio'
 require 'review/ast'
 require_relative 'block_data'
+require_relative 'command_table'
 require_relative 'block_processor/code_block_structure'
 require_relative 'block_processor/table_processor'
 require_relative 'raw_content_parser'
@@ -173,7 +174,7 @@ module ReVIEW
       # Receives BlockData and calls corresponding method based on dynamic command table
       def process_block_command(block_data)
         handler_method = @dynamic_command_table[block_data.name]
-        handler_method ||= :build_extension_block_ast if ReVIEW::Compiler::SYNTAX.key?(block_data.name)
+        handler_method ||= :build_extension_block_ast if CommandTable.block?(block_data.name)
 
         unless handler_method
           location_info = block_data.location.format_for_error
@@ -547,7 +548,7 @@ module ReVIEW
         require_relative('extension_block_node')
 
         name = context.name
-        syntax = ReVIEW::Compiler::SYNTAX.fetch(name)
+        syntax = CommandTable.syntax(name)
         location_info = context.start_location.format_for_error
         begin
           syntax.check_args(context.args)
