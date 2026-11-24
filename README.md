@@ -63,6 +63,10 @@ bundle exec review-ast-compile --target html chapter.re
 bundle exec rake test
 ```
 
+`REVIEW_HEAD=master bundle install && REVIEW_HEAD=master bundle exec rake test`
+runs the same suite against Re:VIEW's master branch (see
+[doc/differential-testing.md](doc/differential-testing.md#tracking-review-master)).
+
 The test suite includes comparator tests that render sample books through both
 the AST HTML renderer and Re:VIEW's own `HTMLBuilder`, asserting the two outputs
 match. This parity signal is the basis for deciding when the AST path is ready to

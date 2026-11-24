@@ -52,17 +52,27 @@ class TestTypstHeadingNumberParity < Test::Unit::TestCase
     end
   end
 
-  # The heading in a part's own file carries no number in either format: the
-  # part number belongs to the part page the maker builds, not to this heading.
-  def test_part_file_heading_is_unnumbered_in_both
+  # The heading in a part's own file carries the part number, in both formats
+  # (HTMLBuilder prints "第I部" for it too).
+  #
+  # This runs in the book directory, as the makers do. Re:VIEW 5.11 reads a
+  # part's file relative to the working directory (config['contentdir']), so
+  # from anywhere else the part has no content and the comparison would pass
+  # on two empty lists -- which is how an earlier version of this test came to
+  # claim the heading is unnumbered. Re:VIEW master reads it relative to the
+  # book and exposed that.
+  def test_part_file_heading_is_numbered_the_same_in_both
     Dir.mktmpdir do |dir|
       write_book(dir)
-      book = ReVIEW::Book::Base.new(dir, config: @config)
-      part = book.parts_in_file.first
-      assert_not_nil(part, 'the fixture should contain a part with its own file')
+      Dir.chdir(dir) do
+        book = ReVIEW::Book::Base.new(dir, config: @config)
+        part = book.parts_in_file.first
+        assert_not_nil(part, 'the fixture should contain a part with its own file')
+        assert_not_empty(part.content, 'the part file should have been read')
 
-      assert_empty(heading_numbers_from_html(part))
-      assert_empty(heading_numbers_from_typst(part))
+        assert_equal(%w[第I部], heading_numbers_from_html(part))
+        assert_equal(heading_numbers_from_html(part), heading_numbers_from_typst(part))
+      end
     end
   end
 

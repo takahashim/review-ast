@@ -585,8 +585,10 @@ module ReVIEW
         case type
         when :b, :strong, :wb # Builder#inline_wb is inline_b of the word
           "★#{content}☆"
-        when :i # not :em -- TOPBuilder leaves @<em> plain (PLAINTEXTBuilder#inline_em)
+        when :i
           "▲#{content}☆"
+        when :em
+          em_marked_like_i? ? "▲#{content}☆" : content
         when :code, :tt
           "△#{content}☆"
         when :ttb, :ttbold
@@ -702,6 +704,15 @@ module ReVIEW
 
         @sec_counter.inc(level)
         @sec_counter.prefix(level, config['secnolevel'] || DEFAULT_SECNOLEVEL).to_s
+      end
+
+      # TOPBuilder in Re:VIEW 5.11 leaves @<em> plain (it inherits
+      # PLAINTEXTBuilder#inline_em); later Re:VIEW aliases it to inline_i and
+      # marks it. Follow the installed builder.
+      def em_marked_like_i?
+        return @em_marked_like_i if defined?(@em_marked_like_i)
+
+        @em_marked_like_i = ReVIEW::TOPBuilder.instance_method(:inline_em).original_name == :inline_i
       end
 
       def should_add_table_separator?

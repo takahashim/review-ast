@@ -42,3 +42,23 @@ jobs:
           bundle exec ruby tools/pbt/runner.rb \
             --mode ${{ matrix.mode }} \
             --seeds ${{ github.event.inputs.seeds || 500 }}
+
+  # The test suite against Re:VIEW's master branch instead of the released gem.
+  # review-ast subclasses Re:VIEW's makers and relies on their internals, and
+  # its parity tests use Re:VIEW's builders as the oracle, so an upstream change
+  # shows up here before it is released: either review-ast has to follow, or
+  # the change is a regression worth reporting upstream. (Re:VIEW master moved
+  # @<em> in TOP output and the part-file read path this way.)
+  review-head:
+    runs-on: ubuntu-latest
+    env:
+      REVIEW_HEAD: master
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: true
+      - name: Show the Re:VIEW revision under test
+        run: bundle exec ruby -e 'spec = Gem.loaded_specs["review"]; puts "#{spec.version} #{spec.source}"'
+      - run: bundle exec rake test
