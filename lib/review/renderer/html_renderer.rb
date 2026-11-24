@@ -571,6 +571,10 @@ module ReVIEW
         math_str = "\\begin{equation*}\n\\fontsize{#{fontsize}}{#{lineheight}}\\selectfont\n#{content}\n\\end{equation*}\n"
         key = Digest::SHA256.hexdigest(math_str)
 
+        # Version 2 makes the image right away and marks it no further
+        # (HTMLBuilder#texequation).
+        return %Q(<img src="#{@img_math.make_math_image(math_str, key)}" />\n) if review_version2?
+
         img_path = @img_math.defer_math_image(math_str, key)
         %Q(<img src="#{img_path}" class="math_gen_#{key}" alt="#{escape(content)}" />\n)
       end

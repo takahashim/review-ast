@@ -65,7 +65,8 @@ class TestCorpusConfigParity < Test::Unit::TestCase
     epub2: [{ 'epubversion' => 2, 'htmlversion' => 4 }, %i[html]],
     # Re:VIEW 2 compatibility mode (Configure#check_version('2')): older
     # macros in LaTeX, among others.
-    review_version2: [{ 'review_version' => 2.0 }, %i[latex]]
+    review_version2: [{ 'review_version' => 2.0 }, %i[idgxml html latex plaintext top]],
+    review_version2_chapref: [{ 'review_version' => 2.0, 'chapref' => '<,>,!' }, %i[idgxml plaintext top]]
   }.freeze
 
   def corpus_dir(name)

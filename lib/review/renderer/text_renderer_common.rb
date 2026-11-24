@@ -87,6 +87,8 @@ module ReVIEW
       # over with the rest of a copied method; that is fixed upstream on
       # fix-plaintext-chapterlink.
       def chapter_reference_text(data)
+        return text_formatter.format_chapref_version2(data) if review_version2?
+
         text_formatter.format_reference(:chapter, data)
       end
 

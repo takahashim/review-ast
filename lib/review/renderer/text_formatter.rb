@@ -128,6 +128,20 @@ module ReVIEW
         end
       end
 
+      # An @<chapref> in Re:VIEW 2 compatibility mode, as IDGXMLBuilder and
+      # PLAINTEXTBuilder#inline_chapref write it: number and title wrapped by
+      # the three parts of the 'chapref' setting ("prefix,middle,suffix"),
+      # 「」 by default.
+      def format_chapref_version2(data)
+        parts = ['', '「', '」']
+        if config['chapref']
+          parts = config['chapref'].split(',')
+          raise ReVIEW::ApplicationError, '--chapsplitter must have exactly 3 parameters with comma.' unless parts.size == 3
+        end
+        number = format_chapter_number_full(data.chapter_number, data.chapter_type)
+        "#{parts[0]}#{number}#{parts[1]}#{data.chapter_title}#{parts[2]}"
+      end
+
       # Format chapter number with I18n (long form, e.g., "第1章", "Appendix A", "Part I")
       # Used for @<chap>, @<chapref>, @<title> references
       # @param raw_number [Integer, nil] Raw chapter number from chapter.number

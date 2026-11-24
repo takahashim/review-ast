@@ -381,7 +381,11 @@ module ReVIEW
           ref_node = resolved_reference_node(node)
 
           data = ref_node.resolved_data
-          display_str = @ctx.text_formatter.format_reference(:chapter, data)
+          display_str = if ReVIEW::Renderer::Base.review_version2?(@ctx.config)
+                          @ctx.text_formatter.format_chapref_version2(data)
+                        else
+                          @ctx.text_formatter.format_reference(:chapter, data)
+                        end
           if @ctx.chapter_link_enabled?
             %Q(<link href="#{data.item_id}">#{display_str}</link>)
           else

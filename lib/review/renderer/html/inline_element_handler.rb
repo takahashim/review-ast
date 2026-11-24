@@ -364,6 +364,13 @@ module ReVIEW
 
             math_str = '$' + str + '$'
             key = Digest::SHA256.hexdigest(str)
+            # Version 2 makes the image right away and marks it no further
+            # (HTMLBuilder#inline_m).
+            if ReVIEW::Renderer::Base.review_version2?(@ctx.config)
+              img_path = @img_math.make_math_image(math_str, key)
+              return %Q(<span class="equation"><img src="#{img_path}" /></span>)
+            end
+
             img_path = @img_math.defer_math_image(math_str, key)
             %Q(<span class="equation"><img src="#{img_path}" class="math_gen_#{key}" alt="#{escape(str)}" /></span>)
           else

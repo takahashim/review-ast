@@ -12,6 +12,7 @@ require 'review/ast/compiler'
 require 'review/ast/review_generator'
 require 'review/ast/json_serializer'
 require 'tmpdir'
+require 'review/img_math'
 
 # Builder parity for behaviours the corpora do not exercise: settings and
 # argument forms that a real book uses but syntax-book/debug-book do not.
@@ -419,6 +420,29 @@ class TestBuilderCompatFragments < Test::Unit::TestCase
     sources.each { |source| assert_parity(source, formats: [:latex], config: REVIEW_V2) }
     listings = REVIEW_V2.merge('highlight' => { 'latex' => 'listings' })
     assert_parity("//emlist{\nno title\n//}\n\n//emlist[T]{\ntitle\n//}\n\n//list[l1][C]{\nx\n//}\n", formats: [:latex], config: listings)
+  end
+
+  # HTML imgmath in version 2: the image is made right away (make_math_image)
+  # and the <img> carries no class or alt. ImgMath is stubbed (no latex/dvipng
+  # needed) only while the block runs.
+  module StubImgMath
+    def make_math_image(_str, key, _fontsize = 12)
+      Thread.current[:stub_img_math] ? "images/_review_math/_now_#{key[0, 8]}.png" : super
+    end
+
+    def defer_math_image(_str, key)
+      Thread.current[:stub_img_math] ? "images/_review_math/_later_#{key[0, 8]}.png" : super
+    end
+  end
+  ReVIEW::ImgMath.prepend(StubImgMath)
+
+  def test_review_version2_html_imgmath
+    Thread.current[:stub_img_math] = true
+    config = { 'math_format' => 'imgmath', 'imgmath_options' => { 'fontsize' => 12, 'lineheight' => 14.4, 'format' => 'png' } }
+    source = "A @<m>{E = mc^2} B.\n\n//texequation{\nx^2\n//}\n"
+    [config, config.merge(REVIEW_V2)].each { |c| assert_parity(source, formats: [:html], config: c) }
+  ensure
+    Thread.current[:stub_img_math] = nil
   end
 
   GENERATOR_ROUND_TRIP = ["//image[i1][Cap]{\nart @<b>{x}\n  art2\n//}\n", "//image[i1][][scale=0.5]{\n//}\n",
