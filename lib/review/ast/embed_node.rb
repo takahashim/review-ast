@@ -24,6 +24,11 @@ module ReVIEW
         @target_builders = target_builders # Array of builder names, nil means all builders
       end
 
+      # @<raw> / @<embed>: part of the inline content it stands in.
+      def inline?
+        %i[inline inline_embed].include?(embed_type)
+      end
+
       # Check if this embed is targeted for a specific builder
       def targeted_for?(builder_name)
         return true if @target_builders.nil? # No specification means all builders

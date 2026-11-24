@@ -92,7 +92,7 @@ module ReVIEW
         beginchild_block comment_block cross_ref_block image_block indepimage_block
         numbered_equation_block embed_block endnote_block tsize_table_block imgtable_block
         firstlinenum_block inline_cell_table_block pagebreak_block caption_footnote_block
-        olnum_block parasep_block
+        olnum_block parasep_block unordered_footnotes_block
       ].freeze
 
       def initialize(seed)
@@ -139,6 +139,9 @@ module ReVIEW
         # TOP's @<balloon> writes a tab, which TOPBuilder then splits the row
         # on: an extra cell (doc/spec-questions.md #9). Not in cells either.
         roll = 17 if roll == 9 && cell_safe
+        # @<embed> renders empty in LaTeX: in a cell that is the empty-cell
+        # quirk (doc/spec-questions.md #2).
+        roll = 17 if roll == 10 && cell_safe
         case roll
         when 0 then "@<m>{#{pick(MATH_INLINE)}}" # inline math (brace-free)
         when 1 then "@<ruby>{#{pick(JA_WORDS)},#{safe_word}}" # ruby
@@ -163,6 +166,8 @@ module ReVIEW
         # space, so only the builder fails). (@<tcy> is excluded -- it needs
         # vertical layout, which the horizontal jsbook harness can't typeset.)
         when 7 then '@<raw>{|latex|\\,}'
+        # @<embed> prints its \n as written, where @<raw> makes it a newline.
+        when 10 then "@<embed>{|html,idgxml,plaintext,top|#{safe_word}\\n#{safe_word}}"
         else "@<#{pick(DECOR_INLINES)}>{#{safe_word}}"
         end
       end
@@ -327,6 +332,14 @@ module ReVIEW
         [phrase + "@<fn>{#{id}}。", "//footnote[#{id}][#{phrase(inlines: false)}]"]
       end
 
+      # Footnotes referred to in one order and defined in another: they are
+      # numbered in definition order (IndexBuilder).
+      def unordered_footnotes_block
+        ids = [uid, uid]
+        [phrase + ids.map { |id| "@<fn>{#{id}}" }.join('と') + '。',
+         *ids.reverse.map { |id| "//footnote[#{id}][#{phrase(inlines: false)}]" }]
+      end
+
       # A block whose caption carries a footnote (@<fn> in a //list/table/image
       # caption), with the definition appended. Exercises \footnotetext
       # placement for footnotes collected from captions.
@@ -357,7 +370,9 @@ module ReVIEW
                else
                  "//image[#{id}][#{cap}]{"
                end
-        lines = [head, '//}']
+        # The body is what an unbound image prints in its place.
+        body = chance(0.5) ? Array.new(1 + @r.rand(2)) { phrase(inlines: false) } : []
+        lines = [head, *body, '//}']
         lines += ['', "#{phrase}@<img>{#{id}}参照。"] if chance(0.6)
         lines
       end

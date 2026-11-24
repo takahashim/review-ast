@@ -182,6 +182,14 @@ module ReVIEW
         fold_source_lines(lines)
       end
 
+      # Whether a list item's child is part of its own text (inline content)
+      # rather than a block nested in it: text, an inline command, or an
+      # inline @<raw>/@<embed>.
+      def inline_content_node?(node)
+        node.is_a?(ReVIEW::AST::TextNode) || node.is_a?(ReVIEW::AST::InlineNode) ||
+          (node.is_a?(ReVIEW::AST::EmbedNode) && node.inline?)
+      end
+
       # Render all children of a node and join the results.
       #
       # @param node [Object] The parent node whose children should be rendered

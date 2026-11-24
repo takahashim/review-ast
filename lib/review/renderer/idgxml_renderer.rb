@@ -877,7 +877,7 @@ module ReVIEW
       end
 
       def inline_node?(node)
-        node.is_a?(ReVIEW::AST::TextNode) || node.is_a?(ReVIEW::AST::InlineNode)
+        inline_content_node?(node)
       end
 
       # Close section tags based on level
