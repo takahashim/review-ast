@@ -183,9 +183,9 @@ Re:VIEW のインライン記法(`@<img>{id}` など)は Markdown 中でもそ�
 - 引用系(`BlockNode`):
   `//read`、`//quote`、`//blockquote`、`//lead`、`//centering`、`//flushright`、`//address`、`//talk`。
 - その他(`BlockNode`):
-  `//doorquote`(扉引用)、`//bibpaper`(参考文献)、`//graph`(外部ツールで生成する図)、`//box`、`//insn`、`//point`、`//term`。`//bpo` と `//rawblock`(IDGXML のみ)は `//box` と同じく本文を行ごとに持つ。
+  `//doorquote`(扉引用)、`//bibpaper`(参考文献)、`//graph`(外部ツールで生成する図)、`//box`、`//insn`、`//point`、`//term`。`//bpo`、`//comment`、`//rawblock`(IDGXML のみ)は `//box` と同じく本文を行ごとに持つ。
 - 制御命令(`BlockNode`):
-  `//comment`、`//blankline`、`//pagebreak`、`//label`、`//printendnotes`、`//hr`、`//parasep`。
+  `//blankline`、`//pagebreak`、`//label`、`//printendnotes`、`//hr`、`//parasep`。
 - directive(`DirectiveNode`。lowering で除去):
   `//olnum`、`//noindent`、`//firstlinenum`、`//tsize`、`//beginchild`、`//endchild`。
 

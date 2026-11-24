@@ -225,3 +225,15 @@ non-match (the same source cannot follow both).
 - Question: should a leading tab mean an empty first cell (`.` is the
   documented way to write one)? Make the builders agree, then this entry goes
   away.
+
+### 11. An unbound //indepimage loses its caption when captions go on top (LATEXBuilder)
+
+With `caption_position: { image: top }`, `LATEXBuilder#indepimage` prints the
+caption above the image only when the image is found; for the dummy
+(`reviewdummyimage`) it prints it neither above nor below, so the caption is
+gone. The renderer keeps the caption (below the dummy). This is a deliberate
+non-match.
+
+- Builder: `LATEXBuilder#indepimage` (the top caption is inside the
+  `if @chapter.image(id).path` branch).
+- Question: print the caption above the dummy too, then the renderer follows.

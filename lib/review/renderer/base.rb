@@ -57,6 +57,20 @@ module ReVIEW
       # Initialize the renderer with chapter context.
       #
       # @param chapter [ReVIEW::Book::Chapter] Chapter context
+      # Re:VIEW 2 compatibility mode, as the builders ask for it
+      # (Configure#check_version('2', exception: false): review_version 2.x,
+      # or a blank one). LATEXBuilder then writes the older macros
+      # (\textbf, \includegraphics, \caption, no reviewlistblock ...).
+      def self.review_version2?(config)
+        config.respond_to?(:check_version) && config.check_version('2', exception: false)
+      end
+
+      def review_version2?
+        return @review_version2 if defined?(@review_version2)
+
+        @review_version2 = Base.review_version2?(config)
+      end
+
       def initialize(chapter)
         @chapter = chapter
         @book = chapter&.book

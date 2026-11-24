@@ -406,9 +406,9 @@ module ReVIEW
         render_simple_wrapper_block('flushright', content)
       end
 
-      # Block: //comment[...]{ ... //} (its lines are raw text nodes)
+      # Block: //comment[...]{ ... //} (one paragraph node per line, as //box)
       def visit_block_comment(node)
-        render_block_with_args('comment', node, node.children.map { |line| visit(line) }.join("\n"))
+        render_line_block('comment', node)
       end
 
       # A //name[arg]...{ body //} block, its arguments as written.
@@ -422,7 +422,7 @@ module ReVIEW
       end
 
       # A block whose body is kept line by line, one paragraph node per line
-      # (//box, //insn, //bpo).
+      # (//box, //insn, //bpo, //comment).
       def render_line_block(name, node)
         render_block_with_args(name, node, node.children.map { |line| visit_children(line) }.join("\n"))
       end
@@ -446,6 +446,10 @@ module ReVIEW
 
       def visit_block_insn(node)
         render_line_block('insn', node)
+      end
+
+      def visit_block_rawblock(node)
+        render_line_block('rawblock', node)
       end
 
       # Block: //address{ ... //}

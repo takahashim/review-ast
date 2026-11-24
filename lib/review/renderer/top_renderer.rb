@@ -842,7 +842,8 @@ module ReVIEW
         # with no number. It used to fall back to "■<id>■", naming the id
         # instead of labelling the figure.
         unless definition_number
-          return "#{I18n.t('image')}#{I18n.t('caption_prefix_idgxml')}#{caption_text}\n"
+          # TOPBuilder#indepimage_header writes "図" whatever the language.
+          return "図#{I18n.t('caption_prefix_idgxml')}#{caption_text}\n"
         end
 
         formatted = text_formatter.format_caption_plain('image', definition_number.chapter_number, definition_number.number, caption_text)

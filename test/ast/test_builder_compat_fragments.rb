@@ -12,6 +12,7 @@ require 'review/ast/compiler'
 require 'review/ast/review_generator'
 require 'review/ast/json_serializer'
 require 'tmpdir'
+require 'review/img_math'
 
 # Builder parity for behaviours the corpora do not exercise: settings and
 # argument forms that a real book uses but syntax-book/debug-book do not.
@@ -391,11 +392,65 @@ class TestBuilderCompatFragments < Test::Unit::TestCase
     assert_text_lines_parity(source)
   end
 
+  # A //comment in draft mode: its lines inline-compiled, as the builders
+  # print them. HTML and LaTeX read a node.content a BlockNode lacks, and so
+  # crashed on every //comment{ ... //} (found on FirstStepReVIEW-v3).
+  def test_draft_comment
+    ["para\n\n//comment{\n  indented & <x> @<b>{y}\nline2\n//}\n\nafter\n", "//comment[arg & <a>]\n\nx\n",
+     "//comment[arg]{\nbody\n//}\n", "//comment{\n//}\n"].each do |source|
+      assert_parity(source, config: { 'draft' => true })
+      assert_text_lines_parity(source, config: { 'draft' => true })
+    end
+  end
+
+  # review_version 2 compatibility mode (Configure#check_version('2')):
+  # LATEXBuilder's older macros. The corpora under it are in
+  # test_corpus_config_parity.rb; these are the constructs they lack.
+  REVIEW_V2 = { 'review_version' => 2.0 }.freeze
+
+  def test_review_version2_latex
+    sources = [
+      "@<b>{b} @<i>{i} @<tt>{tt} @<code>{c} @<ttb>{tb} @<tti>{ti} @<m>{x^2}\n",
+      "//note[Cap @<b>{x}]{\nbody\n//}\n\n//memo{\nno caption\n//}\n",
+      "===[column] Col @<b>{x}\n\nbody\n\n===[/column]\n",
+      "//list[l1][C]{\nx\n//}\n\n//emlist{\ny\n//}\n\n//cmd[C]{\nz\n//}\n",
+      "//tsize[|latex|p{2cm}l]\n//table[t1][C]{\nA@<br>{}B\tC\n------------\nD@<br>{}E\tF\n//}\n\n//table[t2][]{\nA\tB\n//}\n",
+      "//image[i1][Cap]{\nart\n//}\n\n//indepimage[i2][Cap2]\n"
+    ]
+    sources.each { |source| assert_parity(source, formats: [:latex], config: REVIEW_V2) }
+    listings = REVIEW_V2.merge('highlight' => { 'latex' => 'listings' })
+    assert_parity("//emlist{\nno title\n//}\n\n//emlist[T]{\ntitle\n//}\n\n//list[l1][C]{\nx\n//}\n", formats: [:latex], config: listings)
+  end
+
+  # HTML imgmath in version 2: the image is made right away (make_math_image)
+  # and the <img> carries no class or alt. ImgMath is stubbed (no latex/dvipng
+  # needed) only while the block runs.
+  module StubImgMath
+    def make_math_image(_str, key, _fontsize = 12)
+      Thread.current[:stub_img_math] ? "images/_review_math/_now_#{key[0, 8]}.png" : super
+    end
+
+    def defer_math_image(_str, key)
+      Thread.current[:stub_img_math] ? "images/_review_math/_later_#{key[0, 8]}.png" : super
+    end
+  end
+  ReVIEW::ImgMath.prepend(StubImgMath)
+
+  def test_review_version2_html_imgmath
+    Thread.current[:stub_img_math] = true
+    config = { 'math_format' => 'imgmath', 'imgmath_options' => { 'fontsize' => 12, 'lineheight' => 14.4, 'format' => 'png' } }
+    source = "A @<m>{E = mc^2} B.\n\n//texequation{\nx^2\n//}\n"
+    [config, config.merge(REVIEW_V2)].each { |c| assert_parity(source, formats: [:html], config: c) }
+  ensure
+    Thread.current[:stub_img_math] = nil
+  end
+
   GENERATOR_ROUND_TRIP = ["//image[i1][Cap]{\nart @<b>{x}\n  art2\n//}\n", "//image[i1][][scale=0.5]{\n//}\n",
                           "//indepimage[i1]{\nart\n//}\n", "//bpo{\nline1 @<b>{bold}\n\nline3\n//}\n",
                           "//box[Cap]{\nline1\n\nline3\n//}\n", "//insn[Cap]{\nline1\n//}\n",
                           "//comment[c]{\nline1\nline2\n//}\n", "//blockquote{\npara1\n\npara2\n//}\n",
-                          "//point[P]{\npara1\n//}\n", "//term{\nT1\n//}\n"].freeze
+                          "//point[P]{\npara1\n//}\n", "//term{\nT1\n//}\n", "//rawblock{\nraw @<b>{x}\n\nline3\n//}\n",
+                          "//comment{\n  indented @<b>{x}\n\nline3\n//}\n"].freeze
 
   def test_blocks_survive_a_round_trip
     book = ReVIEW::Book::Base.new(config: ReVIEW::Configure.values)

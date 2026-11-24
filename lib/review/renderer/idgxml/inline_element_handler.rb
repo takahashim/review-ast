@@ -331,8 +331,9 @@ module ReVIEW
           data = ref_node.resolved_data
           # The caption comes from the referenced heading's source text, so it
           # can carry &, < or >. IDGXMLBuilder escapes it (compile_inline on the
-          # headline caption); emitting it raw produced invalid XML.
-          escape(@ctx.text_formatter.format_reference(:headline, data))
+          # headline caption) -- the caption only, not the hd_quote around it
+          # (English quotes it with ", which stays a ").
+          @ctx.text_formatter.format_headline_reference_with_caption(data, escape(data.caption_text.to_s))
         end
 
         # Section number reference
@@ -381,7 +382,14 @@ module ReVIEW
           ref_node = resolved_reference_node(node)
 
           data = ref_node.resolved_data
-          display_str = @ctx.text_formatter.format_reference(:chapter, data)
+          # Builder#inline_chapref runs the whole display string through
+          # compile_inline, so it is escaped (English quotes the title with ");
+          # version 2's form is written as is.
+          display_str = if ReVIEW::Renderer::Base.review_version2?(@ctx.config)
+                          @ctx.text_formatter.format_chapref_version2(data)
+                        else
+                          escape(@ctx.text_formatter.format_reference(:chapter, data))
+                        end
           if @ctx.chapter_link_enabled?
             %Q(<link href="#{data.item_id}">#{display_str}</link>)
           else

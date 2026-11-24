@@ -558,6 +558,9 @@ module ReVIEW
         # Add newline to content like HTMLBuilder does
         # parser.parse returns MathML::Math object, need to convert to string
         parser.parse(content + "\n", true).to_s
+      rescue MathML::LaTeX::ParseError => e
+        # A math_ml parse error is a compile error, as HTMLBuilder reports it.
+        raise ReVIEW::CompileError, e.message
       end
 
       def render_imgmath_format(content)
@@ -570,6 +573,10 @@ module ReVIEW
         lineheight = config['imgmath_options']['lineheight'].to_f
         math_str = "\\begin{equation*}\n\\fontsize{#{fontsize}}{#{lineheight}}\\selectfont\n#{content}\n\\end{equation*}\n"
         key = Digest::SHA256.hexdigest(math_str)
+
+        # Version 2 makes the image right away and marks it no further
+        # (HTMLBuilder#texequation).
+        return %Q(<img src="#{@img_math.make_math_image(math_str, key)}" />\n) if review_version2?
 
         img_path = @img_math.defer_math_image(math_str, key)
         %Q(<img src="#{img_path}" class="math_gen_#{key}" alt="#{escape(content)}" />\n)
@@ -1010,21 +1017,12 @@ module ReVIEW
       def render_comment_block(node)
         return '' unless config['draft']
 
-        content_lines = []
-
-        if node.args.first && !node.args.first.empty?
-          content_lines << escape(node.args.first)
-        end
-
-        if node.content && !node.content.empty?
-          body_content = render_children(node)
-          content_lines << body_content unless body_content.empty?
-        end
-
-        return '' if content_lines.empty?
-
-        content_str = content_lines.join('<br />')
-        %Q(<div class="draft-comment">#{content_str}</div>)
+        # HTMLBuilder#comment: the argument, then each body line, joined by
+        # <br />. (This read node.content, which a BlockNode does not have, so
+        # a //comment{ ... //} crashed the draft build.)
+        content_lines = node.children.map { |line| render_children(line) }
+        content_lines.unshift(escape(node.args.first)) if node.args.first && !node.args.first.empty?
+        %Q(<div class="draft-comment">#{content_lines.join('<br />')}</div>)
       end
 
       # HTMLBuilder#captionblock: a plain div whose caption is a <p>, distinct
