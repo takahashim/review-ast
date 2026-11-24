@@ -193,3 +193,20 @@ before comparing.
 - Builder: `PLAINTEXTBuilder#inline_chapref` (the `chapterlink` branch).
 - Question: drop the element in the text builders, then the strip in the test
   and this entry go away.
+
+### 9. A table row is split into cells after its inline commands are compiled (builder)
+
+`ReVIEW::Compiler` inline-compiles every line of a `//table` before
+`Builder#parse_table_rows` splits it on `table_row_separator`. So the
+separator is looked for in the *output* of the inline commands: TOP's
+`@<balloon>{x}` returns `"\t←x"`, whose tab starts a new cell (and
+`adjust_n_cols` then pads every other row with it); with
+`table_row_separator: spaces`, `@<b>{a b}` is cut in two in every format. The
+renderers split the row on the source text, so a command stays in its cell.
+This is a deliberate non-match; the PBT generator keeps `@<balloon>` out of
+table cells.
+
+- Builder: `Builder#parse_table_rows` (and `Compiler#compile_block`, which
+  compiles the lines first).
+- Question: split the source line first and compile each cell, as the
+  renderers do; then this entry goes away.

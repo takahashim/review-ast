@@ -29,8 +29,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # html compares under the CSS white-space model; idgxml byte for byte.
-        mode: [html, idgxml]
+        # html compares under the CSS white-space model, idgxml byte for byte,
+        # plaintext and top by non-blank lines.
+        mode: [html, idgxml, plaintext, top]
     steps:
       - uses: actions/checkout@v4
       - uses: ruby/setup-ruby@v1

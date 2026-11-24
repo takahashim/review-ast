@@ -45,9 +45,11 @@ to the TeXLive version, so cross-machine comparison requires a pinned toolchain.
 ## Property-based differential testing
 
 `pbt/generator.rb` generates random, self-contained Re:VIEW documents (seed
--deterministic). `pbt/runner.rb` renders each through both `LATEXBuilder` and the
-AST `LatexRenderer`, asserts they agree, and on a counterexample **shrinks** the
-document to a minimal reproducer.
+-deterministic). `pbt/runner.rb` renders each through both a legacy builder and
+the matching AST renderer (`LATEXBuilder` / `LatexRenderer` by default), asserts
+they agree, and on a counterexample **shrinks** the document to a minimal
+reproducer. `--mode html`, `idgxml`, `plaintext` and `top` compare those formats
+instead (the nightly workflow runs these four).
 
 ```sh
 # fast structural pass (canonical comparison, no TeX)
@@ -55,6 +57,9 @@ BUNDLE_GEMFILE=Gemfile bundle exec ruby tools/pbt/runner.rb --mode canonical --s
 
 # strict pass (DVI comparison; sees whitespace differences, needs TeXLive)
 BUNDLE_GEMFILE=Gemfile bundle exec ruby tools/pbt/runner.rb --mode dvi --seeds 50
+
+# another format
+BUNDLE_GEMFILE=Gemfile bundle exec ruby tools/pbt/runner.rb --mode top --seeds 200
 ```
 
 The generator covers the constructs where divergences tend to hide: inline

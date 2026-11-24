@@ -7,19 +7,22 @@
 # You can distribute or modify this program under the terms of
 # the GNU LGPL, Lesser General Public License version 2.1.
 
-# Property-based differential testing of the AST LaTeX renderer.
+# Property-based differential testing of the AST renderers.
 #
 # It generates random self-contained Re:VIEW documents, renders each through
-# both LATEXBuilder and the AST LatexRenderer, and asserts they agree. On a
-# counterexample it shrinks the document to a minimal reproducer and prints it.
+# both a legacy builder and the matching AST renderer, and asserts they
+# agree. On a counterexample it shrinks the document to a minimal reproducer
+# and prints it.
 #
-# The property defaults to DVI equivalence (--mode dvi), which sees the
-# whitespace-level differences that matter; --mode canonical is faster but
-# blind to whitespace (use it only for a quick structural pass).
+# For LaTeX the property defaults to DVI equivalence (--mode dvi), which sees
+# the whitespace-level differences that matter; --mode canonical is faster but
+# blind to whitespace (use it only for a quick structural pass). --mode html,
+# idgxml, plaintext and top compare those formats instead.
 #
 # Usage:
 #   BUNDLE_GEMFILE=Gemfile bundle exec ruby tools/pbt/runner.rb \
-#       [--seeds N] [--start S] [--mode dvi|canonical] [--blocks N]
+#       [--seeds N] [--start S] [--blocks N] \
+#       [--mode dvi|canonical|html|idgxml|plaintext|top]
 #
 # Seeds are deterministic: a reported failing seed reproduces exactly. Fold a
 # real finding into a permanent regression test rather than relying on the seed.
@@ -33,7 +36,7 @@ opts = { seeds: 50, start: 1, mode: 'dvi', blocks: nil, config: {},
 OptionParser.new do |o|
   o.on('--seeds N', Integer) { |v| opts[:seeds] = v }
   o.on('--start S', Integer) { |v| opts[:start] = v }
-  o.on('--mode M', %w[dvi canonical html idgxml]) { |v| opts[:mode] = v }
+  o.on('--mode M', %w[dvi canonical html idgxml plaintext top]) { |v| opts[:mode] = v }
   o.on('--blocks N', Integer) { |v| opts[:blocks] = v }
   o.on('--book DIR') { |v| opts[:book] = File.expand_path(v) }
   # Config filename (relative to --book) that review-pdfmaker uses to harvest the
@@ -66,7 +69,8 @@ require 'generator'
 # Select the format's comparator (renders a *.re through builder + AST renderer)
 # and its structural diff. LaTeX uses DVI or a canonical text diff; HTML and
 # IDGXML use spec-aware DOM/XML diffs (Diff::Html follows the CSS Text 3
-# white-space model so significant whitespace is not lost).
+# white-space model so significant whitespace is not lost); the text formats
+# compare their non-blank lines (Diff::TextLines).
 case opts[:mode]
 when 'html'
   require 'review/test/html_comparator'
@@ -81,6 +85,11 @@ when 'idgxml'
   # and InDesign imports text literally, so there is no whitespace-collapsing
   # model to normalize -- any byte difference is a real one.
   canonical = ReVIEW::AST::Diff::ByteExact.new
+when 'plaintext', 'top'
+  require 'review/test/text_comparator'
+  require 'review/ast/diff/text_lines'
+  comparator = ReVIEW::Test::TextComparator.new(format: opts[:mode].to_sym, config: opts[:config])
+  canonical = ReVIEW::AST::Diff::TextLines.new
 else
   require 'review/test/latex_comparator'
   require 'review/ast/diff/latex'

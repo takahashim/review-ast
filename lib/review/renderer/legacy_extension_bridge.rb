@@ -135,6 +135,17 @@ module ReVIEW
           end
         end
 
+        # Whether the builder implements the block command, as
+        # ReVIEW::Compiler#compile_command asks it (respond_to?). A command
+        # ReVIEW::Compiler does not declare is the AST's own (such as //column)
+        # and is not the builder's to support.
+        def builder_supports?(klass, name)
+          @supported ||= {}
+          @supported.fetch([klass, name]) do
+            @supported[[klass, name]] = !ReVIEW::Compiler::SYNTAX.key?(name.to_sym) || klass.public_method_defined?(name.to_sym)
+          end
+        end
+
         def unroutable_overrides(klass)
           (klass.instance_methods + klass.private_instance_methods).uniq.select do |name|
             unroutable_name?(name) && extension_method?(klass, name)

@@ -180,6 +180,78 @@ class TestBuilderCompatFragments < Test::Unit::TestCase
     text.lines.map { |line| line.sub(/\A\t+/, '') }.reject { |line| line.strip.empty? }.join
   end
 
+  # -- text formats: what the PBT runner's text modes found
+
+  def assert_text_lines_parity(source, config: {})
+    %i[plaintext top].each do |format|
+      comparator = ReVIEW::Test::TextComparator.new(format: format, config: config)
+      assert_equal text_lines(comparator.convert_with_builder(source)), text_lines(comparator.convert_with_renderer(source)),
+                   "#{format} #{config.inspect}: #{source.inspect}"
+    end
+  end
+
+  def test_a_newline_an_inline_writes_survives_the_paragraph_join
+    # The builders join a paragraph's source lines; the text renderers folded
+    # every newline, the one @<br> writes included.
+    [{}, { 'join_lines_by_lang' => true }].each do |config|
+      assert_text_lines_parity("A@<br>{}\nB and\nC@<br>{}D\n", config: config)
+      assert_text_lines_parity("A@<raw>{|plaintext,top|x\\ny}B\n", config: config)
+      # |text| names no builder (target_name is plaintext / top).
+      assert_text_lines_parity("A@<raw>{|text|x}B\n//raw[|text|y]\n\n//embed[text]{\nz\n//}\n", config: config)
+      assert_text_lines_parity(" * item@<br>{}more\n continued\n\n 1. one@<br>{}two\n", config: config)
+    end
+  end
+
+  def test_tabs_are_expanded_in_a_list_body_only
+    # Builder#list_body detabs; emlist, the numbered blocks, cmd and source
+    # print their tabs as written.
+    source = %w[list[l1][L] emlist[E] listnum[l2][N] emlistnum cmd source[S]].map { |cmd| "//#{cmd}{\na\tb\n//}\n" }.join("\n")
+    [{}, { 'tabwidth' => 4 }].each { |config| assert_text_lines_parity(source, config: config) }
+  end
+
+  def test_ordered_items_keep_their_written_numbers
+    assert_text_lines_parity(" 3. a\n 3. b\n 7. c\n\n//olnum[10]\n\n 1. d\n 2. e\n")
+  end
+
+  def test_trailing_empty_lines_of_a_numbered_block_are_numbered
+    ["//emlistnum{\ncode\n\n\n//}\n", "//listnum[l1][C]{\ncode\n\n//}\n", "//emlistnum{\n\n//}\n"].each do |source|
+      assert_text_lines_parity(source)
+    end
+  end
+
+  # -- a block command the format's builder does not implement is an error,
+  #    as in ReVIEW::Compiler#compile_command; some renderers printed it
+
+  UNSUPPORTED = { plaintext: %w[blockquote pagebreak hr parasep], top: %w[pagebreak hr parasep],
+                  html: %w[blockquote], latex: %w[talk address blockquote bpo] }.freeze
+
+  def test_a_command_the_builder_lacks_is_an_error
+    UNSUPPORTED.each do |format, commands|
+      comparator = if FORMATS.key?(format)
+                     FORMATS.fetch(format).call({}).first
+                   else
+                     ReVIEW::Test::TextComparator.new(format: format)
+                   end
+      commands.each do |command|
+        source = ReVIEW::Compiler::SYNTAX.fetch(command.to_sym).block_allowed? ? "//#{command}{\nx\n//}\n" : "//#{command}\n"
+        assert_raise(ReVIEW::ApplicationError, "builder: #{format} //#{command}") { comparator.convert_with_builder(source) }
+        error = assert_raise(ReVIEW::CompileError, "renderer: #{format} //#{command}") { comparator.convert_with_renderer(source) }
+        assert_match(%r{builder does not support command: //#{command}}, error.message)
+      end
+    end
+  end
+
+  def test_a_markdown_thematic_break_is_still_a_rule_in_text
+    # The check is for commands written in Re:VIEW source; the Markdown
+    # adapter's hr is not one.
+    require 'review/ast/markdown_compiler'
+    require 'review/renderer/plaintext_renderer'
+    book = ReVIEW::Book::Base.new(config: ReVIEW::Configure.values)
+    chapter = ReVIEW::Book::Chapter.new(book, 1, 'test', 'test.md', StringIO.new("# C\n\nA\n\n---\n\nB\n"))
+    ast = ReVIEW::AST::MarkdownCompiler.new.compile_to_ast(chapter)
+    assert_nothing_raised { ReVIEW::Renderer::PlaintextRenderer.new(chapter).render(ast) }
+  end
+
   # -- an inline op nobody declared is an error in every format, as in
   #    ReVIEW::Compiler#compile_inline (the text renderers used to print it)
 
