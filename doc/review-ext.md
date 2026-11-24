@@ -35,6 +35,13 @@ Only methods defined *outside* the `review` and `review-ast` gems are treated as
 extensions — that is how a review-ext.rb method is told apart from the builder's
 own.
 
+Calling a builder method has a cost: the AST path binds a builder, and
+Re:VIEW's `Builder#bind` then indexes the chapter and the whole book with the
+legacy compiler (`generate_indexes`, once per chapter), as `review-compile`
+does. References a builder method resolves (`@chapter.list(id)`, an `@<list>`
+compiled by `compile_inline`) read that legacy index, not the AST's numbering.
+A book whose review-ext.rb defines no builder methods never pays this.
+
 `review-ast-dump` keeps an extension block in the JSON (`ExtensionBlockNode`
 with `block_type`, `args`, `lines`) and `review-ast-dump2re` writes it back as
 it was.
@@ -128,15 +135,16 @@ The same applies to `LatexRenderer`, `IdgxmlRenderer`, `PlaintextRenderer`,
 
 ### Renderer methods are not a stable interface
 
-Only `visit_block_<name>` for a command review-ext.rb declared and
-`render_inline_<name>` are supported extension points. Everything else on a
+Only `visit_block_<name>` and `render_inline_<name>` for a command
+review-ext.rb declared are supported extension points. Everything else on a
 renderer is internal:
 
 - Reopening a renderer lets you replace any of its methods, including those
-  that render built-in commands (`visit_block_box`, `visit_headline`, …). Such
-  a replacement is **not** checked or reported, unlike a builder
-  redefinition the AST does not call, and may break when the renderer
-  changes. Redefine a built-in command on the builder instead (see
+  that render built-in commands (`visit_block_box`, `visit_headline`, …). A
+  `render_inline_<name>` named after a built-in inline (`render_inline_b`) is
+  used too, in every format. Such replacements are **not** checked or
+  reported, unlike a builder redefinition the AST does not call, and may
+  break when the renderer changes. Redefine a built-in command on the builder instead (see
   [What works unchanged](#what-works-unchanged)).
 - Helpers an extension method calls, such as `escape` and `render_children`,
   are the renderer's own and carry no compatibility promise.
