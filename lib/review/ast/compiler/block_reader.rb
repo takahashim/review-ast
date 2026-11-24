@@ -14,7 +14,8 @@ module ReVIEW
       # This class handles reading block content from input,
       # managing nested blocks and tracking block depth.
       class BlockReader
-        def initialize(compiler:, file_input:, parent_command:, start_location:, preserve_whitespace:)
+        def initialize(compiler:, file_input:, parent_command:, start_location:, preserve_whitespace:, nesting: true)
+          @nesting = nesting
           @compiler = compiler
           @f = file_input
           @parent_command = parent_command
@@ -85,7 +86,7 @@ module ReVIEW
         end
 
         def nested_block_command?(line)
-          line.match?(%r{\A//[a-z]+})
+          @nesting && line.match?(%r{\A//[a-z]+})
         end
 
         def handle_nested_block(line)

@@ -166,6 +166,44 @@ class TestReviewCommandSweep < Test::Unit::TestCase
     end
   end
 
+  # The same commands with one argument written empty, as `[]`: most builders
+  # take an empty caption for none (caption.present?), but some number a list
+  # or an equation anyway, or write IDGXML's -t form of a //point. Review-
+  # retrovert writes every captionless Re:VIEW Starter //list as
+  # //list[starter_auto_id_list_N][]{.
+  #
+  # An empty id is left out: the builders index the block under the id '',
+  # the AST takes it for no id (Node#id?).
+  EMPTY_ID_COMMANDS = %i[list listnum table image texequation indepimage numberlessimage imgtable graph bibpaper].freeze
+
+  def empty_argument_fragments
+    ReVIEW::Compiler::SYNTAX.flat_map do |name, syntax|
+      argc = syntax.instance_variable_get(:@argc_spec)
+      max = argc.is_a?(Range) ? argc.end : argc
+      next [] if name == :include || max.nil? || max == 0
+
+      body = syntax.block_allowed? ? "{\nline1 @<b>{bold}\n//}" : ''
+      (0...max).filter_map do |empty|
+        next if empty == 0 && EMPTY_ID_COMMANDS.include?(name)
+
+        args = (0...max).map { |i| i == empty ? '[]' : "[a#{i + 1}]" }.join
+        ["//#{name}", "//#{name}#{args}#{body}\n"]
+      end
+    end
+  end
+
+  def test_an_empty_argument_agrees_in_every_format
+    failures = empty_argument_fragments.flat_map do |command, source|
+      FORMATS.each_key.filter_map do |format|
+        next if known?(command, format)
+
+        problem = divergence(format, source, {})
+        "#{command} (#{format}) #{source.inspect}\n  #{problem}" if problem
+      end
+    end
+    assert(failures.empty?, "the paths disagree on an empty argument:\n#{failures.join("\n")}")
+  end
+
   # Checked under the default settings only: an entry needs to diverge
   # there, not under every configuration.
   def test_known_differences_still_differ

@@ -453,8 +453,9 @@ class TestHtmlRenderer < Test::Unit::TestCase
 
     # Use caption-equation class like HTMLBuilder
     assert_match(/<div id="eq1" class="caption-equation">/, html_output)
-    # Caption should show equation number only (with colon from format_number_header)
-    assert_match(%r{<p class="caption">式1\.1:</p>}, html_output)
+    # The equation number with the separator, as HTMLBuilder#texequation_header
+    # writes it for an equation without a caption
+    assert_match(%r{<p class="caption">式1\.1: </p>}, html_output)
     # Check that equation content is present
     assert_match(/\\int_/, html_output)
   end

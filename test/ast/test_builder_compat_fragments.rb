@@ -489,12 +489,64 @@ class TestBuilderCompatFragments < Test::Unit::TestCase
     assert_text_lines_parity(" * item@<fn>{f1}\n\n//footnote[f1][F]\n")
   end
 
+  # Found on the Re:VIEW Starter user guide, as review-retrovert converts it.
+  def test_blank_table_row_is_an_empty_row
+    # Builder#parse_table_rows keeps a blank line as a row, padded out to the
+    # table's columns; Starter draws a rule for one.
+    ["//table[t][C]{\nA\tB\n\nC\tD\n//}\n", "//table[t][C]{\nH1\tH2\n------------\nA\tB\n\nC\n//}\n"].each do |source|
+      assert_parity(source)
+      assert_text_lines_parity(source)
+    end
+  end
+
+  def test_command_lines_in_a_code_block_are_code
+    # The builder's compiler (ReVIEW::Compiler#read_block) reads a block's
+    # body up to the first //} as lines; only a minicolumn's is compiled.
+    ["//list[l][C]{\nx\n//clearpage\n== not a heading\n//}\n\ntext\n", "//emlist{\n//note[N]{\n//}\n\ntext\n",
+     "//cmd{\n//image[i][C]{\n//}\n", "//source[a.rb]{\n//noindent\n//}\n",
+     "//quote{\nq1\n//clearpage\nq2\n//}\n", "//lead{\n//noindent\n//}\n"].each do |source|
+      assert_parity(source)
+      assert_text_lines_parity(source)
+    end
+  end
+
+  # A cell's leading `.` is taken off and a `..` is a `.`
+  # (Builder#parse_table_rows). IDGXMLBuilder#parse_table_rows does that at
+  # the start of a row only and keeps the dots of a later cell, which the AST
+  # does not reproduce (doc/ast-semantics.md, divergence 5); the IDGXML
+  # renderer used to take a second dot off (`..bashrc` came out `bashrc`,
+  # found on the Re:VIEW Starter user guide).
+  def test_leading_dots_in_table_cells
+    source = "//table[t][C]{\nA\t.bashrc\nB\t..bashrc\n.C\t.\n..D\t..\n//}\n"
+    assert_parity(source, formats: %i[html latex])
+    assert_text_lines_parity(source)
+    idgxml = ReVIEW::Test::IdgxmlComparator.new.convert_with_renderer(source)
+    assert_equal %w[A bashrc B .bashrc C] + [''] + %w[.D .], idgxml.scan(%r{<td[^>]*>([^<]*)</td>}).flatten
+  end
+
+  # An empty caption, as review-retrovert writes a captionless Starter
+  # //list: HTMLBuilder and the text builders still number a //list
+  # ("リスト1.1: "), every builder an //texequation with an id, and
+  # IDGXMLBuilder#point takes the -t form.
+  EMPTY_CAPTIONS = "//list[l1][]{\nx\n//}\n\n//listnum[l2][]{\ny\n//}\n\n//texequation[e1]{\nz\n//}\n\n" \
+                   "//texequation[e2][]{\nz\n//}\n\n//image[i1][]{\n//}\n\n//table[t1][]{\nA\tB\n//}\n\n" \
+                   "//emlist[][]{\ne\n//}\n"
+
+  def test_empty_caption_is_numbered_like_the_builder
+    [{}, CAPTIONS_BOTTOM].each do |config|
+      assert_parity(EMPTY_CAPTIONS, config: config)
+      assert_text_lines_parity(EMPTY_CAPTIONS, config: config)
+    end
+    assert_parity("//point[]{\np\n//}\n\n//point{\nq\n//}\n", formats: [:idgxml])
+  end
+
   GENERATOR_ROUND_TRIP = ["//image[i1][Cap]{\nart @<b>{x}\n  art2\n//}\n", "//image[i1][][scale=0.5]{\n//}\n",
                           "//indepimage[i1]{\nart\n//}\n", "//bpo{\nline1 @<b>{bold}\n\nline3\n//}\n",
                           "//box[Cap]{\nline1\n\nline3\n//}\n", "//insn[Cap]{\nline1\n//}\n",
                           "//comment[c]{\nline1\nline2\n//}\n", "//blockquote{\npara1\n\npara2\n//}\n",
                           "//point[P]{\npara1\n//}\n", "//term{\nT1\n//}\n", "//rawblock{\nraw @<b>{x}\n\nline3\n//}\n",
-                          "//comment{\n  indented @<b>{x}\n\nline3\n//}\n"].freeze
+                          "//comment{\n  indented @<b>{x}\n\nline3\n//}\n", "//point[]{\np\n//}\n",
+                          "//table[t][C]{\n.a\t.b\n..c\t.\n.\t..\n//}\n"].freeze
 
   def test_blocks_survive_a_round_trip
     book = ReVIEW::Book::Base.new(config: ReVIEW::Configure.values)

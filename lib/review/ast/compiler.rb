@@ -289,8 +289,10 @@ module ReVIEW
           when ->(l) { parse_lists && l =~ /\A\s+:\s/ } # definition list (must start with space)
             compile_dl_to_ast(line_input)
           else
-            # Regular paragraph content
-            compile_paragraph_to_ast(line_input, preserve_leading_whitespace: preserve_leading_whitespace)
+            # Regular paragraph content. A //command line left in the lines
+            # is text: a block that nests took its commands out already, and
+            # in one that does not (//quote, ...) the builder prints the line.
+            compile_paragraph_to_ast(line_input, preserve_leading_whitespace: preserve_leading_whitespace, stop: nil)
           end
         end
 
@@ -355,6 +357,18 @@ module ReVIEW
         end
       end
 
+      # Whether a //command{ inside this block is a command. ReVIEW::Compiler
+      # reads the body of every block it declares up to the first //} as plain
+      # lines (read_block), except a minicolumn's, whose content it compiles;
+      # a //list holding a //clearpage line is a code listing with that line.
+      # The AST also nests in a //box (a //list inside a //box is a listing,
+      # where the builder would end the box at the listing's //}) and in its
+      # own commands (//ul{ //li ... }).
+      def nesting_block?(name)
+        syntax = ReVIEW::Compiler::SYNTAX[name.to_sym]
+        syntax.nil? || syntax.minicolumn? || name.to_sym == :box
+      end
+
       # A block command the book defined in review-ext.rb (it is in the legacy
       # compiler's SYNTAX table) that the AST has no handler for. See
       # ExtensionBlockNode.
@@ -383,7 +397,8 @@ module ReVIEW
           file_input: f,
           parent_command: parent_command,
           start_location: block_start_location,
-          preserve_whitespace: preserve_whitespace?(parent_command)
+          preserve_whitespace: preserve_whitespace?(parent_command),
+          nesting: nesting_block?(parent_command)
         )
         reader.read
       end
@@ -419,9 +434,9 @@ module ReVIEW
         end
       end
 
-      def compile_paragraph_to_ast(f, preserve_leading_whitespace: false)
+      def compile_paragraph_to_ast(f, preserve_leading_whitespace: false, stop: %r{\A//|\A\#@})
         raw_lines = []
-        f.until_match(%r{\A//|\A\#@}) do |line|
+        f.until_match(stop) do |line|
           break if line.strip.empty?
 
           # A document-level paragraph strips leading whitespace like

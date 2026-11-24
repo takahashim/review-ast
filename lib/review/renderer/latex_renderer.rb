@@ -1206,7 +1206,7 @@ module ReVIEW
           # (caption_top?('equation')), matching LATEXBuilder#texequation.
           dn = node.definition_number
           caption_content = node.caption? ? render_children(node.caption_node) : nil
-          captionstr = "\\reviewequationcaption{#{text_formatter.format_caption('equation', dn.chapter_number, dn.number, caption_content)}}"
+          captionstr = "\\reviewequationcaption{#{text_formatter.format_caption('equation', dn.chapter_number, dn.number, caption_content, keep_separator: true)}}"
           result << '\\begin{reviewequationblock}'
           result << captionstr if caption_top?('equation')
           result << '\\begin{equation*}'

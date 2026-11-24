@@ -506,7 +506,7 @@ module ReVIEW
         caption_content = render_caption_inline(node.caption_node)
         caption_text = caption_content.empty? ? nil : caption_content
         dn = node.definition_number
-        caption_html = %Q(<p class="caption">#{text_formatter.format_caption('equation', dn.chapter_number, dn.number, caption_text)}</p>\n)
+        caption_html = %Q(<p class="caption">#{text_formatter.format_caption('equation', dn.chapter_number, dn.number, caption_text, keep_separator: true)}</p>\n)
 
         caption_top_html = caption_top?('equation') ? caption_html : ''
         caption_bottom_html = caption_top?('equation') ? '' : caption_html
@@ -755,10 +755,12 @@ module ReVIEW
 
       def render_code_caption(node, style, position)
         caption_node = node.caption_node
-        return '' unless caption_node
+        return '' unless caption_node || style == :numbered
 
         caption_content = render_caption_inline(caption_node)
-        return '' if caption_content.empty?
+        # HTMLBuilder#list_header numbers a //list and //listnum whatever the
+        # caption, an empty one too ("リスト1.1: ").
+        return '' if caption_content.empty? && style != :numbered
 
         case style
         when :top_bottom
@@ -779,7 +781,7 @@ module ReVIEW
 
       def build_pre_class(base_class, lang, with_highlight: true)
         classes = [base_class]
-        classes << "language-#{lang}" if lang
+        classes << "language-#{lang}" if lang.present? # //list[id][cap][] has none
         classes << 'highlight' if with_highlight && highlight?
         classes.join(' ')
       end
@@ -862,7 +864,7 @@ module ReVIEW
       def generate_list_header(id, caption, definition_number)
         raise NotImplementedError, "no such list: #{id}" unless definition_number
 
-        text_formatter.format_caption('list', definition_number.chapter_number, definition_number.number, caption)
+        text_formatter.format_caption('list', definition_number.chapter_number, definition_number.number, caption, keep_separator: true)
       end
 
       def visit_reference(node)
@@ -1275,7 +1277,7 @@ module ReVIEW
           # HTMLBuilder#image_header emits <p class="caption">図N.N: …</p> ALWAYS,
           # even for an empty caption (the number-only prefix).
           chap, number = image_caption_number(id, definition_number)
-          caption_text = text_formatter.format_caption('image', chap, number, caption_content)
+          caption_text = text_formatter.format_caption('image', chap, number, caption_content, keep_separator: true)
         end
 
         %Q(<p class="caption">\n#{caption_text}\n</p>\n)

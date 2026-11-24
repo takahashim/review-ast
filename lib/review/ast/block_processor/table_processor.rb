@@ -45,7 +45,7 @@ module ReVIEW
 
           context.append_new_node(AST::TableNode, **attrs) do |node|
             if context.content?
-              process_content(node, context.lines, context.start_location)
+              process_content(node, context.lines)
             elsif context.name != :imgtable
               raise ReVIEW::CompileError, 'no rows in the table'
             end
@@ -56,11 +56,10 @@ module ReVIEW
 
         # @param table_node [TableNode] Table node to populate
         # @param lines [Array<String>] Content lines
-        # @param block_location [SourceLocation] Block start location
-        def process_content(table_node, lines, block_location)
+        def process_content(table_node, lines)
           structure = TableStructure.from_lines(lines)
 
-          header_rows, body_rows = build_rows_from_structure(structure, block_location)
+          header_rows, body_rows = build_rows_from_structure(structure)
 
           adjust_columns(header_rows + body_rows, first_cell_header: structure.first_cell_header)
 
@@ -70,14 +69,12 @@ module ReVIEW
         # @param line [String] Line content
         # @param is_header [Boolean] Whether all cells should be header cells
         # @param first_cell_header [Boolean] Whether only first cell should be header
-        # @param block_location [SourceLocation] Block start location
         # @return [TableRowNode] Created row node
-        def create_row(line, block_location:, is_header: false, first_cell_header: false)
+        def create_row(line, is_header: false, first_cell_header: false)
+          # A blank line is a row with no cells (Builder#parse_table_rows pushes
+          # it, and adjust_n_cols pads it out); it used to be an error here.
+          # Re:VIEW Starter draws a rule for it, and review-retrovert keeps it.
           cells = line.strip.split(row_separator_regexp).map { |s| s.sub(/\A\./, '') }
-          if cells.empty?
-            location_info = block_location.format_for_error
-            raise CompileError, "Invalid table row: empty line or no tab-separated cells#{location_info}"
-          end
 
           row_type = is_header ? :header : :body
           row_node = create_node(AST::TableRowNode, row_type: row_type)
@@ -102,15 +99,14 @@ module ReVIEW
         private
 
         # @param structure [TableStructure] Table structure data
-        # @param block_location [SourceLocation] Block start location
         # @return [Array<Array<TableRowNode>, Array<TableRowNode>>] Header rows and body rows
-        def build_rows_from_structure(structure, block_location)
+        def build_rows_from_structure(structure)
           header_rows = structure.header_lines.map do |line|
-            create_row(line, is_header: true, block_location: block_location)
+            create_row(line, is_header: true)
           end
 
           body_rows = structure.body_lines.map do |line|
-            create_row(line, first_cell_header: structure.first_cell_header, block_location: block_location)
+            create_row(line, first_cell_header: structure.first_cell_header)
           end
 
           [header_rows, body_rows]

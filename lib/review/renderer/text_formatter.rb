@@ -39,14 +39,16 @@ module ReVIEW
       # @param chapter_number [String, nil] Chapter number (e.g., "第1章")
       # @param item_number [Integer] Item number within chapter
       # @param caption_text [String, nil] Caption text
+      # @param keep_separator [Boolean] Write the separator for an empty caption
+      #   too, as the builders' list and equation headers do ("リスト1.1: ")
       # @return [String] Formatted caption
-      def format_caption(label_key, chapter_number, item_number, caption_text = nil)
+      def format_caption(label_key, chapter_number, item_number, caption_text = nil, keep_separator: false)
         label = I18n.t(label_key)
         number_text = format_number_header(chapter_number, item_number)
         separator = I18n.t('caption_prefix')
 
         base = "#{label}#{number_text}"
-        return base if caption_text.nil? || caption_text.empty?
+        return base if !keep_separator && (caption_text.nil? || caption_text.empty?)
 
         "#{base}#{separator}#{caption_text}"
       end
@@ -57,14 +59,15 @@ module ReVIEW
       # @param chapter_number [String, nil] Chapter number (e.g., "第1章")
       # @param item_number [Integer] Item number within chapter
       # @param caption_text [String, nil] Caption text
+      # @param keep_separator [Boolean] See #format_caption
       # @return [String] Formatted caption
-      def format_caption_plain(label_key, chapter_number, item_number, caption_text = nil)
+      def format_caption_plain(label_key, chapter_number, item_number, caption_text = nil, keep_separator: false)
         label = I18n.t(label_key)
         number_text = format_number(chapter_number, item_number)
         separator = caption_separator
 
         base = "#{label}#{number_text}"
-        return base if caption_text.nil? || caption_text.empty?
+        return base if !keep_separator && (caption_text.nil? || caption_text.empty?)
 
         "#{base}#{separator}#{caption_text}"
       end

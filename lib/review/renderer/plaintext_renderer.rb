@@ -176,22 +176,21 @@ module ReVIEW
         # is numbered ("リスト1.1　..."), while #emlistnum prints the caption as
         # written. Both used the bare caption here, which dropped the list
         # number from every //listnum.
-        header = if node.code_type.to_sym == :listnum && !caption.empty?
-                   generate_list_header(node.id, caption, node.definition_number)
-                 else
-                   caption
-                 end
+        # Its list_header is unconditional: an empty caption is still numbered.
+        listnum = node.code_type.to_sym == :listnum
+        header = listnum ? generate_list_header(node.id, caption, node.definition_number) : caption
+        header_shown = listnum || !caption.empty?
 
-        result += "\n" if caption_top?('list') && !caption.empty?
-        result += "#{header}\n" if caption_top?('list') && !caption.empty?
-        result += "\n" if caption_top?('list') && !caption.empty?
+        result += "\n" if caption_top?('list') && header_shown
+        result += "#{header}\n" if caption_top?('list') && header_shown
+        result += "\n" if caption_top?('list') && header_shown
 
         lines.each_with_index do |line, i|
           result += "#{(i + first_line_number).to_s.rjust(2)}: #{line}\n"
         end
 
         result += "\n" unless caption_top?('list')
-        result += "#{header}\n" unless caption_top?('list') || caption.empty?
+        result += "#{header}\n" unless caption_top?('list') || !header_shown
         result += "\n"
 
         result
@@ -223,16 +222,19 @@ module ReVIEW
         caption = render_caption_inline(node.caption_node)
         lines_content = render_children(node)
 
-        result += "\n" if caption_top?('list') && !caption.empty?
-        result += generate_list_header(node.id, caption, node.definition_number) + "\n" if caption_top?('list') && !caption.empty?
-        result += "\n" if caption_top?('list') && !caption.empty?
+        # PLAINTEXTBuilder#list_header numbers the list whatever the caption.
+        header = generate_list_header(node.id, caption, node.definition_number)
+
+        result += "\n" if caption_top?('list')
+        result += header + "\n" if caption_top?('list')
+        result += "\n" if caption_top?('list')
 
         lines_content.each_line do |line|
           result += detab(line.chomp) + "\n"
         end
 
         result += "\n" unless caption_top?('list')
-        result += generate_list_header(node.id, caption, node.definition_number) + "\n" unless caption_top?('list') || caption.empty?
+        result += header + "\n" unless caption_top?('list')
         result += "\n"
 
         result
@@ -455,7 +457,7 @@ module ReVIEW
         if node.id? && node.definition_number
           caption = render_caption_inline(node.caption_node)
           dn = node.definition_number
-          result += "#{text_formatter.format_caption_plain('equation', dn.chapter_number, dn.number, caption)}\n" if caption_top?('equation')
+          result += "#{text_formatter.format_caption_plain('equation', dn.chapter_number, dn.number, caption, keep_separator: true)}\n" if caption_top?('equation')
         end
 
         result += "#{content}\n"
@@ -463,7 +465,7 @@ module ReVIEW
         if node.id? && node.definition_number
           caption = render_caption_inline(node.caption_node)
           dn = node.definition_number
-          result += "#{text_formatter.format_caption_plain('equation', dn.chapter_number, dn.number, caption)}\n" unless caption_top?('equation')
+          result += "#{text_formatter.format_caption_plain('equation', dn.chapter_number, dn.number, caption, keep_separator: true)}\n" unless caption_top?('equation')
         end
 
         result += "\n"
@@ -733,7 +735,7 @@ module ReVIEW
       def generate_list_header(id, caption, definition_number)
         return caption unless id && definition_number
 
-        text_formatter.format_caption_plain('list', definition_number.chapter_number, definition_number.number, caption)
+        text_formatter.format_caption_plain('list', definition_number.chapter_number, definition_number.number, caption, keep_separator: true)
       end
 
       def generate_table_header(id, caption, definition_number)

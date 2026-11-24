@@ -38,26 +38,15 @@ class TestBlockProcessorErrorMessages < Test::Unit::TestCase
     assert_match(/in sample\.re/, error.message)
   end
 
-  def test_invalid_table_row_error_message
-    content = "= Chapter\n\n//table[id][caption]{\n\n//}"
+  def test_blank_table_row_is_not_an_error
+    # A blank line in a table is an empty row, as Builder#parse_table_rows
+    # reads it, padded out to the table's columns.
+    content = "= Chapter\n\n//table[id][caption]{\nA\tB\n\nC\tD\n//}"
+    chapter = ReVIEW::Book::Chapter.new(@book, 1, 'test', 'table_test.re', StringIO.new(content))
 
-    chapter = ReVIEW::Book::Chapter.new(
-      @book,
-      1,
-      'test',
-      'table_test.re',
-      StringIO.new(content)
-    )
-
-    error = assert_raises(ReVIEW::CompileError) do
-      compiler = ReVIEW::AST::Compiler.for_chapter(chapter)
-      compiler.compile_to_ast(chapter)
-    end
-
-    # Verify error message contains expected information
-    assert_match(/Invalid table row: empty line or no tab-separated cells/, error.message)
-    assert_match(/at line 3/, error.message)
-    assert_match(/in table_test\.re/, error.message)
+    ast = ReVIEW::AST::Compiler.for_chapter(chapter).compile_to_ast(chapter)
+    table = ast.children.find { |node| node.is_a?(ReVIEW::AST::TableNode) }
+    assert_equal([2, 2, 2], table.body_rows.map { |row| row.children.size })
   end
 
   # NOTE: The unknown code block type test is harder to trigger in practice

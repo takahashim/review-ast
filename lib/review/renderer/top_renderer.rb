@@ -262,7 +262,9 @@ module ReVIEW
         # The caption goes above or below the code per caption_position (list),
         # as in TOPBuilder#list / #base_block.
         caption = render_caption_inline(node.caption_node)
-        caption_line = unless caption.empty?
+        # TOPBuilder#list numbers a //list whatever its caption; the other
+        # blocks print a caption only when there is one.
+        caption_line = unless caption.empty? && !(node.id && code_type == :list)
                          if node.id && (code_type == :list || code_type == :listnum)
                            # For list/listnum, use I18n formatting to match TOPBuilder
                            format_list_caption(node.id, caption, node.definition_number)
@@ -601,7 +603,8 @@ module ReVIEW
         return nil unless node.id? && node.definition_number
 
         dn = node.definition_number
-        text_formatter.format_caption_plain('equation', dn.chapter_number, dn.number, render_caption_inline(node.caption_node))
+        text_formatter.format_caption_plain('equation', dn.chapter_number, dn.number, render_caption_inline(node.caption_node),
+                                            keep_separator: true)
       end
 
       def render_imgtable(node)
@@ -817,7 +820,8 @@ module ReVIEW
         return "■#{caption_text}\n" unless render_context.chapter_present?
         return "■#{id}■#{caption_text}\n" unless definition_number
 
-        formatted = text_formatter.format_caption_plain('list', definition_number.chapter_number, definition_number.number, caption_text)
+        formatted = text_formatter.format_caption_plain('list', definition_number.chapter_number, definition_number.number, caption_text,
+                                                        keep_separator: true)
         "#{formatted}\n"
       end
 

@@ -258,6 +258,12 @@ document.
   `//olnum`, `//noindent`, `//firstlinenum`, `//tsize`, `//beginchild`,
   `//endchild`.
 
+A block's body is its lines up to the first `//}`, as ReVIEW::Compiler#read_block
+reads it.
+Block commands nest only inside a mini column, a `//box`, and the AST's own
+`//ul` and the like; a `//clearpage` line inside a `//list` or a `//quote` is
+a line of code or text.
+
 ### 3.2 Special inline commands
 
 These commands have dedicated handlers.
@@ -309,7 +315,7 @@ the builder behaviour is a bug or a builder-specific quirk.
 | 2 | Table cell rendering empty via `@<comment>` | the empty-rendering cell collapses, shifting the row (a LATEXBuilder bug) | does not reproduce: keeps the correctly split row | fix-now | open |
 | 3 | Table header/body separator threshold | LATEXBuilder detects on the escaped line, so 4–11 dashes already split | does not reproduce: uses the 12-dash threshold (same as HTML), so 4–11 dashes stay data | gate | open |
 | 4 | `footnotetext: true` + footnote in a heading | emits an unprotected `\footnotemark` (un-typesettable) | reproduces the builder byte-for-byte | fix-now | open |
-| 5 | Table-cell leading-dot escaping | HTMLBuilder unescapes `..15`→`.15`; IDGXMLBuilder keeps `..15` | normalizes to `.15` (matches HTML; intentionally incompatible with IDGXML byte-exactness) | fix-now | open |
+| 5 | Table-cell leading-dot escaping | HTMLBuilder unescapes `..15`→`.15`; IDGXMLBuilder keeps `..15` and `.15` in any cell after the first, and of two `.` cells side by side empties only the first (its `\t.\t` substitution does not overlap) | normalizes to `.15`, and every `.` cell is empty (matches HTML; intentionally incompatible with IDGXML byte-exactness) | fix-now | open |
 | 6 | Fields after the second in `@<href>` | dropped without a warning (`@<ruby>` joins them into the reading) | reproduces the builder (same splitting regexp) | canonicalize? | open |
 | 7 | `@<tcy>` in IDGXML | the generic `Builder#inline_tcy` writes the text unescaped | emits the same `[rotate 90 degree]` note but escapes the text (intentionally incompatible) | fix-now | open |
 | 8 | `@<chapref>` in the text formats | with `chapterlink` on, writes a `<link href="…">` element into plain text | prints the reference text alone (intentionally incompatible) | fix-now | open |

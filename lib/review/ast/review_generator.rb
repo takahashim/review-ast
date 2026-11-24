@@ -760,8 +760,9 @@ module ReVIEW
       # @return [String] Cell content or '.' for empty cells
       def render_cell_content(cell)
         content = cell.children.map { |child| visit(child) }.join
-        # Empty cells should be represented with a dot in Re:VIEW syntax
-        content.empty? ? '.' : content
+        # A leading `.` is dropped on reading: `.` is an empty cell, and a
+        # cell that starts with one is written `..x`.
+        content.empty? || content.start_with?('.') ? ".#{content}" : content
       end
     end
   end

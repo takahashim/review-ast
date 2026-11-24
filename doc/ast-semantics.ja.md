@@ -189,6 +189,9 @@ Re:VIEW のインライン記法(`@<img>{id}` など)は Markdown 中でもそ�
 - directive(`DirectiveNode`。lowering で除去):
   `//olnum`、`//noindent`、`//firstlinenum`、`//tsize`、`//beginchild`、`//endchild`。
 
+ブロックの本文は、ReVIEW::Compiler#read_block と同じく最初の `//}` までの行として読む。
+ブロック命令が入れ子になるのはミニコラム、`//box`、AST 独自の `//ul` などの中だけで、`//list` や `//quote` の中の `//clearpage` の行はコードや本文の 1 行である。
+
 ### 3.2 特殊インライン命令
 
 専用のハンドラを持つ命令である。
@@ -224,7 +227,7 @@ Re:VIEW のインライン記法(`@<img>{id}` など)は Markdown 中でもそ�
 | 2 | `@<comment>` で空描画になる表セル | 空描画セルが潰れ行がずれる(LATEXBuilder のバグ) | 再現しない: 正しく分割した行を保つ | 即修正 | open |
 | 3 | 表ヘッダ/本体区切りの閾値 | LATEXBuilder はエスケープ後の行で検出するため罫線 4〜11 本で既に分割 | 再現しない: 12 本閾値(HTML と同じ)を使い、4〜11 本はデータとして保つ | ゲート | open |
 | 4 | `footnotetext: true` + 見出し中の脚注 | 保護なしの `\footnotemark` を出す(組版不能) | ビルダーを byte 単位で再現 | 即修正 | open |
-| 5 | 表セル先頭ドットのエスケープ | HTMLBuilder は `..15`→`.15`、IDGXMLBuilder は `..15` のまま | `.15` に正規化(HTML に一致。IDGXML byte 一致とは意図的に非互換) | 即修正 | open |
+| 5 | 表セル先頭ドットのエスケープ | HTMLBuilder は `..15`→`.15`、IDGXMLBuilder は 2 番目以降のセルの `..15` も `.15` もそのまま。`.` のセルが 2 つ並ぶと 1 つ目しか空にならない(`\t.\t` の置換が重ならない) | `.15` に正規化し、`.` のセルはすべて空(HTML に一致。IDGXML byte 一致とは意図的に非互換) | 即修正 | open |
 | 6 | `@<href>` の 3 番目以降のフィールド | 警告なしに捨てる(`@<ruby>` は読みに連結する) | ビルダーを再現(同じ正規表現で分割) | 正典化? | open |
 | 7 | IDGXML の `@<tcy>` | 汎用 `Builder#inline_tcy` が本文を未エスケープで出す | 同じ `[rotate 90 degree]` 注記を出すが本文はエスケープする(意図的に非互換) | 即修正 | open |
 | 8 | テキスト形式の `@<chapref>` | `chapterlink` 有効時に `<link href="…">` 要素をプレーンテキストへ出す | 参照文字列だけを出す(意図的に非互換) | 即修正 | open |

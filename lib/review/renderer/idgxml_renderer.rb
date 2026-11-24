@@ -449,11 +449,12 @@ module ReVIEW
         captionblock('caution', content, caption)
       end
 
+      # IDGXMLBuilder#point takes the -t form for any caption argument, an
+      # empty one (//point[]) too, and writes the title only when it has text.
       def visit_block_point(node)
-        caption = node.args.first
         content = render_block_content_with_paragraphs(node)
-        if caption && !caption.empty? && node.caption_node
-          caption_with_inline = render_caption_inline(node.caption_node)
+        if node.args.first
+          caption_with_inline = node.caption_node ? render_caption_inline(node.caption_node) : nil
           captionblock_with_content('point-t', content, caption_with_inline, 'point-title')
         else
           captionblock_with_content('point', content, nil)
@@ -646,7 +647,7 @@ module ReVIEW
 
           # Generate caption
           dn = node.definition_number
-          caption_str = %Q(<caption>#{text_formatter.format_caption_plain('equation', dn.chapter_number, dn.number, rendered_caption)}</caption>)
+          caption_str = %Q(<caption>#{text_formatter.format_caption_plain('equation', dn.chapter_number, dn.number, rendered_caption, keep_separator: true)}</caption>)
 
           result << caption_str if caption_top?('equation')
         end
@@ -1290,23 +1291,16 @@ module ReVIEW
           # here -- matching IDGXMLBuilder, which keeps it (via DUMMYCELLSPLITTER)
           # while LATEXBuilder pops it.
           own_cells = row_node.natural_cell_count ? row_node.children.first(row_node.natural_cell_count) : row_node.children
-          cells = own_cells.map do |cell_node|
-            render_children(cell_node)
-          end
+          # A cell's leading `.` came off when the table was read, as
+          # Builder#parse_table_rows takes it off (`..x` is `.x`). Another
+          # strip here, of IDGXMLBuilder's line-level rules applied to each
+          # cell, turned `..x` into `x`. IDGXMLBuilder itself keeps the dots
+          # of a cell after the first (`..x` stays `..x`), which the AST does
+          # not reproduce (doc/ast-semantics.md, divergence 5).
+          cells = own_cells.map { |cell_node| render_children(cell_node) }
 
           col_count = cells.length
           @col = col_count if col_count > @col
-
-          # Apply table width processing if enabled
-          if @tablewidth
-            cells = cells.map do |cell|
-              cell.gsub("\t.\t", "\tDUMMYCELLSPLITTER\t").
-                gsub("\t..\t", "\t.\t").
-                gsub(/\t\.\Z/, "\tDUMMYCELLSPLITTER").
-                gsub(/\t\.\.\Z/, "\t.").
-                gsub(/\A\./, '')
-            end
-          end
 
           processed_rows << cells
         end
