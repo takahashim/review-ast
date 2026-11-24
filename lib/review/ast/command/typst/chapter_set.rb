@@ -42,13 +42,9 @@ module ReVIEW
           end
 
           # Which group a chapter belongs to, from the catalog's own answer.
+          # (RenderContext.catalog_section, so a Markdown chapter is placed too.)
           def self.group_for(chapter)
-            if chapter.on_predef? then :predef
-            elsif chapter.on_appendix? then :appendix
-            elsif chapter.on_postdef? then :postdef
-            else
-              :chaps
-            end
+            ReVIEW::AST::RenderContext.catalog_section(chapter) || :chaps
           end
         end
       end

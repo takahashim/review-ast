@@ -9,6 +9,7 @@
 require 'review/epubmaker'
 require 'review/ast/stylesheet_resolver'
 require_relative 'ast_html_converter'
+require_relative 'markdown_chapter_view'
 
 module ReVIEW
   module AST
@@ -40,6 +41,7 @@ module ReVIEW
 
         def build_chap(chap, base_path, basetmpdir, ispart)
           @converter = ast_converter
+          chap = MarkdownChapterView.wrap(chap) unless ispart
           super
         end
 

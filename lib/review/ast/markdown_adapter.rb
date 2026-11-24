@@ -234,11 +234,14 @@ module ReVIEW
           process_inline_content(cm_node, caption_node)
 
           # Create headline node
+          # raw_caption is what the chapter title is taken from (Indexer);
+          # for Markdown it is the heading's text, without the markup.
           headline = HeadlineNode.new(
             location: current_location(cm_node),
             level: level,
             label: nil, # Markdown doesn't have explicit labels
-            caption_node: caption_node
+            caption_node: caption_node,
+            raw_caption: extract_text(cm_node)
           )
 
           add_node_to_current_context(headline)

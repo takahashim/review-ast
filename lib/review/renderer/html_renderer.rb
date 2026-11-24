@@ -53,7 +53,7 @@ module ReVIEW
         @logger = ReVIEW.logger
 
         # Initialize section counter like HTMLBuilder (handle nil chapter)
-        @sec_counter = @chapter ? SecCounter.new(5, @chapter) : nil
+        @sec_counter = @chapter ? ReVIEW::AST::SectionCounter.new(5, @chapter) : nil
 
         # Initialize template variables like HTMLBuilder
         @javascripts = []

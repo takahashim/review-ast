@@ -42,7 +42,7 @@ module ReVIEW
         initialize_metachars(config['texcommand'])
 
         # Initialize section counter like LATEXBuilder
-        @sec_counter = SecCounter.new(5, @chapter) if @chapter
+        @sec_counter = ReVIEW::AST::SectionCounter.new(5, @chapter) if @chapter
 
         # Initialize RenderingContext for cleaner state management
         @rendering_context = RenderingContext.new(:document)

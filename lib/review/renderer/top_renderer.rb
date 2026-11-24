@@ -99,7 +99,7 @@ module ReVIEW
         # Section numbering, as in the legacy builders (LaTeX/HTML/IDGXML
         # renderers already do this; text did not, so section numbers were
         # missing from its output entirely).
-        @sec_counter = SecCounter.new(5, @chapter) if @chapter
+        @sec_counter = ReVIEW::AST::SectionCounter.new(5, @chapter) if @chapter
       end
 
       # Format type for this renderer

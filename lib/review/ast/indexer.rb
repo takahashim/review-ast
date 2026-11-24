@@ -22,6 +22,7 @@ require_relative 'code_block_node'
 require_relative 'image_node'
 require_relative 'table_node'
 require_relative 'embed_node'
+require_relative 'section_counter'
 require_relative 'tex_equation_node'
 require_relative 'block_node'
 require_relative 'inline_node'
@@ -109,7 +110,7 @@ module ReVIEW
         # //imgtable image share the indepimage counter (matching IndexBuilder).
         @number = Hash.new(0)
 
-        @sec_counter = ReVIEW::SecCounter.new(6, @chapter) # 6 is max level
+        @sec_counter = ReVIEW::AST::SectionCounter.new(6, @chapter) # 6 is max level
 
         # Build the headline item id exactly like IndexBuilder.
         @headline_stack = []

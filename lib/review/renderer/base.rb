@@ -15,6 +15,7 @@ require 'review/textutils'
 require 'review/ast/inline_processor'
 require 'review/ast/block_processor'
 require 'review/renderer/legacy_extension_bridge'
+require 'review/ast/section_counter'
 
 module ReVIEW
   module Renderer
