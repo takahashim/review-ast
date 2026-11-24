@@ -35,13 +35,13 @@ review-ast はこの構文解析を AST として分離し、各形式のレン�
 一致の厳密度は形式ごとに異なる。
 LaTeX は DVI 一致(TeX の組版結果ファイルどうしの比較。TeX ソースのバイト列ではなく、組版結果(DVI)の一致を見る)、IDGXML は byte 一致、HTML は rendered-equivalent(ブラウザ描画として等価)である。
 この方針の例外は二つだけである。
-[乖離レジストリ](#4-乖離レジストリ)が明示する箇所と、まだレンダラに未実装の一部の命令(LaTeX レンダラの `//graph` と `@<w>`/`@<wb>`。乖離レジストリ末尾を参照)である。
+[乖離レジストリ](#4-乖離レジストリ)が明示する箇所と、まだレンダラに未実装の命令(LaTeX レンダラの `//graph`。乖離レジストリ末尾を参照)である。
 
 ## 1. ノード目録
 
 すべてのノードは `type` とソース位置 `location`(`filename`、`lineno`、`column`)を持つ。
 子を持ちうるノードは `children` を持つ。
-**leaf ノード**(抽象基底 `LeafNode` の派生である `TextNode`、`ReferenceNode`、`ImageNode`、`TexEquationNode`、`EmbedNode`)は構造上子を持たず、JSON に `children` キーを出さない。
+**leaf ノード**(抽象基底 `LeafNode` の派生である `TextNode`、`ReferenceNode`、`ImageNode`、`TexEquationNode`、`EmbedNode`、`ExtensionBlockNode`)は構造上子を持たず、JSON に `children` キーを出さない。
 
 このほか、状況に応じて付く共通フィールドが三つある。
 番号付き定義ノードの `definition_number`([2.3 節](#23-定義番号))、`//noindent` の適用対象が持つ `noindent`、画像を参照するノードが持つ解決済みの `image_path` である。
@@ -86,6 +86,7 @@ LaTeX は DVI 一致(TeX の組版結果ファイルどうしの比較。TeX ソ
 | ノード | 意味 | 主要フィールド | 生成する構文 |
 |---|---|---|---|
 | `BlockNode` | 専用ノードへ分化していない汎用ブロック | `block_type`, `args` | `//bibpaper`, `//graph`, `//box`, `//insn`, `//point`, `//term`, `//doorquote`, 制御命令, … |
+| `ExtensionBlockNode` | 本が `review-ext.rb` で定義した(`ReVIEW::Compiler.defblock`/`defsingle`/`defminicolumn`)、AST に処理系のないブロック命令。子を持たず、旧コンパイラがビルダーに渡すものをそのまま保持する。レンダラは `visit_block_<名前>` を実装するか、review-ext.rb のビルダーメソッドに委ねる([doc/review-ext.md](review-ext.md)) | `block_type`, `args`, `lines`(本体の生の行。1 行命令では無し) | review-ext.rb で宣言した任意の `//名前` |
 | `DirectiveNode` | 次のノードを修飾するパーサ指示。lowering で必ず除去される | `directive_type`, `args` | `//tsize`, `//firstlinenum`, `//noindent`, `//olnum`, `//beginchild`, `//endchild` |
 | `LeafNode` | 子を持たない内容ノードの抽象基底 | — | 直接シリアライズされない |
 
@@ -225,9 +226,12 @@ Re:VIEW のインライン記法(`@<img>{id}` など)は Markdown 中でもそ�
 | 3 | 表ヘッダ/本体区切りの閾値 | LATEXBuilder はエスケープ後の行で検出するため罫線 4〜11 本で既に分割 | 再現しない: 12 本閾値(HTML と同じ)を使い、4〜11 本はデータとして保つ | ゲート | open |
 | 4 | `footnotetext: true` + 見出し中の脚注 | 保護なしの `\footnotemark` を出す(組版不能) | ビルダーを byte 単位で再現 | 即修正 | open |
 | 5 | 表セル先頭ドットのエスケープ | HTMLBuilder は `..15`→`.15`、IDGXMLBuilder は `..15` のまま | `.15` に正規化(HTML に一致。IDGXML byte 一致とは意図的に非互換) | 即修正 | open |
+| 6 | `@<href>` の 3 番目以降のフィールド | 警告なしに捨てる(`@<ruby>` は読みに連結する) | ビルダーを再現(同じ正規表現で分割) | 正典化? | open |
+| 7 | IDGXML の `@<tcy>` | 汎用 `Builder#inline_tcy` が本文を未エスケープで出す | 同じ `[rotate 90 degree]` 注記を出すが本文はエスケープする(意図的に非互換) | 即修正 | open |
 
-このほかに、乖離ではなく単なる未実装が二つある(`doc/differential-testing.md` 参照)。
-`//graph`(外部ツール画像)と `@<w>`/`@<wb>`(辞書による語句置換)は、AST の LaTeX レンダラで未実装である。
+このほかに、乖離ではなく単なる未実装が一つある(`doc/differential-testing.md` 参照)。
+`//graph`(外部ツール画像)は、AST の LaTeX レンダラで未実装である。
+(`@<w>`/`@<wb>` は `words_file` の CSV 読み込みと、未定義語の `[missing word: id]` への縮退を含め、全形式でビルダーに一致するようになった。)
 
 乖離ではないが明記しておくべき点として、`//tsize`(表の列幅指定)の解釈は形式ごとに異なる。
 IDGXML はソースの数値 CSV を直接読み、LaTeX 列指定の形(`|l|c|r|`)は IDGXML では無視されて等分になる。

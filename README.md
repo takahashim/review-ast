@@ -24,12 +24,18 @@ Current scope:
 - Commands:
   - `review-ast-dump` — dump AST as JSON
   - `review-ast-dump2re` — regenerate Re:VIEW source from the AST
-  - `review-ast-compile` — render a chapter (`--target html|latex|idgxml`)
+  - `review-ast-compile` — counterpart of `review-compile`: render chapters
+    (`--target html|latex|idgxml|plaintext|top|typst`), with review-compile's
+    options (`--level`, `--toclevel`, `--chapterlink`, `--directory`, …)
   - `review-ast-pdfmaker` / `review-ast-idgxmlmaker` / `review-ast-textmaker` — book makers
   - `review-ast-vivliostylemaker` — PDF through Vivliostyle (CSS paged media)
     instead of LaTeX; needs Chrome/Chromium and the `vivlio-pdf` gem
   - `review-ast-typstmaker` — PDF through Typst instead of LaTeX; needs the
     `typst` binary
+
+A book's `review-ext.rb` keeps working: commands it declares with
+`ReVIEW::Compiler.defblock`/`definline` are rendered by the builder methods it
+defines, as in the legacy path; see [doc/review-ext.md](doc/review-ext.md).
 
 EPUB maker and Markdown input exist in the upstream `ast-renderer` branch and can
 be brought in as follow-ups.

@@ -196,13 +196,6 @@ they do appear.
   and then renders it as an image. Implementing it means running the tool and
   emitting a file from the renderer (a side effect the AST renderer otherwise
   avoids), plus matching the builder's image path/binding. Deferred; niche.
-- **`@<w>` / `@<wb>`** — word substitution from a dictionary. The AST's
-  `resolve_word_ref` raises `CompileError: word not bound` for a missing id,
-  whereas `LATEXBuilder#inline_w` degrades gracefully to `[missing word: id]`
-  (and `#inline_wb` to `\reviewbold{[missing word: id]}`). The sources also
-  differ (builder loads a words *file* via `load_words`; the resolver reads
-  `config['dictionary']`), so a faithful fix is cross-cutting (shared resolver +
-  every renderer's `render_inline_w`/`_wb`). Deferred; niche.
 
 Constructs the builder itself does **not** support for LaTeX, which the AST
 renderer nonetheless implements (a benign superset — a valid LaTeX book cannot
@@ -212,6 +205,22 @@ use them because the builder raises an error): `//talk`, `//bpo`,
 section: part" — parts come from the catalog, not an inline heading tag; the
 renderer instead treats it as a `\chapter`), and the inline `@<cite>` ("builder
 does not support inline op: cite").
+
+## Configuration sweep
+
+The corpus sweeps run each book under its own `config.yml`, which leaves most
+settings at their defaults -- so a setting the builder honours and a renderer
+ignores is invisible to them. `test/ast/test_corpus_config_parity.rb` runs the
+same corpora once per entry in a table of non-default configurations
+(`caption_position`, `externallink`, `tabwidth`, `secnolevel`, `chapterlink`,
+`draft`, `footnotetext`, `join_lines_by_lang`, `structuredxml`/`listinfo`,
+EPUB2/HTML4), comparing each format the setting applies to. When a configuration
+makes the *builder* reject a chapter (`secnolevel: 1` leaves `@<sec>` targets
+unnumbered), the renderer must reject it too. Its first run found divergences
+under six of the settings, all since fixed; add an entry whenever a renderer starts honouring,
+or is found ignoring, a config key. Settings the corpora cannot exercise (a
+`words_file`, `\,` in `@<href>`) are pinned per fragment in
+`test/ast/test_builder_compat_fragments.rb`.
 
 ## Scope and limits
 

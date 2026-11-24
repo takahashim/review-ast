@@ -15,6 +15,12 @@ require_relative 'base'
 module ReVIEW
   module Renderer
     class TopRenderer < Base
+      # review-ext.rb methods on this builder render the book's own commands.
+      def legacy_builder_class
+        require 'review/topbuilder'
+        ReVIEW::TOPBuilder
+      end
+
       include ReVIEW::TextUtils
       include ReVIEW::Loggable
       include ReVIEW::Renderer::TextRendererCommon
@@ -336,23 +342,18 @@ module ReVIEW
         result += "\n"
         result += "◆→開始:#{TITLES[:table]}←◆\n"
 
-        # Add caption if present
+        # An id-less table (//emtable) prints its caption bare: TOPBuilder
+        # routes it through PLAINTEXTBuilder#table_header, which does not add
+        # the ■ that block captions elsewhere in this format carry.
         caption = render_caption_inline(node.caption_node)
-        unless caption.empty?
-          # An id-less table (//emtable) prints its caption bare: TOPBuilder
-          # routes it through PLAINTEXTBuilder#table_header, which does not add
-          # the ■ that block captions elsewhere in this format carry.
-          result += if node.id
-                      # Use I18n formatting to match TOPBuilder
-                      format_table_caption(node.id, caption, node.definition_number)
-                    else
-                      "#{caption}\n"
-                    end
-          result += "\n"
-        end
+        header = unless caption.empty?
+                   node.id ? format_table_caption(node.id, caption, node.definition_number) : "#{caption}\n"
+                 end
 
-        # Process table content
+        # The caption goes above or below the rows per caption_position.
+        result += "#{header}\n" if header && caption_top?('table')
         result += render_children(node)
+        result += "\n#{header}" if header && !caption_top?('table')
 
         result += "◆→終了:#{TITLES[:table]}←◆\n"
         result += "\n"
@@ -580,7 +581,7 @@ module ReVIEW
 
       def render_inline_element(type, content, node) # rubocop:disable Metrics/CyclomaticComplexity
         case type
-        when :b, :strong
+        when :b, :strong, :wb # Builder#inline_wb is inline_b of the word
           "★#{content}☆"
         when :i, :em
           "▲#{content}☆"

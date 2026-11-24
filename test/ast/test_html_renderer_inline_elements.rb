@@ -441,10 +441,10 @@ class TestHtmlRendererInlineElements < Test::Unit::TestCase
       See @<sec>{Section 1}.
     REVIEW
 
-    output = render_inline(content)
-    assert_match(/Section 1/, output)
-    assert_no_match(/1\.1/, output)
-    assert_no_match(%r{href="\./test\.html#h1-1"}, output)
+    # Beyond secnolevel the section has no number for @<sec> to print, which
+    # Builder#inline_sec reports as an error rather than printing nothing.
+    error = assert_raise(ReVIEW::CompileError) { render_inline(content) }
+    assert_match(/the target headline doesn't have a number: Section 1/, error.message)
   end
 
   # Column reference

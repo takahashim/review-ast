@@ -6,6 +6,9 @@
 # You can distribute or modify this program under the terms of
 # the GNU LGPL, Lesser General Public License version 2.1.
 
+# Loaded before the book, which loads review-ext.rb: it reopens builder
+# classes that must already exist (see Command::Compile).
+require 'review'
 require 'review/book'
 require 'json'
 require_relative 'compiler'

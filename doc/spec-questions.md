@@ -151,3 +151,31 @@ mirror a builder quirk. Found via `FirstStepReVIEW-v3` (`review-introduction`);
   general leading-`..` unescape) vs `HTMLBuilder`'s cell handling.
 - Question: make the two builders agree on `..`-prefixed cells (unescape one
   leading dot in both), then the AST already matches and this entry goes away.
+
+### 6. `@<href>` silently drops every field after the second (builder)
+
+`Builder#inline_href` splits its argument on unescaped commas and keeps only
+the first two fields: `@<href>{http://example.com, A, B}` links "A" and the
+", B" is lost without a warning. (`\,` is the documented way to put a comma in
+the label.) `Builder#inline_ruby`, by contrast, re-joins every field after the
+first into the reading. The AST splits the same way (it uses the builder's own
+regexp, `InlineProcessor::COMMA_FIELD_PATTERN`), so it drops the third field
+too -- matching the builder is the parity target, but losing text silently is
+suspicious.
+
+- Builder: `Builder#inline_href` (`url, label = *arg.scan(...)`).
+- Question: warn on (or keep) the extra fields in the builder, then the AST
+  follows.
+
+### 7. IDGXMLBuilder leaves `@<tcy>` text unescaped
+
+IDGXMLBuilder has no `#inline_tcy`; it inherits `Builder#inline_tcy`, which
+returns `"#{arg}[rotate 90 degree]"` with the argument *unescaped*, so
+`@<tcy>{a&b}` writes a bare `&` into the XML. The AST renderer emits the same
+"[rotate 90 degree]" marker but escapes the text (`a&amp;b`). This is a
+deliberate non-match, invisible for the digits and short Latin runs `@<tcy>` is
+used for.
+
+- Builder: `Builder#inline_tcy` (generic fallback, used by IDGXMLBuilder).
+- Question: give IDGXMLBuilder its own `#inline_tcy` that escapes (and perhaps
+  emits real InDesign markup), then this entry goes away.

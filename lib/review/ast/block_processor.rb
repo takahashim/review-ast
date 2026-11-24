@@ -102,6 +102,11 @@ module ReVIEW
         apply_configuration
       end
 
+      # Whether the AST has a handler of its own for this block command.
+      def handles?(command_name)
+        @dynamic_command_table.key?(command_name.to_sym)
+      end
+
       # Register a new block command handler
       # @param command_name [Symbol] The block command name (e.g., :custom_block)
       # @param handler_method [Symbol] The method name to handle this command
@@ -168,6 +173,7 @@ module ReVIEW
       # Receives BlockData and calls corresponding method based on dynamic command table
       def process_block_command(block_data)
         handler_method = @dynamic_command_table[block_data.name]
+        handler_method ||= :build_extension_block_ast if ReVIEW::Compiler::SYNTAX.key?(block_data.name)
 
         unless handler_method
           location_info = block_data.location.format_for_error
@@ -512,6 +518,46 @@ module ReVIEW
             context.process_inline_elements(footnote_content, node)
           end
         end
+      end
+
+      # A command defined in review-ext.rb with ReVIEW::Compiler.defblock /
+      # defsingle / defminicolumn. Its argument count and body are checked the
+      # way ReVIEW::Compiler#compile_command checks them; what it means is left
+      # to the renderer (ExtensionBlockNode).
+      def build_extension_block_ast(context)
+        require_relative('extension_block_node')
+
+        name = context.name
+        syntax = ReVIEW::Compiler::SYNTAX.fetch(name)
+        location_info = context.start_location.format_for_error
+        begin
+          syntax.check_args(context.args)
+        rescue ReVIEW::CompileError => e
+          raise CompileError, "#{e.message}#{location_info}"
+        end
+
+        body = block_body?(context)
+        if body && !syntax.block_allowed?
+          raise CompileError, "block is not allowed for command //#{name}#{location_info}"
+        end
+        if !body && syntax.block_required?
+          raise CompileError, "block is required for //#{name}; use empty block#{location_info}"
+        end
+
+        # A command that may take a body but was written without one still
+        # gets an empty one, as Compiler#default_block gives it.
+        lines = if body
+                  context.lines
+                elsif syntax.block_allowed?
+                  []
+                end
+        context.append_new_node(AST::ExtensionBlockNode, block_type: name, args: context.args, lines: lines)
+      end
+
+      # A `//cmd{ ... //}` body, as opposed to a single-line `//cmd[...]`
+      # (Compiler#read_block_command leaves lines nil for the latter).
+      def block_body?(context)
+        !context.block_data.lines.nil?
       end
 
       CODE_BLOCK_CONFIGS = { # rubocop:disable Lint/UselessConstantScoping

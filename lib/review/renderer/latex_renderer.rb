@@ -20,6 +20,12 @@ require_relative 'latex/inline_element_handler'
 module ReVIEW
   module Renderer
     class LatexRenderer < Base
+      # review-ext.rb methods on this builder render the book's own commands.
+      def legacy_builder_class
+        require 'review/latexbuilder'
+        ReVIEW::LATEXBuilder
+      end
+
       include ReVIEW::LaTeXUtils
       include ReVIEW::TextUtils
 
@@ -227,6 +233,9 @@ module ReVIEW
       # code block: LATEXBuilder escapes @<b>{...} arguments via compile_inline
       # regardless of highlight mode, so only the surrounding block text is raw.
       def visit_inline(node)
+        extended = render_extension_inline(node)
+        return extended if extended
+
         saved = @nonescape_code
         @nonescape_code = false
         content = render_children(node)

@@ -46,9 +46,9 @@ differs per format. LaTeX is DVI-identical (the comparison is between typeset
 results (DVI files), not between the bytes of the TeX source), IDGXML is
 byte-identical, and HTML is rendered-equivalent (equal as a browser rendering).
 There are only two exceptions to the rule: the places listed in the
-[divergence registry](#4-divergence-registry), and a few commands not yet
-implemented in a renderer (`//graph` and `@<w>`/`@<wb>` in the LaTeX renderer;
-see the end of the divergence registry).
+[divergence registry](#4-divergence-registry), and a command not yet
+implemented in a renderer (`//graph` in the LaTeX renderer; see the end of the
+divergence registry).
 
 ## 1. Node inventory
 
@@ -56,7 +56,8 @@ Every node carries a `type` and a source position `location` (`filename`,
 `lineno`, `column`).
 Nodes that can have children carry `children`.
 **Leaf nodes** (the subclasses of the abstract base `LeafNode`: `TextNode`,
-`ReferenceNode`, `ImageNode`, `TexEquationNode`, `EmbedNode`) are childless by
+`ReferenceNode`, `ImageNode`, `TexEquationNode`, `EmbedNode`,
+`ExtensionBlockNode`) are childless by
 construction and emit no `children` key in JSON.
 
 Three more common fields appear where applicable: `definition_number` on
@@ -104,6 +105,7 @@ nodes.
 | Node | Meaning | Key fields | Produced by |
 |---|---|---|---|
 | `BlockNode` | Generic block not specialized into a dedicated node | `block_type`, `args` | `//bibpaper`, `//graph`, `//box`, `//insn`, `//point`, `//term`, `//doorquote`, control commands, … |
+| `ExtensionBlockNode` | A block command the book defines in `review-ext.rb` (`ReVIEW::Compiler.defblock`/`defsingle`/`defminicolumn`) and the AST has no handler for. Childless: it keeps what the legacy compiler hands the builder, and a renderer either implements `visit_block_<name>` or runs the review-ext.rb builder method ([doc/review-ext.md](review-ext.md)) | `block_type`, `args`, `lines` (raw body lines; absent for a single-line command) | any `//name` declared in review-ext.rb |
 | `DirectiveNode` | Parser instruction that modifies the next node; always removed by lowering | `directive_type`, `args` | `//tsize`, `//firstlinenum`, `//noindent`, `//olnum`, `//beginchild`, `//endchild` |
 | `LeafNode` | Abstract base for childless content nodes | — | never serialized directly |
 
@@ -309,11 +311,14 @@ the builder behaviour is a bug or a builder-specific quirk.
 | 3 | Table header/body separator threshold | LATEXBuilder detects on the escaped line, so 4–11 dashes already split | does not reproduce: uses the 12-dash threshold (same as HTML), so 4–11 dashes stay data | gate | open |
 | 4 | `footnotetext: true` + footnote in a heading | emits an unprotected `\footnotemark` (un-typesettable) | reproduces the builder byte-for-byte | fix-now | open |
 | 5 | Table-cell leading-dot escaping | HTMLBuilder unescapes `..15`→`.15`; IDGXMLBuilder keeps `..15` | normalizes to `.15` (matches HTML; intentionally incompatible with IDGXML byte-exactness) | fix-now | open |
+| 6 | Fields after the second in `@<href>` | dropped without a warning (`@<ruby>` joins them into the reading) | reproduces the builder (same splitting regexp) | canonicalize? | open |
+| 7 | `@<tcy>` in IDGXML | the generic `Builder#inline_tcy` writes the text unescaped | emits the same `[rotate 90 degree]` note but escapes the text (intentionally incompatible) | fix-now | open |
 
-Besides these, two things are simply unimplemented rather than divergent (see
-`doc/differential-testing.md`).
-`//graph` (external-tool image) and `@<w>`/`@<wb>` (dictionary word
-substitution) are not implemented in the AST LaTeX renderer.
+Besides these, one thing is simply unimplemented rather than divergent (see
+`doc/differential-testing.md`): `//graph` (external-tool image) is not
+implemented in the AST LaTeX renderer. (`@<w>`/`@<wb>` now match the builders
+in every format, including loading `words_file` and degrading an unknown word
+to `[missing word: id]`.)
 
 One non-divergent point worth stating: the interpretation of `//tsize` (table
 column widths) differs per format.

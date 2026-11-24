@@ -12,6 +12,9 @@ require 'review/ast/render_context'
 require 'review/exception'
 require 'review/renderer/text_formatter'
 require 'review/textutils'
+require 'review/ast/inline_processor'
+require 'review/ast/block_processor'
+require 'review/renderer/legacy_extension_bridge'
 
 module ReVIEW
   module Renderer
@@ -55,9 +58,25 @@ module ReVIEW
         @render_context = ReVIEW::AST::RenderContext.from_chapter(chapter)
         super()
         @text_formatter = ReVIEW::Renderer::TextFormatter.new(config: @config)
+        builder_class = legacy_builder_class
+        LegacyExtensionBridge.warn_unroutable_overrides(builder_class) if builder_class
+      end
+
+      # The legacy builder whose review-ext.rb methods this renderer runs for
+      # commands it has no handler of its own for (LegacyExtensionBridge).
+      # nil for a format with no legacy builder.
+      def legacy_builder_class
+        nil
       end
 
       attr_reader :text_formatter, :render_context
+
+      # Builder#detab: expand tabs to the book's `tabwidth` when it is set,
+      # TextUtils' default of 8 otherwise. An explicit width wins.
+      def detab(str, num = nil)
+        num ||= @config['tabwidth']
+        num ? super(str, num.to_i) : super(str)
+      end
 
       # Render an AST node to the target format.
       #
@@ -184,8 +203,56 @@ module ReVIEW
       end
 
       def visit_inline(node)
+        extended = render_extension_inline(node)
+        return extended if extended
+
         content = render_children(node)
         render_inline_element(node.inline_type, content, node)
+      end
+
+      # A block command defined in review-ext.rb. A renderer method
+      # `visit_block_<name>` (the AST-native way to implement one) wins;
+      # otherwise the legacy builder method review-ext.rb defined renders it.
+      def visit_extension_block(node)
+        method_name = "visit_block_#{node.block_type}"
+        return send(method_name, node) if respond_to?(method_name, true)
+
+        bridge = extension_bridge
+        return bridge.render_block(node) if bridge&.block?(node.block_type)
+
+        renderer = self.class.name.split('::').last
+        hint = if legacy_builder_class
+                 "define #{legacy_builder_class.name.split('::').last}##{node.block_type} or #{renderer}##{method_name}"
+               else
+                 "define #{renderer}##{method_name}"
+               end
+        raise ReVIEW::CompileError,
+              "builder does not support command: //#{node.block_type}#{node.location&.format_for_error} (#{hint} in review-ext.rb)"
+      end
+
+      # An inline command whose builder method review-ext.rb defined -- a new
+      # command, or a redefined plain one such as inline_b -- rendered by that
+      # method from the raw argument, as the legacy compiler would. nil when
+      # the renderer handles it itself: no such method, a special inline
+      # (ruby, href, references ...) that keeps parsed fields instead of the
+      # raw argument, or a review-ext.rb `render_inline_<type>` on the renderer.
+      def render_extension_inline(node)
+        builder_class = legacy_builder_class
+        return unless builder_class
+
+        type = node.inline_type
+        return if ReVIEW::AST::InlineProcessor::DEFAULT_INLINE_HANDLERS.key?(type)
+        return unless LegacyExtensionBridge.extension_method?(builder_class, :"inline_#{type}")
+        return if LegacyExtensionBridge.extension_method?(self.class, :"render_inline_#{type}")
+
+        extension_bridge.render_inline(type, node.args.first.to_s, node.location)
+      end
+
+      def extension_bridge
+        return @extension_bridge if defined?(@extension_bridge)
+
+        builder_class = legacy_builder_class
+        @extension_bridge = builder_class && @chapter ? LegacyExtensionBridge.new(builder_class, @chapter) : nil
       end
 
       # Render a specific inline element.

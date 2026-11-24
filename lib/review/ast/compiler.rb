@@ -11,6 +11,7 @@ require 'review/exception'
 require 'review/loggable'
 require 'review/lineinput'
 require 'review/snapshot_location'
+require 'review/compiler'
 require_relative 'compile_input'
 require_relative 'inline_processor'
 require_relative 'block_processor'
@@ -323,10 +324,16 @@ module ReVIEW
         args = parse_args(line.sub(%r{\A//[a-z]+}, '').rstrip.chomp('{'), name)
 
         # Read block content (with nesting support)
-        if block_open?(line)
+        if block_open?(line) && extension_command?(name)
+          lines = read_extension_block_lines(f, name, block_start_location)
+          nested_blocks = []
+          nested_positions = []
+        elsif block_open?(line)
           lines, nested_blocks, nested_positions = read_block_with_nesting(f, name, block_start_location)
         else
-          lines = []
+          # nil, not [], tells an extension command written without a body
+          # from one with an empty body.
+          lines = extension_command?(name) ? nil : []
           nested_blocks = []
           nested_positions = []
         end
@@ -346,6 +353,27 @@ module ReVIEW
         else
           raise CompileError, "Error reading block command: #{e.message}#{@current_location.format_for_error}"
         end
+      end
+
+      # A block command the book defined in review-ext.rb (it is in the legacy
+      # compiler's SYNTAX table) that the AST has no handler for. See
+      # ExtensionBlockNode.
+      def extension_command?(name)
+        ReVIEW::Compiler::SYNTAX.key?(name) && !block_processor.handles?(name)
+      end
+
+      # The body of an extension block, read the way ReVIEW::Compiler#read_block
+      # reads it: every line up to the first `//}` (an inner `//cmd{` is just
+      # text -- the legacy compiler does not nest here), minus `#@` lines.
+      def read_extension_block_lines(f, name, block_start_location)
+        lines = []
+        while (line = f.gets)
+          update_current_location(f)
+          return lines if line.start_with?('//}')
+
+          lines << line.chomp unless /\A\#@/.match?(line)
+        end
+        raise CompileError, "Unclosed block //#{name} started#{block_start_location&.format_for_error}"
       end
 
       # Reading with nested block support - enhanced error handling

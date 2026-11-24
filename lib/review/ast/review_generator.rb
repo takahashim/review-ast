@@ -36,6 +36,12 @@ module ReVIEW
         text.to_s.gsub('\\', '\\\\\\\\').gsub('}', '\\}')
       end
 
+      # A field of @<href>/@<ruby> is comma-separated; a literal comma inside a
+      # field is written `\,` (see InlineProcessor#split_comma_fields).
+      def escape_comma(text)
+        text.gsub(',', '\\,')
+      end
+
       # Convert CaptionNode to Re:VIEW markup format
       # @param caption_node [CaptionNode, nil] The caption node to convert
       # @return [String] Re:VIEW markup string
@@ -177,9 +183,9 @@ module ReVIEW
 
       # Inline element: @<ruby>{base, ruby_text}
       def visit_inline_ruby(node)
-        base = escape_inline_content(node.args[0])
+        base = escape_comma(escape_inline_content(node.args[0]))
         if node.args.size >= 2
-          ruby_text = escape_inline_content(node.args[1])
+          ruby_text = escape_comma(escape_inline_content(node.args[1]))
           "@<ruby>{#{base}, #{ruby_text}}"
         else
           "@<ruby>{#{base}}"
@@ -188,12 +194,12 @@ module ReVIEW
 
       # Inline element: @<href>{url, text}
       def visit_inline_href(node)
-        url = node.args[0] || ''
+        url = escape_comma(escape_inline_content(node.args[0] || ''))
         content = visit_children(node)
-        if content.empty?
+        if content.empty? || node.args.size < 2
           "@<href>{#{url}}"
         else
-          escaped_content = escape_inline_content(content)
+          escaped_content = escape_comma(escape_inline_content(content))
           "@<href>{#{url}, #{escaped_content}}"
         end
       end
@@ -447,6 +453,16 @@ module ReVIEW
       # Block: //label[id]
       def visit_block_label(node)
         "//label[#{node.args.first}]\n\n"
+      end
+
+      # A review-ext.rb command: written back as it was read, arguments
+      # re-escaped the way ReVIEW::Compiler#parse_args unescapes them.
+      def visit_extension_block(node)
+        args = node.args.map { |arg| "[#{arg.to_s.gsub('\\', '\\\\\\').gsub(']', '\\]')}]" }.join
+        return "//#{node.block_type}#{args}\n\n" unless node.body?
+
+        body = node.lines.map { |line| "#{line}\n" }.join
+        "//#{node.block_type}#{args}{\n#{body}//}\n\n"
       end
 
       # Block: //footnote[id][content]

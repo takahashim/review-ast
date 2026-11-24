@@ -141,6 +141,9 @@ module ReVIEW
             yaml_config = YAML.safe_load_file(config_file, permitted_classes: [Date, Time, Symbol])
             book_config.merge!(yaml_config) if yaml_config
           end
+          # Extra configuration given to the comparator wins over the book's
+          # own config.yml, so a sweep can vary one setting over a real book.
+          book_config.deep_merge!(@config) if @config
 
           # Set default HTML configuration
           book_config['htmlext'] ||= 'html'

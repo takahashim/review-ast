@@ -39,6 +39,12 @@ require_relative 'idgxml/inline_element_handler'
 module ReVIEW
   module Renderer
     class IdgxmlRenderer < Base
+      # review-ext.rb methods on this builder render the book's own commands.
+      def legacy_builder_class
+        require 'review/idgxmlbuilder'
+        ReVIEW::IDGXMLBuilder
+      end
+
       include ReVIEW::HTMLUtils
       include ReVIEW::TextUtils
       include ReVIEW::Loggable
@@ -230,11 +236,7 @@ module ReVIEW
         # Join lines in paragraph by removing newlines (like join_lines in IDGXMLBuilder)
         # Inline elements like @<br>{} and @<raw>{} use protected markers that are preserved
         # unless join_lines_by_lang is explicitly enabled
-        content = if config['join_lines_by_lang']
-                    content.tr("\n", ' ')
-                  else
-                    content.delete("\n")
-                  end
+        content = join_paragraph_lines(content)
 
         # Handle noindent attribute
         if node.noindent?
@@ -809,11 +811,7 @@ module ReVIEW
             # Render paragraph content
             content = render_children(child)
             # Join lines in paragraph by removing newlines (like join_lines in Builder)
-            content = if config['join_lines_by_lang']
-                        content.tr("\n", ' ')
-                      else
-                        content.delete("\n")
-                      end
+            content = join_paragraph_lines(content)
 
             definition_parts << if has_block_element
                                   # After a block element, wrap paragraphs in <p> tags
@@ -847,8 +845,14 @@ module ReVIEW
         parts = []
         inline_buffer = []
 
-        item.children.each do |child|
+        # Continuation lines are separate children; source_line_breaks says
+        # which child starts a new source line, so the break can be folded
+        # the way IDGXMLBuilder#join_lines_to_paragraph folds it.
+        line_breaks = item.respond_to?(:source_line_breaks) ? item.source_line_breaks : []
+
+        item.children.each_with_index do |child, index|
           if inline_node?(child)
+            inline_buffer << "\n" if !inline_buffer.empty? && line_breaks.include?(index)
             inline_buffer << visit(child)
           else
             unless inline_buffer.empty?
@@ -884,13 +888,7 @@ module ReVIEW
       # @param caption_node [CaptionNode] Caption node to render
       # @return [String] Rendered inline elements
       def render_caption_inline(caption_node)
-        content = caption_node ? render_children(caption_node) : ''
-
-        if config['join_lines_by_lang']
-          content.gsub(/\n+/, ' ')
-        else
-          content.delete("\n")
-        end
+        join_paragraph_lines(caption_node ? render_children(caption_node) : '')
       end
 
       # Escape for IDGXML (uses HTML escaping)
@@ -912,15 +910,13 @@ module ReVIEW
         format_inline_buffer(nodes.map { |child| visit(child) })
       end
 
+      # Inline nodes buffered from one list item: adjacent nodes were on the
+      # same source line and are concatenated; a "\n" entry marks a source
+      # line break, folded like a paragraph's (join_paragraph_lines).
       def format_inline_buffer(buffer)
         return '' if buffer.empty?
 
-        content = buffer.join("\n")
-        if config['join_lines_by_lang']
-          content.tr("\n", ' ')
-        else
-          content.delete("\n")
-        end
+        join_paragraph_lines(buffer.join)
       end
 
       def inline_node?(node)

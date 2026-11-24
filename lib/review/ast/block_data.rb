@@ -29,12 +29,14 @@ module ReVIEW
         nested_blocks && nested_blocks.any?
       end
 
+      # lines is nil for an extension command written without a body (see
+      # Compiler#read_block_command); treat that as no content.
       def line_count
-        lines.size
+        lines ? lines.size : 0
       end
 
       def content?
-        lines.any?
+        lines ? lines.any? : false
       end
 
       # Get argument at specified index safely
