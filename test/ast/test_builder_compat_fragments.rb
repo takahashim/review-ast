@@ -391,11 +391,23 @@ class TestBuilderCompatFragments < Test::Unit::TestCase
     assert_text_lines_parity(source)
   end
 
+  # A //comment in draft mode: its lines inline-compiled, as the builders
+  # print them. HTML and LaTeX read a node.content a BlockNode lacks, and so
+  # crashed on every //comment{ ... //} (found on FirstStepReVIEW-v3).
+  def test_draft_comment
+    ["para\n\n//comment{\n  indented & <x> @<b>{y}\nline2\n//}\n\nafter\n", "//comment[arg & <a>]\n\nx\n",
+     "//comment[arg]{\nbody\n//}\n", "//comment{\n//}\n"].each do |source|
+      assert_parity(source, config: { 'draft' => true })
+      assert_text_lines_parity(source, config: { 'draft' => true })
+    end
+  end
+
   GENERATOR_ROUND_TRIP = ["//image[i1][Cap]{\nart @<b>{x}\n  art2\n//}\n", "//image[i1][][scale=0.5]{\n//}\n",
                           "//indepimage[i1]{\nart\n//}\n", "//bpo{\nline1 @<b>{bold}\n\nline3\n//}\n",
                           "//box[Cap]{\nline1\n\nline3\n//}\n", "//insn[Cap]{\nline1\n//}\n",
                           "//comment[c]{\nline1\nline2\n//}\n", "//blockquote{\npara1\n\npara2\n//}\n",
-                          "//point[P]{\npara1\n//}\n", "//term{\nT1\n//}\n"].freeze
+                          "//point[P]{\npara1\n//}\n", "//term{\nT1\n//}\n", "//rawblock{\nraw @<b>{x}\n\nline3\n//}\n",
+                          "//comment{\n  indented @<b>{x}\n\nline3\n//}\n"].freeze
 
   def test_blocks_survive_a_round_trip
     book = ReVIEW::Book::Base.new(config: ReVIEW::Configure.values)

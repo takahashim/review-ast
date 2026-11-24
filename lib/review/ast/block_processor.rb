@@ -422,8 +422,8 @@ module ReVIEW
             context.process_structured_content_with_blocks(node)
           elsif context.content?
             case context.name
-            when :box, :insn, :bpo, :rawblock
-              # Line-based processing for box/insn/bpo/rawblock - preserve each line as separate node
+            when :box, :insn, :bpo, :rawblock, :comment
+              # Line-based processing for box/insn/bpo/rawblock/comment - preserve each line as separate node
               context.lines.each do |line|
                 # Create a paragraph node for each line (including empty lines)
                 # This preserves line structure for listinfo processing
@@ -659,12 +659,13 @@ module ReVIEW
         bpo: :build_complex_block_ast,
         # IDGXMLBuilder#rawblock: inline-compiled lines (it then unescapes them).
         rawblock: :build_complex_block_ast,
+        # The builders print a //comment's lines (in draft mode) inline-compiled.
+        comment: :build_complex_block_ast,
         insn: :build_complex_block_ast,
         point: :build_complex_block_ast,
         term: :build_complex_block_ast,
 
         # Control commands
-        comment: :build_control_command_ast,
         blankline: :build_control_command_ast,
         pagebreak: :build_control_command_ast,
         label: :build_control_command_ast,

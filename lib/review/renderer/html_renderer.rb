@@ -1010,21 +1010,12 @@ module ReVIEW
       def render_comment_block(node)
         return '' unless config['draft']
 
-        content_lines = []
-
-        if node.args.first && !node.args.first.empty?
-          content_lines << escape(node.args.first)
-        end
-
-        if node.content && !node.content.empty?
-          body_content = render_children(node)
-          content_lines << body_content unless body_content.empty?
-        end
-
-        return '' if content_lines.empty?
-
-        content_str = content_lines.join('<br />')
-        %Q(<div class="draft-comment">#{content_str}</div>)
+        # HTMLBuilder#comment: the argument, then each body line, joined by
+        # <br />. (This read node.content, which a BlockNode does not have, so
+        # a //comment{ ... //} crashed the draft build.)
+        content_lines = node.children.map { |line| render_children(line) }
+        content_lines.unshift(escape(node.args.first)) if node.args.first && !node.args.first.empty?
+        %Q(<div class="draft-comment">#{content_lines.join('<br />')}</div>)
       end
 
       # HTMLBuilder#captionblock: a plain div whose caption is a <p>, distinct

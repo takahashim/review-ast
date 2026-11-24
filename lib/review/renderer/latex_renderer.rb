@@ -1004,24 +1004,12 @@ module ReVIEW
         # block comment - only display in draft mode
         return '' unless config['draft']
 
-        content_lines = []
-
-        # add argument if it exists
-        if node.args.first&.then { |arg| !arg.empty? }
-          content_lines << escape(node.args.first)
-        end
-
-        # add body content
-        if node.content && !node.content.empty?
-          body_content = render_children(node)
-          content_lines << body_content unless body_content.empty?
-        end
-
-        return '' if content_lines.empty?
-
-        # use pdfcomment macro in LaTeX
-        content_str = content_lines.join('\\par ')
-        "\\pdfcomment{#{content_str}}\n"
+        # LATEXBuilder#comment: the argument, then each body line, joined by
+        # \par in \pdfcomment. (This read node.content, which a BlockNode
+        # does not have, so a //comment{ ... //} crashed the draft build.)
+        content_lines = node.children.map { |line| render_children(line) }
+        content_lines.unshift(escape(node.args.first)) if node.args.first&.then { |arg| !arg.empty? }
+        "\\pdfcomment{#{content_lines.join('\\par ')}}\n"
       end
 
       def visit_column(node)

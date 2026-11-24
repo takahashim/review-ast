@@ -1522,28 +1522,15 @@ module ReVIEW
       end
 
       # Visit comment block
+      # IDGXMLBuilder#comment (draft mode): the argument, then each
+      # (inline-compiled) body line, joined by newlines it prints -- so nolf
+      # keeps them -- in <msg>, empty or not.
       def visit_comment_block(node)
         return '' unless config['draft']
 
-        lines = []
-        lines << escape(node.args.first) if node.args.first && !node.args.first.empty?
-
-        # Process children as separate text lines (not as paragraphs)
-        if node.children && !node.children.empty?
-          node.children.each do |child|
-            lines << if child.is_a?(ReVIEW::AST::TextNode)
-                       escape(child.content.to_s)
-                     else
-                       # For other node types, render normally
-                       visit(child)
-                     end
-          end
-        end
-
-        return '' if lines.empty?
-
-        str = lines.join("\n")
-        "<msg>#{str}</msg>"
+        lines = node.children.map { |line_node| render_children(line_node) }
+        lines.unshift(escape(node.args.first)) if node.args.first && !node.args.first.empty?
+        "<msg>#{lines.join(PROTECTED_NEWLINE)}</msg>"
       end
 
       # Process raw embed
