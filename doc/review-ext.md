@@ -89,6 +89,9 @@ end
   `node.body?`, `node.location`.
 - `render_inline_<name>(type, content, node)` receives the inline's rendered
   (escaped) content; `node.args.first` is the raw argument.
+- The command still has to be declared (`ReVIEW::Compiler.definline :mykbd`):
+  as in the legacy compiler, an inline op nobody declared is a compile error
+  (`no such inline op: mykbd`), in every format.
 
 The same applies to `LatexRenderer`, `IdgxmlRenderer`, `PlaintextRenderer`,
 `TopRenderer` and `TypstRenderer`.

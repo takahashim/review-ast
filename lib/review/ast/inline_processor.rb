@@ -11,6 +11,8 @@ require_relative 'inline_tokenizer'
 require_relative 'reference_node'
 require_relative 'raw_content_parser'
 
+require 'review/compiler'
+
 module ReVIEW
   module AST
     # InlineProcessor - Inline element parsing and AST node creation
@@ -135,7 +137,14 @@ module ReVIEW
             send(handler_method, content, parent_node)
           end
         else
-          # Default handler for unknown inline commands
+          # The legacy Compiler#compile_inline rejects an op nobody declared --
+          # the usual typo, @<bb>{...} -- in every format. Ops declared in the
+          # legacy INLINE table (built-ins, and review-ext.rb's definline) get a
+          # plain InlineNode for the renderer.
+          unless ReVIEW::Compiler::INLINE.key?(command)
+            raise CompileError, "no such inline op: #{command}#{@ast_compiler.location&.format_for_error}"
+          end
+
           create_standard_inline_node(command, content, parent_node)
         end
       end

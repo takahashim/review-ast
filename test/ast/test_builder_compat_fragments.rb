@@ -124,6 +124,21 @@ class TestBuilderCompatFragments < Test::Unit::TestCase
     end
   end
 
+  # -- an inline op nobody declared is an error in every format, as in
+  #    ReVIEW::Compiler#compile_inline (the text renderers used to print it)
+
+  def test_undeclared_inline_op_is_an_error
+    book = ReVIEW::Book::Base.new(config: ReVIEW::Configure.values)
+    chapter = ReVIEW::Book::Chapter.new(book, 1, 'test', 'test.re', StringIO.new("= C\n\nA @<bb>{typo} B\n"))
+    error = assert_raise(ReVIEW::CompileError) { ReVIEW::AST::Compiler.new.compile_to_ast(chapter) }
+    assert_match(/no such inline op: bb at line 3/, error.message)
+
+    builder_error = assert_raise(ReVIEW::ApplicationError) do
+      ReVIEW::Compiler.new(ReVIEW::PLAINTEXTBuilder.new).compile(chapter)
+    end
+    assert_match(/cannot be compiled/, builder_error.message)
+  end
+
   # -- htmlversion 4 (EPUB2): <tt> instead of <code class="tt">
 
   def test_html4_monospace
