@@ -156,7 +156,7 @@ module ReVIEW
         # Match LATEXBuilder logic: only add to TOC if level is within toclevel
         if (level > config['secnolevel'] || (!render_context.chapter_number_present? && level > 1)) &&
            level <= config['toclevel'].to_i
-          result << "\\addcontentsline{toc}{#{get_base_section_name(level)}}{#{headline_toc_caption(node, caption)}}"
+          result << "\\addcontentsline{toc}{#{part_headline?(level) ? 'part' : get_base_section_name(level)}}{#{headline_toc_caption(node, caption)}}"
         end
 
         # Generate labels like LATEXBuilder - add both automatic and custom labels
@@ -390,8 +390,8 @@ module ReVIEW
       # LATEXBuilder#common_code_block_lst / #make_code_block_args. The body is
       # emitted raw (non-escaped, inline ops still compiled); the caption is
       # inline-compiled into the environment's option arg with NO chapter number
-      # prefix (unlike the verbatim path). version-2-only \vspace/\relax hacks are
-      # omitted (the comparison harness runs the current spec).
+      # prefix (unlike the verbatim path). Version 2 keeps an empty title as
+      # \relax and pulls the block up with \vspace (common_code_block_lst).
       def render_code_listings(node, env, title, numbered:, lang: node.lang)
         caption_str = node.caption_node ? render_children(node.caption_node) : ''
         first_line_num = numbered ? (node.first_line_num || 1) : 1
@@ -403,7 +403,8 @@ module ReVIEW
         @nonescape_code = saved
         body = detab_content(content)
 
-        "\\begin{#{env}}[#{args}]\n#{body}\\end{#{env}}\n\n"
+        vspace = title == 'title' && caption_str.empty? && review_version2? ? '\\vspace{-1.5em}' : ''
+        "#{vspace}\\begin{#{env}}[#{args}]\n#{body}\\end{#{env}}\n\n"
       end
 
       # Build the bracketed option list for a review*lst environment, matching
@@ -414,6 +415,7 @@ module ReVIEW
         lexer = (highlight_cfg && highlight_cfg['lang']) || ''
         lexer = lang if lang && !lang.empty?
         args = "language={#{lexer}}"
+        caption_str = '\\relax' if title == 'title' && caption_str == '' && review_version2? # dummy, removes lstname
         unless title == 'title' && caption_str == ''
           args = "#{title}={#{caption_str}},#{args}"
         end
@@ -479,12 +481,10 @@ module ReVIEW
           result = []
 
           # Only output \begin{table} if caption is present (like LATEXBuilder)
+          # (Version 2 places it here: [h].)
           if caption.present?
-            result << if node.id?
-                        "\\begin{table}%%#{node.id}"
-                      else
-                        '\\begin{table}%%'
-                      end
+            placement = review_version2? ? '[h]' : ''
+            result << "\\begin{table}#{placement}%%#{node.id}"
           end
 
           # A caption is placed above or below the table per caption_position
@@ -583,7 +583,7 @@ module ReVIEW
 
         # Parse metric option like LATEXBuilder
         metrics = parse_metric('latex', node.metric)
-        command = 'reviewincludegraphics'
+        command = include_graphics_command
 
         # Use metric if provided, otherwise use default width
         result << if metrics.present?
@@ -668,8 +668,9 @@ module ReVIEW
         # Check if content contains line breaks (from @<br>{})
         # Like LATEXBuilder: use \newline{} for fixed-width cells (p{...}), otherwise use \shortstack
         if /\\\\/.match?(content)
-          # Check if cellwidth is fixed-width format (contains `{`)
-          if AST::TableColumnWidthParser.fixed_width?(cellwidth)
+          # Check if cellwidth is fixed-width format (contains `{`); version 2
+          # always uses \shortstack (LATEXBuilder#th/#td).
+          if AST::TableColumnWidthParser.fixed_width?(cellwidth) && !review_version2?
             # Fixed-width cell: replace \\\n with \newline{}
             content = content.gsub("\\\\\n", '\\newline{}')
             if node.cell_type == :th
@@ -972,11 +973,19 @@ module ReVIEW
                    end
 
         result = []
-        result << if caption && !caption.empty?
-                    "\\begin{#{env_name}}[#{caption}]"
-                  else
-                    "\\begin{#{env_name}}"
-                  end
+        if review_version2?
+          # LATEXBuilder#common_block_begin, version 2: one reviewminicolumn
+          # environment for all of them, the caption as its title.
+          env_name = 'reviewminicolumn'
+          result << "\\begin{#{env_name}}"
+          result << "\\reviewminicolumntitle{#{caption}}" if caption && !caption.empty?
+        else
+          result << if caption && !caption.empty?
+                      "\\begin{#{env_name}}[#{caption}]"
+                    else
+                      "\\begin{#{env_name}}"
+                    end
+        end
         result << '' # blank line after begin
         result << content.chomp
         result << "\\end{#{env_name}}"
@@ -1051,9 +1060,16 @@ module ReVIEW
         result = []
         result << '' # blank line before column
 
-        # support Re:VIEW Version 3+ format only
-        caption_part = caption ? "[#{caption}#{hypertarget}]" : "[#{hypertarget}]"
-        result << "\\begin{reviewcolumn}#{caption_part}"
+        if review_version2?
+          # LATEXBuilder#column_begin, version 2: the target and a
+          # \reviewcolumnhead on lines of their own.
+          result << '\\begin{reviewcolumn}'
+          result << hypertarget
+          result << "\\reviewcolumnhead{}{#{caption}}"
+        else
+          caption_part = caption ? "[#{caption}#{hypertarget}]" : "[#{hypertarget}]"
+          result << "\\begin{reviewcolumn}#{caption_part}"
+        end
 
         # Add TOC entry if within toclevel
         if node.level && caption && node.level <= config['toclevel'].to_i
@@ -1113,14 +1129,22 @@ module ReVIEW
 
         # LATEXBuilder#common_code_block places the caption above or below the
         # verbatim body per caption_position (caption_top?('list')).
+        wrap_listblock do |result|
+          result << captionstr if captionstr && caption_top?('list')
+          result << '\\begin{reviewlist}'
+          result << content.chomp
+          result << '\\end{reviewlist}'
+          result << captionstr if captionstr && !caption_top?('list')
+        end
+      end
+
+      # LATEXBuilder#common_code_block's reviewlistblock environment, which
+      # version 2 does not have.
+      def wrap_listblock
         result = []
-        result << '\\begin{reviewlistblock}'
-        result << captionstr if captionstr && caption_top?('list')
-        result << '\\begin{reviewlist}'
-        result << content.chomp
-        result << '\\end{reviewlist}'
-        result << captionstr if captionstr && !caption_top?('list')
-        result << '\\end{reviewlistblock}'
+        result << '\\begin{reviewlistblock}' unless review_version2?
+        yield result
+        result << '\\end{reviewlistblock}' unless review_version2?
         result.join("\n") + "\n\n"
       end
 
@@ -1143,15 +1167,13 @@ module ReVIEW
         content = detab_content(content)
         captionstr = "\\#{caption_command}{#{caption}}" if caption && !caption.empty?
 
-        result = []
-        result << '\\begin{reviewlistblock}'
-        result << captionstr if captionstr && caption_top?('list')
-        result << "\\begin{#{env}}"
-        result << content.chomp
-        result << "\\end{#{env}}"
-        result << captionstr if captionstr && !caption_top?('list')
-        result << '\\end{reviewlistblock}'
-        result.join("\n") + "\n\n"
+        wrap_listblock do |result|
+          result << captionstr if captionstr && caption_top?('list')
+          result << "\\begin{#{env}}"
+          result << content.chomp
+          result << "\\end{#{env}}"
+          result << captionstr if captionstr && !caption_top?('list')
+        end
       end
 
       def visit_tex_equation(node)
@@ -1259,6 +1281,16 @@ module ReVIEW
 
       private
 
+      # LATEXBuilder's image command and image caption: version 2 uses
+      # LaTeX's own \includegraphics and \caption.
+      def include_graphics_command
+        review_version2? ? 'includegraphics' : 'reviewincludegraphics'
+      end
+
+      def image_caption_command
+        review_version2? ? 'caption' : 'reviewimagecaption'
+      end
+
       # Render existing image (for regular //image)
       def render_existing_image(node, image_path, caption, with_label:)
         result = []
@@ -1269,7 +1301,7 @@ module ReVIEW
                   end
 
         metrics = parse_metric('latex', node.metric)
-        command = 'reviewincludegraphics'
+        command = include_graphics_command
 
         result << if metrics && !metrics.empty?
                     "\\#{command}[#{metrics}]{#{image_path}}"
@@ -1277,7 +1309,7 @@ module ReVIEW
                     "\\#{command}[width=\\maxwidth]{#{image_path}}"
                   end
 
-        result << "\\reviewimagecaption{#{caption}}" if caption && !caption.empty?
+        result << "\\#{image_caption_command}{#{caption}}" if caption && !caption.empty?
 
         if with_label && node.id?
           result << if render_context.chapter_present?
@@ -1302,7 +1334,7 @@ module ReVIEW
         end
 
         metrics = parse_metric('latex', node.metric)
-        command = 'reviewincludegraphics'
+        command = include_graphics_command
 
         result << if metrics && !metrics.empty?
                     "\\#{command}[#{metrics}]{#{image_path}}"
@@ -1355,8 +1387,8 @@ module ReVIEW
                       # indepimage uses reviewindepimagecaption
                       "\\reviewindepimagecaption{#{text_formatter.format_numberless_image}#{text_formatter.format_caption_prefix}#{caption}}"
                     else
-                      # regular image uses reviewimagecaption
-                      "\\reviewimagecaption{#{caption}}"
+                      # regular image uses reviewimagecaption (\caption in version 2)
+                      "\\#{image_caption_command}{#{caption}}"
                     end
         end
 
@@ -1488,8 +1520,14 @@ module ReVIEW
         6 => 'subparagraph'
       }.freeze
 
+      # LATEXBuilder#headline in a part file: its level-1 heading is a \part,
+      # and in version 2 every heading in it is.
+      def part_headline?(level)
+        render_context.part? && (level == 1 || review_version2?)
+      end
+
       def headline_name(level)
-        name = if render_context.part? && level == 1
+        name = if part_headline?(level)
                  'part'
                else
                  HEADLINE[level] || raise(CompileError, "Unsupported headline level: #{level}. LaTeX only supports levels 1-6")
@@ -1738,7 +1776,7 @@ module ReVIEW
 
       # Check if Part document should be wrapped with reviewpart environment
       def should_wrap_part_with_reviewpart?
-        render_context.part?
+        render_context.part? && !review_version2? # version 2 has no reviewpart environment
       end
 
       # Generate TOC entry only (for nodisp headlines)

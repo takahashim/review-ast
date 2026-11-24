@@ -402,6 +402,25 @@ class TestBuilderCompatFragments < Test::Unit::TestCase
     end
   end
 
+  # review_version 2 compatibility mode (Configure#check_version('2')):
+  # LATEXBuilder's older macros. The corpora under it are in
+  # test_corpus_config_parity.rb; these are the constructs they lack.
+  REVIEW_V2 = { 'review_version' => 2.0 }.freeze
+
+  def test_review_version2_latex
+    sources = [
+      "@<b>{b} @<i>{i} @<tt>{tt} @<code>{c} @<ttb>{tb} @<tti>{ti} @<m>{x^2}\n",
+      "//note[Cap @<b>{x}]{\nbody\n//}\n\n//memo{\nno caption\n//}\n",
+      "===[column] Col @<b>{x}\n\nbody\n\n===[/column]\n",
+      "//list[l1][C]{\nx\n//}\n\n//emlist{\ny\n//}\n\n//cmd[C]{\nz\n//}\n",
+      "//tsize[|latex|p{2cm}l]\n//table[t1][C]{\nA@<br>{}B\tC\n------------\nD@<br>{}E\tF\n//}\n\n//table[t2][]{\nA\tB\n//}\n",
+      "//image[i1][Cap]{\nart\n//}\n\n//indepimage[i2][Cap2]\n"
+    ]
+    sources.each { |source| assert_parity(source, formats: [:latex], config: REVIEW_V2) }
+    listings = REVIEW_V2.merge('highlight' => { 'latex' => 'listings' })
+    assert_parity("//emlist{\nno title\n//}\n\n//emlist[T]{\ntitle\n//}\n\n//list[l1][C]{\nx\n//}\n", formats: [:latex], config: listings)
+  end
+
   GENERATOR_ROUND_TRIP = ["//image[i1][Cap]{\nart @<b>{x}\n  art2\n//}\n", "//image[i1][][scale=0.5]{\n//}\n",
                           "//indepimage[i1]{\nart\n//}\n", "//bpo{\nline1 @<b>{bold}\n\nline3\n//}\n",
                           "//box[Cap]{\nline1\n\nline3\n//}\n", "//insn[Cap]{\nline1\n//}\n",

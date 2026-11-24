@@ -62,7 +62,10 @@ class TestCorpusConfigParity < Test::Unit::TestCase
     join_lines_by_lang: [{ 'join_lines_by_lang' => true }, %i[idgxml html latex plaintext top]],
     th_bold: [{ 'textmaker' => { 'th_bold' => true } }, %i[top]],
     structured_idgxml: [{ 'structuredxml' => true, 'listinfo' => true }, %i[idgxml]],
-    epub2: [{ 'epubversion' => 2, 'htmlversion' => 4 }, %i[html]]
+    epub2: [{ 'epubversion' => 2, 'htmlversion' => 4 }, %i[html]],
+    # Re:VIEW 2 compatibility mode (Configure#check_version('2')): older
+    # macros in LaTeX, among others.
+    review_version2: [{ 'review_version' => 2.0 }, %i[latex]]
   }.freeze
 
   def corpus_dir(name)
