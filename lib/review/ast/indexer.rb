@@ -373,19 +373,11 @@ module ReVIEW
 
       def visit_inline(node)
         case node.inline_type
-        when :fn
-          if node.args.first
-            footnote_id = node.args.first
-            check_id(footnote_id)
-            # Add reference entry (content is filled when the FootnoteNode is seen).
-            @footnote_index.add_or_update(footnote_id)
-          end
-        when :endnote
-          if node.args.first
-            endnote_id = node.args.first
-            check_id(endnote_id)
-            @endnote_index.add_or_update(endnote_id)
-          end
+        when :fn, :endnote
+          # Only checked here: like IndexBuilder, footnotes and endnotes are
+          # numbered in the order of their definitions, not of their
+          # references (visit_footnote).
+          check_id(node.args.first) if node.args.first
         when :bib
           if node.args.first
             bib_id = node.args.first

@@ -67,6 +67,38 @@ class TestBuilderCompatFragments < Test::Unit::TestCase
     assert_include(regenerated, '@<ruby>{a\\,b, c\\,d}')
   end
 
+  # -- footnotes and endnotes are numbered in definition order, as
+  #    IndexBuilder numbers them, whatever order they are referred to in
+
+  FOOTNOTES_OUT_OF_ORDER = <<~RE
+    A@<fn>{a} B@<fn>{b}.
+
+    //emlist[Caption@<fn>{c}]{
+    body@<fn>{d}
+    //}
+
+    //footnote[b][B]
+    //footnote[a][A]
+    //footnote[c][C]
+    //footnote[d][D]
+  RE
+
+  def test_footnotes_are_numbered_in_definition_order
+    assert_parity(FOOTNOTES_OUT_OF_ORDER)
+    assert_parity(FOOTNOTES_OUT_OF_ORDER, formats: [:latex], config: { 'footnotetext' => true })
+    # The text renderers' blank-line layout differs; the numbers must not.
+    %i[plaintext top].each do |format|
+      comparator = ReVIEW::Test::TextComparator.new(format: format)
+      lines = ->(text) { text.lines.reject { |line| line.strip.empty? } }
+      assert_equal lines.call(comparator.convert_with_builder(FOOTNOTES_OUT_OF_ORDER)),
+                   lines.call(comparator.convert_with_renderer(FOOTNOTES_OUT_OF_ORDER)), format.to_s
+    end
+  end
+
+  def test_endnotes_are_numbered_in_definition_order
+    assert_parity("A@<endnote>{a} B@<endnote>{b}.\n\n//endnote[b][B]\n//endnote[a][A]\n\n//printendnotes\n")
+  end
+
   # -- externallink: false prints the URL instead of linking it
 
   def test_externallink_off
