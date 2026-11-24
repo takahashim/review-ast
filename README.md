@@ -32,6 +32,8 @@ Current scope:
     instead of LaTeX; needs Chrome/Chromium and the `vivlio-pdf` gem
   - `review-ast-typstmaker` — PDF through Typst instead of LaTeX; needs the
     `typst` binary
+  - `review-ast-index` / `review-ast-vol` — `review-index` / `review-vol` with
+    chapters read by the AST, so a Markdown book is listed with its titles
 
 A book's `review-ext.rb` keeps working: commands it declares with
 `ReVIEW::Compiler.defblock`/`definline` are rendered by the builder methods it

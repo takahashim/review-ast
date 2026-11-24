@@ -138,6 +138,18 @@ module ReVIEW
         "#{term}\n#{definition}\n"
       end
 
+      def text_block(node, caption_top:)
+        caption = node.caption_node ? render_caption_inline(node.caption_node) : ''
+        body = render_children(node)
+        body += "\n" unless body.empty? || body.end_with?("\n")
+
+        result = +"\n"
+        result << "#{caption}\n" if caption_top && !caption.empty?
+        result << body
+        result << "#{caption}\n" if !caption_top && !caption.empty?
+        result << "\n"
+      end
+
       # Numbered code block (listnum, emlistnum)
       def render_numbered_code_block(node)
         result = +''
@@ -361,6 +373,31 @@ module ReVIEW
         result += "\n"
         result
       end
+
+      # PLAINTEXTBuilder#base_block (//box, //insn, //bpo): the caption above
+      # or below the lines per caption_position (list), between blank lines.
+      def visit_block_box(node)
+        text_block(node, caption_top: caption_top?('list'))
+      end
+
+      alias_method :visit_block_insn, :visit_block_box
+      alias_method :visit_block_bpo, :visit_block_box
+
+      # PLAINTEXTBuilder#base_parablock (//point, //term): the caption always
+      # above the paragraphs.
+      def visit_block_point(node)
+        text_block(node, caption_top: true)
+      end
+
+      alias_method :visit_block_term, :visit_block_point
+
+      # //hr and //parasep (a Markdown thematic break is an //hr) have no
+      # PLAINTEXTBuilder method; in plain text they separate nothing.
+      def visit_block_hr(_node)
+        ''
+      end
+
+      alias_method :visit_block_parasep, :visit_block_hr
 
       def visit_block_bibpaper(node)
         visit_bibpaper_block(node)

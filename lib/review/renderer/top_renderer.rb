@@ -502,6 +502,54 @@ module ReVIEW
         result
       end
 
+      # TOPBuilder#base_block (//box, //insn, //bpo): the caption ("■...")
+      # above or below the lines per caption_position (list).
+      def visit_block_box(node)
+        top_block(node, caption_top: caption_top?('list'))
+      end
+
+      alias_method :visit_block_insn, :visit_block_box
+      alias_method :visit_block_bpo, :visit_block_box
+
+      # TOPBuilder#base_parablock (//point, //term): the caption always above.
+      def visit_block_point(node)
+        top_block(node, caption_top: true)
+      end
+
+      alias_method :visit_block_term, :visit_block_point
+
+      # TOPBuilder#comment: only in draft mode, as "◆→...←◆".
+      def visit_block_comment(node)
+        return '' unless config['draft']
+
+        lines = node.children.map { |child| child.respond_to?(:content) ? child.content.to_s : render_children(child) }
+        comment = node.args.first
+        lines.unshift(comment) unless comment.nil? || comment.empty?
+        "◆→#{lines.join("\n")}←◆\n"
+      end
+
+      # //hr, //parasep and //pagebreak have no TOPBuilder method (a Markdown
+      # thematic break is an //hr); they leave no mark.
+      def visit_block_hr(_node)
+        ''
+      end
+
+      alias_method :visit_block_parasep, :visit_block_hr
+      alias_method :visit_block_pagebreak, :visit_block_hr
+
+      def top_block(node, caption_top:)
+        title = TITLES[node.block_type.to_sym] || node.block_type.to_s
+        caption = node.caption_node ? render_caption_inline(node.caption_node) : ''
+        body = render_children(node)
+        body += "\n" unless body.empty? || body.end_with?("\n")
+
+        result = "\n◆→開始:#{title}←◆\n"
+        result << "■#{caption}\n" if caption_top && !caption.empty?
+        result << body
+        result << "■#{caption}\n" if !caption_top && !caption.empty?
+        result << "◆→終了:#{title}←◆\n\n"
+      end
+
       # Block elements from todo-top.md
 
       def visit_block_lead(node)

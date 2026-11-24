@@ -415,12 +415,25 @@ MarkdownRendererは、`term_children`内に`InlineNode(:b)`または`InlineNode(
 ### 水平線とテキスト系フォーマット
 
 水平線（`---`、`***`）は `BlockNode(:hr)` になり、Re:VIEW の `//hr` と同じものとして扱われる。
-LaTeX / HTML / IDGXML では出力できるが、plaintext と TOP では出力できない。
-これらのフォーマットのビルダーは `//hr` 自体を受け付けないためである
-（`.re` に `//hr` を書いた場合も同じ）。
+LaTeX / HTML / IDGXML では区切り線として出力される。
+plaintext と TOP のビルダーは `//hr` 自体を受け付けないが、AST のレンダラは
+何も出力せずに続行する（`.re` に `//hr` を書いた場合も同じ）。
 
-水平線を含む Markdown 章をテキスト系フォーマットで出力しようとすると、
-描画時にエラーになる。テキスト出力が必要な章では水平線を使わないこと。
+### Markdown の部ファイル
+
+catalog で部に Markdown ファイルを指定した場合（`- part2.md:`）、本体の
+`Part#file?` は `.re` で終わる名前しか「ファイルのある部」と見なさない。
+そのため EPUB / Web / PDF などの maker は、部ファイルの本文を使わず、
+ファイル名（`part2.md`）を部の題にした扉ページを作る。
+`review-ast-index` と `review-ast-vol` は部ファイルの見出しを読み、正しい題を出す。
+部に本文や題が必要な場合は、当面は部を `.re` で書くこと。
+
+### 章タイトル・付録・ページ名
+
+本体の本モデルは `.re` を前提にしているが、AST の経路では Markdown の章も
+`.re` の章と同じに扱う。章タイトルは最初の見出しから取り（`@<title>`、
+`@<chapref>`、目次）、catalog の `APPENDIX` に置いた章は「付録A」と番号付けし、
+EPUB / Web のページは `ch01.md.xhtml` ではなく `ch01.xhtml` の名前で出力する。
 
 ### 拡張オートリンクは無効
 

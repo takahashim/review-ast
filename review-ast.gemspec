@@ -16,7 +16,8 @@ Gem::Specification.new do |gem|
                        review-ast-pdfmaker review-ast-idgxmlmaker review-ast-textmaker
                        review-ast-epubmaker review-ast-webmaker
                        review-ast-vivliostylemaker
-                       review-ast-typstmaker]
+                       review-ast-typstmaker
+                       review-ast-index review-ast-vol]
   gem.require_paths = ['lib']
   gem.required_ruby_version = '>= 3.1'
 

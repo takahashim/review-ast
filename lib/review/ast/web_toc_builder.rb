@@ -11,6 +11,7 @@ require 'review/sec_counter'
 require_relative 'compiler'
 require_relative 'headline_node'
 require_relative 'section_counter'
+require_relative 'chapter_title'
 
 module ReVIEW
   module AST
@@ -128,15 +129,9 @@ module ReVIEW
         num.empty? ? title : "#{num} #{title}"
       end
 
-      # BookUnit#title only parses Re:VIEW "=" headlines, so a Markdown
-      # chapter's title is taken from its AST (as the Indexer does).
+      # A Markdown chapter's title comes from its AST (ChapterTitle).
       def chapter_title(chap, ast)
-        title = chap.title.to_s
-        return title unless title.empty?
-
-        first = nil
-        each_headline(ast) { |node| first ||= node }
-        first&.raw_caption.to_s
+        ChapterTitle.of(chap, ast)
       end
 
       def part_label(part)

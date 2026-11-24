@@ -124,6 +124,30 @@ class TestBuilderCompatFragments < Test::Unit::TestCase
     end
   end
 
+  # -- block commands the text builders implement and the text renderers did
+  #    not (they raised "Unknown block type"). Compared without blank lines:
+  #    the text renderers do not reproduce the builders' blank-line layout.
+
+  TEXT_BLOCKS = ["//box[Cap]{\nline1 @<b>{x}\nline2\n//}\n", "//box{\nno caption\n//}\n", "//insn[Cap]{\nA\n//}\n",
+                 "//point[P]{\npara1\nstill1\n\npara2\n//}\n", "//term{\nT1\n//}\n", "//bpo{\nb1\n//}\n",
+                 "//comment[c]{\nhidden\n//}\n"].freeze
+
+  def test_text_formats_render_every_block_their_builders_do
+    [{}, { 'caption_position' => { 'list' => 'bottom' } }, { 'draft' => true }].each do |config|
+      TEXT_BLOCKS.each do |source|
+        %i[plaintext top].each do |format|
+          comparator = ReVIEW::Test::TextComparator.new(format: format, config: config)
+          assert_equal text_lines(comparator.convert_with_builder(source)), text_lines(comparator.convert_with_renderer(source)),
+                       "#{format} #{config.inspect}: #{source.inspect}"
+        end
+      end
+    end
+  end
+
+  def text_lines(text)
+    text.lines.map { |line| line.sub(/\A\t+/, '') }.reject { |line| line.strip.empty? }.join
+  end
+
   # -- an inline op nobody declared is an error in every format, as in
   #    ReVIEW::Compiler#compile_inline (the text renderers used to print it)
 
