@@ -168,7 +168,9 @@ module ReVIEW
           result << "\\label{sec:#{anchor}}"
           # Add custom label if specified (only for level > 1, matching LATEXBuilder)
           if node.label && !node.label.empty?
-            result << "\\label{#{escape(node.label)}}"
+            # Unescaped, as LATEXBuilder#headline writes it (macro('label', label)):
+            # an escaped "_" made a different label from the one referred to.
+            result << "\\label{#{node.label}}"
           end
         end
 
@@ -889,7 +891,7 @@ module ReVIEW
       def visit_block_label(node)
         if node.args.first
           label_id = node.args.first
-          "\\label{#{escape(label_id)}}\n"
+          "\\label{#{label_id}}\n" # LATEXBuilder#label: macro('label', id), unescaped
         else
           ''
         end
@@ -1218,7 +1220,8 @@ module ReVIEW
           result << "[#{bib_number || '??'}] #{bib_caption}"
 
           # Add label for cross-references
-          result << "\\label{bib:#{escape(bib_id)}}"
+          # Unescaped, as LATEXBuilder#bib_label and the @<bib> reference write it.
+          result << "\\label{bib:#{bib_id}}"
           result << ''
 
           # Add content. The bibpaper body is parsed into paragraph nodes, so

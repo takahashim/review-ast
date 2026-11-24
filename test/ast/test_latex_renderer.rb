@@ -1580,6 +1580,16 @@ class TestLatexRenderer < Test::Unit::TestCase
     assert_include(result, '\\label{bib:ref1}')
   end
 
+  # LATEXBuilder writes the id unescaped (bib_label), as @<bib> refers to it;
+  # an escaped "_" made the two labels differ.
+  def test_bibpaper_label_keeps_an_underscore
+    chapter = ReVIEW::Book::Chapter.new(@book, 1, 'test', 'test.re', StringIO.new)
+    renderer = Renderer::LatexRenderer.new(chapter)
+    node = AST::BlockNode.new(location: ReVIEW::AST::SourceLocation.new(nil, 0),
+                              block_type: :bibpaper, args: ['my_ref', 'Cap'])
+    assert_include(renderer.visit(node), '\\label{bib:my_ref}')
+  end
+
   def test_inline_bib_reference_multiple
     # Test @<bib> with multiple bibliography entries
     bibpaper_index = ReVIEW::Book::BibpaperIndex.new

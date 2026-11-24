@@ -368,13 +368,9 @@ module ReVIEW
       end
 
       def visit_table_row(node)
-        cells = []
-        node.children.each do |cell|
-          # Skip separator rows (rows that contain only dashes)
-          next if /^-+$/.match?(render_children(cell).strip)
-
-          cells << visit(cell)
-        end
+        # (A header separator line is not a row in the AST, so a cell of
+        # dashes is content: it used to be dropped as if it were one.)
+        cells = node.children.map { |cell| visit(cell) }
 
         # Only process non-empty rows
         return '' if cells.empty? || cells.all? { |cell| cell.strip.empty? }

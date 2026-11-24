@@ -375,6 +375,22 @@ class TestBuilderCompatFragments < Test::Unit::TestCase
     assert_text_lines_parity(source)
   end
 
+  # Found by running FirstStepReVIEW-v3 through both paths.
+  #
+  # LATEXBuilder writes a heading's and a //label's id into \\label as given
+  # (macro('label', ...)); escaping "_" made a different label.
+  def test_latex_labels_keep_an_underscore
+    assert_parity("= C\n\n=={sec_label} Section\n\n//label[my_label]\n\ntext\n", formats: [:latex])
+  end
+
+  # A table cell that is just dashes is content; TOP dropped it, as if it
+  # were the header separator line.
+  def test_a_dash_cell_is_kept
+    source = "//table[t1][C]{\nA\t\t-\t\tB\nC\t---\tD\n//}\n"
+    assert_parity(source)
+    assert_text_lines_parity(source)
+  end
+
   GENERATOR_ROUND_TRIP = ["//image[i1][Cap]{\nart @<b>{x}\n  art2\n//}\n", "//image[i1][][scale=0.5]{\n//}\n",
                           "//indepimage[i1]{\nart\n//}\n", "//bpo{\nline1 @<b>{bold}\n\nline3\n//}\n",
                           "//box[Cap]{\nline1\n\nline3\n//}\n", "//insn[Cap]{\nline1\n//}\n",
