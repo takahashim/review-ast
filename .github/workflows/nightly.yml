@@ -68,5 +68,8 @@ jobs:
           ruby-version: '3.4'
           bundler-cache: true
       - name: Show the Re:VIEW revision under test
-        run: bundle exec ruby -e 'spec = Gem.loaded_specs["review"]; puts "#{spec.version} #{spec.source}"'
+        # A block scalar: in a plain one, the " #" before {spec.source} would
+        # start a YAML comment and cut the command off mid-quote.
+        run: |
+          bundle exec ruby -e 'spec = Gem.loaded_specs["review"]; puts "#{spec.version} #{spec.source}"'
       - run: bundle exec rake test
