@@ -75,8 +75,12 @@ the AST does not go through those builder methods:
 Each such redefinition is reported once per run with a warning:
 
 ```text
-review-ext.rb redefines HTMLBuilder#headline, which the AST renderer does not call, so it has no effect (see doc/review-ext.md)
+review-ext.rb redefines HTMLBuilder#headline, which the AST renderer does not call (see doc/review-ext.md)
 ```
+
+A redefined helper still takes effect where a builder method the AST path
+runs calls it: `table_begin` is used by a `table` review-ext.rb redefined,
+and not by the AST renderer's own table.
 
 The AST path has no review-ext.rb hook for these. Change how they look with
 CSS (HTML, EPUB), a `.sty` (LaTeX) or the templates. Reopening the renderer's

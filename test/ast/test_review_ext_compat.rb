@@ -184,7 +184,7 @@ class TestReviewExtCompat < Test::Unit::TestCase
   def test_redefined_structural_hook_is_reported
     File.write(File.join(@dir, 'review-ext.rb'), REVIEW_EXT.sub("  class HTMLBuilder\n", "  class HTMLBuilder\n    def headline(level, label, caption); puts 'mine'; end\n"))
     _, err = ast('html')
-    assert_match(/review-ext\.rb redefines HTMLBuilder#headline, which the AST renderer does not call, so it has no effect/, err)
+    assert_match(/review-ext\.rb redefines HTMLBuilder#headline, which the AST renderer does not call \(see/, err)
   end
 
   # A builder helper (here HTMLBuilder#table_begin, as a real book redefines
@@ -388,6 +388,40 @@ class TestReviewExtCompat < Test::Unit::TestCase
                         '(inside //mybox, which HTMLBuilder renders; define HTMLBuilder#inline_mykey in review-ext.rb)')
     assert_not_match(/ch01\.re:\d+: ch01\.re:\d+:/, err)
     assert_equal(1, err.scan('define HTMLBuilder#inline_mykey').size)
+  end
+
+  # A minicolumn whose ends review-ext.rb redefined: the builder writes the
+  # two ends (and compiles the caption), the renderer the content in between.
+  # The error names //note only for what the builder writes of it.
+  def test_error_hint_names_a_minicolumn_only_for_its_ends
+    File.write(File.join(@dir, 'review-ext.rb'), REVIEW_EXT + <<~'RUBY')
+      ReVIEW::Compiler.definline :mykey
+      ReVIEW::Compiler.definline :myouter
+      class ReVIEW::HTMLBuilder
+        def note_begin(caption = nil)
+          puts %Q(<aside title="#{compile_inline(caption.to_s)}">)
+        end
+
+        def note_end
+          puts '</aside>'
+        end
+
+        def inline_myouter(str)
+          compile_inline("@<mykey>{#{str}}")
+        end
+      end
+    RUBY
+    compile = ['-I', File.join(ROOT, 'lib'), File.join(ROOT, 'bin/review-ast-compile'), '--target', 'html', 'ch01.re']
+
+    File.write(File.join(@dir, 'ch01.re'), "= C\n\n//note[A @<mykey>{K} note]{\nbody\n//}\n")
+    _, err, status = run_in_book(*compile)
+    assert_false(status.success?)
+    assert_include(err, 'inline op: @<mykey> (inside //note, which HTMLBuilder renders; define HTMLBuilder#inline_mykey')
+
+    File.write(File.join(@dir, 'ch01.re'), "= C\n\n//note{\nbody @<myouter>{K}\n//}\n")
+    _, err, status = run_in_book(*compile)
+    assert_false(status.success?)
+    assert_include(err, 'inline op: @<mykey> (in text HTMLBuilder renders; define HTMLBuilder#inline_mykey')
   end
 
   def test_round_trip_keeps_the_extension_block

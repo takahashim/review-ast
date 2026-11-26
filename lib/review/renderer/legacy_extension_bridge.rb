@@ -71,11 +71,11 @@ module ReVIEW
 
         # #compile_minicolumn_begin / #compile_minicolumn_end.
         def run_minicolumn_begin(name, args)
-          compile_minicolumn_begin(name, *args)
+          at_minicolumn_end(name) { compile_minicolumn_begin(name, *args) }
         end
 
         def run_minicolumn_end
-          compile_minicolumn_end
+          at_minicolumn_end(@minicolumn_name) { compile_minicolumn_end }
         end
 
         private
@@ -85,9 +85,19 @@ module ReVIEW
         # render_inline_<op> does not apply: only a builder method helps.
         def builder_inline_hint(op)
           builder = @builder.class.name.split('::').last
-          block = @command_name_stack.last || @minicolumn_name
+          block = @command_name_stack.last || @minicolumn_end
           where = block ? "inside //#{block}, which #{builder} renders" : "in text #{builder} renders"
           "#{where}; define #{builder}#inline_#{op} in review-ext.rb"
+        end
+
+        # The minicolumn whose _begin or _end the builder is writing, for the
+        # hint. The compiler's own @minicolumn_name will not do: it stays set
+        # between the two ends, while the renderer renders the content.
+        def at_minicolumn_end(name)
+          @minicolumn_end = name
+          yield
+        ensure
+          @minicolumn_end = nil
         end
 
         def compile_body(name, lines)
@@ -142,8 +152,8 @@ module ReVIEW
 
           @warned[klass] = true
           unroutable_overrides(klass).each do |name|
-            logger.warn("review-ext.rb redefines #{klass.name.split('::').last}##{name}, which the AST renderer does not call, " \
-                        'so it has no effect (see doc/review-ext.md)')
+            logger.warn("review-ext.rb redefines #{klass.name.split('::').last}##{name}, which the AST renderer does not call " \
+                        '(see doc/review-ext.md)')
           end
         end
 

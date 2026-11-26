@@ -336,7 +336,8 @@ module ReVIEW
         # Every failure is recorded the same way and the build carries on to the
         # next chapter, so one bad file yields one error rather than hiding the
         # rest. NotImplementedError is in here deliberately: that is how an
-        # unsupported node or inline reaches the surface.
+        # unsupported node reaches the surface (an unsupported inline is a
+        # CompileError).
         rescue ReVIEW::CompileError, ReVIEW::SyntaxError, ReVIEW::AST::InlineTokenizeError,
                NotImplementedError, StandardError => e
           record_error(basename, e)
