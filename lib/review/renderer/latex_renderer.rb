@@ -8,6 +8,7 @@
 
 require 'review/ast/caption_node'
 require 'review/ast/table_column_width_parser'
+require 'review/ast/builder_table_compat'
 require 'review/latexutils'
 require 'review/sec_counter'
 require 'review/i18n'
@@ -661,11 +662,13 @@ module ReVIEW
         # Process cell content while maintaining table context to collect footnotes
         # Note: table context should already be set by visit_table
         content = render_children(node)
-        # Builder#parse_table_rows strips the row after its inlines are
-        # compiled, so the first cell loses its leading and the last its
-        # trailing whitespace (version 2's @<m> pads with spaces).
+        # Builder#parse_table_rows trims the row after its inlines are
+        # compiled, so the last cell loses its trailing whitespace (version 2's
+        # @<m> pads with spaces). Re:VIEW 5.11 strips both ends, so there the
+        # first cell loses its leading whitespace too; later Re:VIEW only
+        # rstrips.
         siblings = node.parent&.children || [node]
-        content = content.lstrip if col_index == 0
+        content = content.lstrip if col_index == 0 && !AST::BuilderTableCompat.keeps_leading_empty_cells?
         content = content.rstrip if node.equal?(siblings.last)
 
         # Get cellwidth for this column straight from the owning TableNode via the

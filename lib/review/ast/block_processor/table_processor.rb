@@ -7,6 +7,7 @@
 # the GNU LGPL, Lesser General Public License version 2.1.
 
 require_relative 'table_structure'
+require_relative '../builder_table_compat'
 
 module ReVIEW
   module AST
@@ -73,7 +74,10 @@ module ReVIEW
         # @param block_location [SourceLocation] Block start location
         # @return [TableRowNode] Created row node
         def create_row(line, block_location:, is_header: false, first_cell_header: false)
-          cells = line.strip.split(row_separator_regexp).map { |s| s.sub(/\A\./, '') }
+          # Split as the installed Builder#parse_table_rows does: Re:VIEW 5.11
+          # strips the row, later Re:VIEW keeps its leading empty cells.
+          trimmed = BuilderTableCompat.keeps_leading_empty_cells? ? line.rstrip : line.strip
+          cells = trimmed.split(row_separator_regexp).map { |s| s.sub(/\A\./, '') }
           if cells.empty?
             location_info = block_location.format_for_error
             raise CompileError, "Invalid table row: empty line or no tab-separated cells#{location_info}"
