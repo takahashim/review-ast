@@ -351,6 +351,17 @@ class TestReviewExtCompat < Test::Unit::TestCase
     end
   end
 
+  # Typst has no builder, so review-ext.rb's HTMLBuilder#inline_mykbd does not
+  # reach it: the op is the same one-line error as in the other formats, not
+  # an uncaught NotImplementedError with a backtrace.
+  def test_inline_without_a_typst_renderer_method_is_a_compile_error
+    File.write(File.join(@dir, 'ch01.re'), "= C\n\nPress @<mykbd>{K} now.\n")
+    _, err, status = run_in_book('-I', File.join(ROOT, 'lib'), File.join(ROOT, 'bin/review-ast-compile'), '--target', 'typst', 'ch01.re')
+    assert_false(status.success?)
+    assert_match(/builder does not support inline op: @<mykbd> at line 3.*\(define TypstRenderer#render_inline_mykbd in review-ext\.rb\)/, err)
+    assert_not_match(/NotImplementedError|typst_renderer\.rb:\d+/, err)
+  end
+
   # Inside a block a builder method renders, the builder compiles the inlines
   # (doc/review-ext.md), so a renderer's `render_inline_<name>` does not apply
   # there and the op is an error without a builder method. The error says so,
