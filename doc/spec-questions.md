@@ -225,6 +225,10 @@ non-match (the same source cannot follow both).
 - Question: should a leading tab mean an empty first cell (`.` is the
   documented way to write one)? Make the builders agree, then this entry goes
   away.
+- Status: fixed on Re:VIEW master by kmuto/review#1972 (`Builder#parse_table_rows`
+  now rstrips, so every builder keeps the empty first cell), not yet released.
+  review-ast follows the installed builder (`AST::BuilderTableCompat`); delete
+  this entry once the oldest supported Re:VIEW has the fix.
 
 ### 11. An unbound //indepimage loses its caption when captions go on top (LATEXBuilder)
 

@@ -9,6 +9,7 @@ require 'review/ast/diff/byte_exact'
 require 'review/ast/diff/html'
 require 'review/ast/diff/latex'
 require 'review/ast/diff/text_lines'
+require 'review/ast/builder_table_compat'
 
 # Every command Re:VIEW declares, in every format.
 #
@@ -97,8 +98,16 @@ class TestReviewCommandSweep < Test::Unit::TestCase
     },
     '//indepimage' => { %i[html] => 'HTMLBuilder fails with a caption and metric and no image (nil#sub)' },
     '//numberlessimage' => { %i[html] => 'HTMLBuilder fails with a caption and metric and no image (nil#sub)' },
-    '//table' => { %i[idgxml] => 'a row starting with a tab: an empty first cell in IDGXMLBuilder only (spec-questions #10)' },
-    '//emtable' => { %i[idgxml] => 'a row starting with a tab: an empty first cell in IDGXMLBuilder only (spec-questions #10)' },
+    # Re:VIEW after 5.11 keeps the empty first cell in every builder
+    # (kmuto/review#1972), and the AST follows it, so this is 5.11 only.
+    **(if ReVIEW::AST::BuilderTableCompat.keeps_leading_empty_cells?
+         {}
+       else
+         {
+           '//table' => { %i[idgxml] => 'a row starting with a tab: an empty first cell in IDGXMLBuilder only (spec-questions #10)' },
+           '//emtable' => { %i[idgxml] => 'a row starting with a tab: an empty first cell in IDGXMLBuilder only (spec-questions #10)' }
+         }
+       end),
     '//noindent' => {
       %i[latex top] => 'LATEXBuilder/TOPBuilder print the marker where //noindent stands; the AST lowers it onto ' \
                        'the next paragraph, and here none follows'

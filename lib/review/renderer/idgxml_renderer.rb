@@ -27,6 +27,7 @@ require 'review/textutils'
 require 'review/sec_counter'
 require 'review/ast/caption_node'
 require 'review/ast/paragraph_node'
+require 'review/ast/builder_table_compat'
 require 'review/i18n'
 require 'review/loggable'
 require 'digest/sha2'
@@ -1309,6 +1310,13 @@ module ReVIEW
           end
 
           processed_rows << cells
+        end
+
+        # Later IDGXMLBuilder pads a short row out to the column count, so the
+        # number of <td> matches the aid:tcols it declares (Re:VIEW 5.11 does
+        # not). Only a table with a width is padded, as in the builder.
+        if @tablewidth && AST::BuilderTableCompat.idgxml_pads_short_rows?
+          processed_rows.each { |cells| cells.concat([''] * (@col - cells.size)) if cells.size < @col }
         end
 
         { rows: processed_rows }
