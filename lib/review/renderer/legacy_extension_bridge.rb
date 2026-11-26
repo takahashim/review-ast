@@ -142,8 +142,8 @@ module ReVIEW
 
           @warned[klass] = true
           unroutable_overrides(klass).each do |name|
-            logger.warn("review-ext.rb redefines #{klass.name.split('::').last}##{name}, which the AST renderer does not call; " \
-                        'implement it on the renderer instead (see doc/review-ext.md)')
+            logger.warn("review-ext.rb redefines #{klass.name.split('::').last}##{name}, which the AST renderer does not call, " \
+                        'so it has no effect (see doc/review-ext.md)')
           end
         end
 

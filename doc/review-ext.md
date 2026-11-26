@@ -75,8 +75,14 @@ the AST does not go through those builder methods:
 Each such redefinition is reported once per run with a warning:
 
 ```text
-review-ext.rb redefines HTMLBuilder#headline, which the AST renderer does not call; implement it on the renderer instead (see doc/review-ext.md)
+review-ext.rb redefines HTMLBuilder#headline, which the AST renderer does not call, so it has no effect (see doc/review-ext.md)
 ```
+
+The AST path has no review-ext.rb hook for these. Change how they look with
+CSS (HTML, EPUB), a `.sty` (LaTeX) or the templates. Reopening the renderer's
+own method (`visit_headline`) does take effect, but is not a supported
+extension point (see
+[Renderer methods are not a stable interface](#renderer-methods-are-not-a-stable-interface)).
 
 Redefining `def note(lines, caption)` itself has no effect in either path: the
 legacy compiler, too, renders `//note{ … //}` through `note_begin` / `note_end`.
@@ -160,10 +166,13 @@ renderer is internal:
 - Reopening a renderer lets you replace any of its methods, including those
   that render built-in commands (`visit_block_box`, `visit_headline`, …). A
   `render_inline_<name>` named after a built-in inline (`render_inline_b`) is
-  used too, in every format (outside a block a builder method renders). Such replacements are **not** checked or
-  reported, unlike a builder redefinition the AST does not call, and may
-  break when the renderer changes. Redefine a built-in command on the builder instead (see
-  [What works unchanged](#what-works-unchanged)).
+  used too, in every format (outside a block a builder method renders). Such
+  replacements are **not** checked or reported, unlike a builder redefinition
+  the AST does not call, and may break when the renderer changes. To change a
+  built-in command, redefine it on the builder instead (see
+  [What works unchanged](#what-works-unchanged)). The structure of the
+  document (headings, paragraphs, list items, …) has no supported hook (see
+  [What is not picked up](#what-is-not-picked-up)).
 - Helpers an extension method calls, such as `escape` and `render_children`,
   are the renderer's own and carry no compatibility promise.
 

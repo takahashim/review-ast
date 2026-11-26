@@ -184,7 +184,7 @@ class TestReviewExtCompat < Test::Unit::TestCase
   def test_redefined_structural_hook_is_reported
     File.write(File.join(@dir, 'review-ext.rb'), REVIEW_EXT.sub("  class HTMLBuilder\n", "  class HTMLBuilder\n    def headline(level, label, caption); puts 'mine'; end\n"))
     _, err = ast('html')
-    assert_match(/review-ext\.rb redefines HTMLBuilder#headline, which the AST renderer does not call/, err)
+    assert_match(/review-ext\.rb redefines HTMLBuilder#headline, which the AST renderer does not call, so it has no effect/, err)
   end
 
   # A builder helper (here HTMLBuilder#table_begin, as a real book redefines
