@@ -351,6 +351,34 @@ class TestReviewExtCompat < Test::Unit::TestCase
     end
   end
 
+  # Inside a block a builder method renders, the builder compiles the inlines
+  # (doc/review-ext.md), so a renderer's `render_inline_<name>` does not apply
+  # there and the op is an error without a builder method. The error says so,
+  # and carries its location once: ReVIEW::Compiler#compile_inline and #text
+  # each report it again on the way out.
+  def test_error_inside_a_builder_rendered_block_is_located_once
+    File.write(File.join(@dir, 'review-ext.rb'), REVIEW_EXT + <<~'RUBY')
+      ReVIEW::Compiler.definline :mykey
+      require 'review/renderer/html_renderer'
+      class ReVIEW::Renderer::HtmlRenderer
+        def render_inline_mykey(_type, content, _node)
+          "[key #{content}]"
+        end
+      end
+    RUBY
+    File.write(File.join(@dir, 'ch01.re'), "= C\n\nPress @<mykey>{K}.\n")
+    out, = ast('html')
+    assert_include(out, '[key K]')
+
+    File.write(File.join(@dir, 'ch01.re'), "= C\n\n//mybox{\nPress @<mykey>{K}.\n//}\n")
+    _, err, status = run_in_book('-I', File.join(ROOT, 'lib'), File.join(ROOT, 'bin/review-ast-compile'), '--target', 'html', 'ch01.re')
+    assert_false(status.success?)
+    assert_include(err, 'ch01.re:3: builder does not support inline op: @<mykey> ' \
+                        '(inside //mybox, which HTMLBuilder renders; define HTMLBuilder#inline_mykey in review-ext.rb)')
+    assert_not_match(/ch01\.re:\d+: ch01\.re:\d+:/, err)
+    assert_equal(1, err.scan('define HTMLBuilder#inline_mykey').size)
+  end
+
   def test_round_trip_keeps_the_extension_block
     json, err, status = run_in_book('-I', File.join(ROOT, 'lib'), File.join(ROOT, 'bin/review-ast-dump'), 'ch01.re')
     assert(status.success?, err)

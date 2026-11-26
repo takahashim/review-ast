@@ -85,8 +85,9 @@ Helper methods that only your own extension methods call are not reported.
 
 ## Writing an extension for the AST renderers
 
-A renderer method takes precedence over the builder method, in every format,
-and is the only option for Typst (which has no legacy builder). Declare the
+A renderer method takes precedence over the builder method, in every format
+(except inside a block a builder method renders; see below), and is the only
+option for Typst (which has no legacy builder). Declare the
 command as for the legacy path, then define the method in review-ext.rb
 (requiring the renderer first):
 
@@ -126,7 +127,18 @@ end
   [design-extension-api.ja.md](design-extension-api.ja.md).)
 - `render_inline_<name>(type, content, node)` receives the inline's rendered
   (escaped) content; `node.args.first` is the raw argument. It is enough on
-  its own: the builder for that format needs no `inline_<name>` as well.
+  its own wherever the renderer renders the text: the builder for that format
+  needs no `inline_<name>` as well.
+  The exception is a block a builder method renders — an extension block
+  implemented on the builder, or a built-in command review-ext.rb redefined
+  there (`def emlist`). Its body is inline-compiled by the builder, as in
+  the legacy path, and so is a caption the builder method passes to
+  `compile_inline`; an inline used there needs `inline_<name>` on the
+  builder, and without it is an error that names the method to add
+  (`builder does not support inline op: @<name> (inside //mybox, which
+  HTMLBuilder renders; define HTMLBuilder#inline_name in review-ext.rb)`).
+  When both methods exist,
+  the builder's is used inside such a block and the renderer's elsewhere.
 - Either way the command has to be declared (`ReVIEW::Compiler.defblock`,
   `definline`, …): as in the legacy compiler, a command nobody declared is a
   compile error (`no such inline op: mykbd`), in every format.
@@ -148,7 +160,7 @@ renderer is internal:
 - Reopening a renderer lets you replace any of its methods, including those
   that render built-in commands (`visit_block_box`, `visit_headline`, …). A
   `render_inline_<name>` named after a built-in inline (`render_inline_b`) is
-  used too, in every format. Such replacements are **not** checked or
+  used too, in every format (outside a block a builder method renders). Such replacements are **not** checked or
   reported, unlike a builder redefinition the AST does not call, and may
   break when the renderer changes. Redefine a built-in command on the builder instead (see
   [What works unchanged](#what-works-unchanged)).
