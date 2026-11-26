@@ -42,9 +42,22 @@ module ReVIEW
       # logs errors and fails at the end of the chapter; here the error has to
       # surface while the AST renderer is still on the node that caused it.
       class StrictCompiler < ReVIEW::Compiler
+        # The compiler's #compile_inline and #text each rescue what is raised
+        # inside them and report it through here again, so an error raised
+        # here comes back once per level with its location already in front.
         def error(msg, location: nil)
-          raise ReVIEW::CompileError, location ? "#{location}: #{msg}" : msg
+          prefix = location && "#{location}: "
+          msg = msg.to_s
+          if (unsupported = UNSUPPORTED_INLINE.match(msg))
+            msg = "#{msg} (#{builder_inline_hint(unsupported[1])})"
+          end
+          msg = "#{prefix}#{msg}" if prefix && !msg.start_with?(prefix)
+          raise ReVIEW::CompileError, msg
         end
+
+        # The compiler's message for an inline op the builder has no method
+        # for, bare as #compile_inline raises it (not yet located or hinted).
+        UNSUPPORTED_INLINE = /\Abuilder does not support inline op: @<(\w+)>\z/
 
         # One block command, as #read_command and #compile_command would run
         # it: the body's lines inline-compiled by the builder (raw for the
@@ -59,14 +72,34 @@ module ReVIEW
 
         # #compile_minicolumn_begin / #compile_minicolumn_end.
         def run_minicolumn_begin(name, args)
-          compile_minicolumn_begin(name, *args)
+          at_minicolumn_end(name) { compile_minicolumn_begin(name, *args) }
         end
 
         def run_minicolumn_end
-          compile_minicolumn_end
+          at_minicolumn_end(@minicolumn_name) { compile_minicolumn_end }
         end
 
         private
+
+        # What to do about that inline op. Everything this compiler compiles
+        # is text a builder method renders, where a renderer's
+        # render_inline_<op> does not apply: only a builder method helps.
+        def builder_inline_hint(op)
+          builder = @builder.class.name.split('::').last
+          block = @command_name_stack.last || @minicolumn_end
+          where = block ? "inside //#{block}, which #{builder} renders" : "in text #{builder} renders"
+          "#{where}; define #{builder}#inline_#{op} in review-ext.rb"
+        end
+
+        # The minicolumn whose _begin or _end the builder is writing, for the
+        # hint. The compiler's own @minicolumn_name will not do: it stays set
+        # between the two ends, while the renderer renders the content.
+        def at_minicolumn_end(name)
+          @minicolumn_end = name
+          yield
+        ensure
+          @minicolumn_end = nil
+        end
 
         def compile_body(name, lines)
           raw = @non_parsed_commands.include?(name)
@@ -120,8 +153,8 @@ module ReVIEW
 
           @warned[klass] = true
           unroutable_overrides(klass).each do |name|
-            logger.warn("review-ext.rb redefines #{klass.name.split('::').last}##{name}, which the AST renderer does not call; " \
-                        'implement it on the renderer instead (see doc/review-ext.md)')
+            logger.warn("review-ext.rb redefines #{klass.name.split('::').last}##{name}, which the AST renderer does not call " \
+                        '(see doc/review-ext.md)')
           end
         end
 

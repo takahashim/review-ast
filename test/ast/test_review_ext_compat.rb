@@ -167,11 +167,14 @@ class TestReviewExtCompat < Test::Unit::TestCase
     _, err, status = run_in_book('-I', File.join(ROOT, 'lib'), File.join(ROOT, 'bin/review-ast-compile'), '--target', 'plaintext', 'ch01.re')
     assert_false(status.success?)
     assert_match(/builder does not support inline op: @<mykbd>/, err)
+    # Either side can implement it, and the error names both methods.
+    assert_include(err, '(define PLAINTEXTBuilder#inline_mykbd or PlaintextRenderer#render_inline_mykbd in review-ext.rb)')
 
     File.write(File.join(@dir, 'ch01.re'), "= C\n\n//mybox{\nx\n//}\n")
     _, err, status = run_in_book('-I', File.join(ROOT, 'lib'), File.join(ROOT, 'bin/review-ast-compile'), '--target', 'plaintext', 'ch01.re')
     assert_false(status.success?)
     assert_match(%r{builder does not support command: //mybox}, err)
+    assert_include(err, '(define PLAINTEXTBuilder#mybox or PlaintextRenderer#visit_block_mybox in review-ext.rb)')
   end
 
   def test_argument_count_is_checked
@@ -184,7 +187,7 @@ class TestReviewExtCompat < Test::Unit::TestCase
   def test_redefined_structural_hook_is_reported
     File.write(File.join(@dir, 'review-ext.rb'), REVIEW_EXT.sub("  class HTMLBuilder\n", "  class HTMLBuilder\n    def headline(level, label, caption); puts 'mine'; end\n"))
     _, err = ast('html')
-    assert_match(/review-ext\.rb redefines HTMLBuilder#headline, which the AST renderer does not call/, err)
+    assert_match(/review-ext\.rb redefines HTMLBuilder#headline, which the AST renderer does not call \(see/, err)
   end
 
   # A builder helper (here HTMLBuilder#table_begin, as a real book redefines
@@ -349,6 +352,79 @@ class TestReviewExtCompat < Test::Unit::TestCase
       out, = ast(target)
       assert_include(out, '[kbd K|K]', target)
     end
+  end
+
+  # Typst has no builder, so review-ext.rb's HTMLBuilder#inline_mykbd does not
+  # reach it: the op is the same one-line error as in the other formats, not
+  # an uncaught NotImplementedError with a backtrace.
+  def test_inline_without_a_typst_renderer_method_is_a_compile_error
+    File.write(File.join(@dir, 'ch01.re'), "= C\n\nPress @<mykbd>{K} now.\n")
+    _, err, status = run_in_book('-I', File.join(ROOT, 'lib'), File.join(ROOT, 'bin/review-ast-compile'), '--target', 'typst', 'ch01.re')
+    assert_false(status.success?)
+    assert_match(/builder does not support inline op: @<mykbd> at line 3.*\(define TypstRenderer#render_inline_mykbd in review-ext\.rb\)/, err)
+    assert_not_match(/NotImplementedError|typst_renderer\.rb:\d+/, err)
+  end
+
+  # Inside a block a builder method renders, the builder compiles the inlines
+  # (doc/review-ext.md), so a renderer's `render_inline_<name>` does not apply
+  # there and the op is an error without a builder method. The error says so,
+  # and carries its location once: ReVIEW::Compiler#compile_inline and #text
+  # each report it again on the way out.
+  def test_error_inside_a_builder_rendered_block_is_located_once
+    File.write(File.join(@dir, 'review-ext.rb'), REVIEW_EXT + <<~'RUBY')
+      ReVIEW::Compiler.definline :mykey
+      require 'review/renderer/html_renderer'
+      class ReVIEW::Renderer::HtmlRenderer
+        def render_inline_mykey(_type, content, _node)
+          "[key #{content}]"
+        end
+      end
+    RUBY
+    File.write(File.join(@dir, 'ch01.re'), "= C\n\nPress @<mykey>{K}.\n")
+    out, = ast('html')
+    assert_include(out, '[key K]')
+
+    File.write(File.join(@dir, 'ch01.re'), "= C\n\n//mybox{\nPress @<mykey>{K}.\n//}\n")
+    _, err, status = run_in_book('-I', File.join(ROOT, 'lib'), File.join(ROOT, 'bin/review-ast-compile'), '--target', 'html', 'ch01.re')
+    assert_false(status.success?)
+    assert_include(err, 'ch01.re:3: builder does not support inline op: @<mykey> ' \
+                        '(inside //mybox, which HTMLBuilder renders; define HTMLBuilder#inline_mykey in review-ext.rb)')
+    assert_not_match(/ch01\.re:\d+: ch01\.re:\d+:/, err)
+    assert_equal(1, err.scan('define HTMLBuilder#inline_mykey').size)
+  end
+
+  # A minicolumn whose ends review-ext.rb redefined: the builder writes the
+  # two ends (and compiles the caption), the renderer the content in between.
+  # The error names //note only for what the builder writes of it.
+  def test_error_hint_names_a_minicolumn_only_for_its_ends
+    File.write(File.join(@dir, 'review-ext.rb'), REVIEW_EXT + <<~'RUBY')
+      ReVIEW::Compiler.definline :mykey
+      ReVIEW::Compiler.definline :myouter
+      class ReVIEW::HTMLBuilder
+        def note_begin(caption = nil)
+          puts %Q(<aside title="#{compile_inline(caption.to_s)}">)
+        end
+
+        def note_end
+          puts '</aside>'
+        end
+
+        def inline_myouter(str)
+          compile_inline("@<mykey>{#{str}}")
+        end
+      end
+    RUBY
+    compile = ['-I', File.join(ROOT, 'lib'), File.join(ROOT, 'bin/review-ast-compile'), '--target', 'html', 'ch01.re']
+
+    File.write(File.join(@dir, 'ch01.re'), "= C\n\n//note[A @<mykey>{K} note]{\nbody\n//}\n")
+    _, err, status = run_in_book(*compile)
+    assert_false(status.success?)
+    assert_include(err, 'inline op: @<mykey> (inside //note, which HTMLBuilder renders; define HTMLBuilder#inline_mykey')
+
+    File.write(File.join(@dir, 'ch01.re'), "= C\n\n//note{\nbody @<myouter>{K}\n//}\n")
+    _, err, status = run_in_book(*compile)
+    assert_false(status.success?)
+    assert_include(err, 'inline op: @<mykey> (in text HTMLBuilder renders; define HTMLBuilder#inline_mykey')
   end
 
   def test_round_trip_keeps_the_extension_block

@@ -302,14 +302,20 @@ module ReVIEW
         bridge = extension_bridge
         return bridge.render_block(node) if bridge&.block?(node.block_type)
 
-        renderer = self.class.name.split('::').last
-        hint = if legacy_builder_class
-                 "define #{legacy_builder_class.name.split('::').last}##{node.block_type} or #{renderer}##{method_name}"
-               else
-                 "define #{renderer}##{method_name}"
-               end
+        hint = extension_hint(node.block_type, method_name)
         raise ReVIEW::CompileError,
-              "builder does not support command: //#{node.block_type}#{node.location&.format_for_error} (#{hint} in review-ext.rb)"
+              "builder does not support command: //#{node.block_type}#{node.location&.format_for_error} (#{hint})"
+      end
+
+      # What review-ext.rb can define to implement a command for this format:
+      # the builder's method (where the format has a builder) or the
+      # renderer's. The renderer is named by its format's class, not by a
+      # subclass a command makes of it (TOCPrinter::TocRenderer).
+      def extension_hint(builder_method, renderer_method)
+        renderer = method(:format_type).owner.name.split('::').last
+        methods = ["#{renderer}##{renderer_method}"]
+        methods.unshift("#{legacy_builder_class.name.split('::').last}##{builder_method}") if legacy_builder_class
+        "define #{methods.join(' or ')} in review-ext.rb"
       end
 
       # An inline command whose builder method review-ext.rb defined -- a new
@@ -376,8 +382,9 @@ module ReVIEW
       # its blocks are the adapter's (a thematic break is an hr in every
       # format), not commands anyone wrote.
       #
-      # The same for an inline op (ReVIEW::Compiler#compile_inline): only HTML
-      # has @<abbr>, and HTML has no @<maru>.
+      # The same for an inline op (ReVIEW::Compiler#compile_inline): the text
+      # formats have no @<abbr>, LaTeX no @<kbd>. review-ext.rb can add one on
+      # either side, so the error names both methods.
       #
       # Which builder implements what is read from AST::CommandTable, not
       # from the builder: only a command review-ext.rb declared is looked up
@@ -395,7 +402,10 @@ module ReVIEW
           return if renderer_extension_inline?(node.inline_type)
           return if AST::CommandTable.inline_supported?(node.inline_type, builder_class)
 
-          raise ReVIEW::CompileError, "builder does not support inline op: @<#{node.inline_type}>#{node.location&.format_for_error}"
+          type = node.inline_type
+          raise ReVIEW::CompileError,
+                "builder does not support inline op: @<#{type}>#{node.location&.format_for_error} " \
+                "(#{extension_hint("inline_#{type}", "render_inline_#{type}")})"
         end
         return if AST::CommandTable.block_supported?(node.block_type, builder_class)
 

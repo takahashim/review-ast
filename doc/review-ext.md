@@ -14,6 +14,12 @@ The AST path loads the same file (it opens the book with Re:VIEW's own
 `Book::Base`), and honours both parts. This page says what is supported, what is
 not, and how to write an extension against the AST renderers directly.
 
+Builder methods are run for backward compatibility only, and this support will
+be removed in a future version, once an extension can be written for the
+renderers alone (the plan is in
+[design-extension-api.ja.md](design-extension-api.ja.md)). Write new
+extensions [for the renderers](#writing-an-extension-for-the-ast-renderers).
+
 ## What works unchanged
 
 | review-ext.rb | Through the AST path |
@@ -54,7 +60,7 @@ redefinitions of built-in commands.
 
 ## What is not picked up
 
-Redefinitions of the structure the AST renders itself are **not** used, because
+Redefinitions of the structure the AST renders itself are not used, because
 the AST does not go through those builder methods:
 
 - structural hooks (`headline`, `paragraph`, `ul_item`, `ol_item`, `dt`, `dd`,
@@ -69,8 +75,18 @@ the AST does not go through those builder methods:
 Each such redefinition is reported once per run with a warning:
 
 ```text
-review-ext.rb redefines HTMLBuilder#headline, which the AST renderer does not call; implement it on the renderer instead (see doc/review-ext.md)
+review-ext.rb redefines HTMLBuilder#headline, which the AST renderer does not call (see doc/review-ext.md)
 ```
+
+A redefined helper still takes effect where a builder method the AST path
+runs calls it: `table_begin` is used by a `table` review-ext.rb redefined,
+and not by the AST renderer's own table.
+
+The AST path has no review-ext.rb hook for these. Change how they look with
+CSS (HTML, EPUB), a `.sty` (LaTeX) or the templates. Reopening the renderer's
+own method (`visit_headline`) does take effect, but is not a supported
+extension point (see
+[Renderer methods are not a stable interface](#renderer-methods-are-not-a-stable-interface)).
 
 Redefining `def note(lines, caption)` itself has no effect in either path: the
 legacy compiler, too, renders `//note{ … //}` through `note_begin` / `note_end`.
@@ -79,8 +95,10 @@ Helper methods that only your own extension methods call are not reported.
 
 ## Writing an extension for the AST renderers
 
-A renderer method takes precedence over the builder method, in every format,
-and is the only option for Typst (which has no legacy builder). Declare the
+For a command review-ext.rb declared, a renderer method takes precedence over
+the builder method, in every format (except inside a block a builder method
+renders; see below), and is the only option for Typst (which has no legacy
+builder). Declare the
 command as for the legacy path, then define the method in review-ext.rb
 (requiring the renderer first):
 
@@ -111,7 +129,7 @@ end
 
 - `visit_block_<name>(node)` receives the `ExtensionBlockNode`: `node.args`,
   `node.lines`, `node.body?`, `node.location`.
-  `node.lines` holds the body's **raw source lines** (`nil` for a
+  `node.lines` holds the body's raw source lines (`nil` for a
   single-line `defsingle` command): the AST does not parse an extension
   block's body, so inline commands in it are not rendered. In the example,
   `@<b>{x}` in a `//mybox` body comes out as the literal text `@<b>{x}`. A
@@ -120,18 +138,30 @@ end
   [design-extension-api.ja.md](design-extension-api.ja.md).)
 - `render_inline_<name>(type, content, node)` receives the inline's rendered
   (escaped) content; `node.args.first` is the raw argument. It is enough on
-  its own: the builder for that format needs no `inline_<name>` as well.
+  its own wherever the renderer renders the text: the builder for that format
+  needs no `inline_<name>` as well.
+  The exception is a block a builder method renders — an extension block
+  implemented on the builder, or a built-in command review-ext.rb redefined
+  there (`def emlist`). Its body is inline-compiled by the builder, as in
+  the legacy path, and so is a caption the builder method passes to
+  `compile_inline`; an inline used there needs `inline_<name>` on the
+  builder, and without it is an error that names the method to add
+  (`builder does not support inline op: @<name> (inside //mybox, which
+  HTMLBuilder renders; define HTMLBuilder#inline_name in review-ext.rb)`).
+  When both methods exist,
+  the builder's is used inside such a block and the renderer's elsewhere.
 - Either way the command has to be declared (`ReVIEW::Compiler.defblock`,
   `definline`, …): as in the legacy compiler, a command nobody declared is a
   compile error (`no such inline op: mykbd`), in every format.
 
 The same applies to `LatexRenderer`, `IdgxmlRenderer`, `PlaintextRenderer`,
-`TopRenderer` and `TypstRenderer`. For a command, the order is:
+`TopRenderer` and `TypstRenderer`. For a command review-ext.rb declared, the
+order is:
 
 1. the renderer's `visit_block_<name>` / `render_inline_<name>`;
 2. the builder method review-ext.rb defined (`name` / `inline_name`);
 3. otherwise an error, `builder does not support command: //name` (or
-   `inline op: @<name>`).
+   `inline op: @<name>`), which names the two methods to choose from.
 
 ### Renderer methods are not a stable interface
 
@@ -140,12 +170,22 @@ review-ext.rb declared are supported extension points. Everything else on a
 renderer is internal:
 
 - Reopening a renderer lets you replace any of its methods, including those
-  that render built-in commands (`visit_block_box`, `visit_headline`, …). A
-  `render_inline_<name>` named after a built-in inline (`render_inline_b`) is
-  used too, in every format. Such replacements are **not** checked or
-  reported, unlike a builder redefinition the AST does not call, and may
-  break when the renderer changes. Redefine a built-in command on the builder instead (see
-  [What works unchanged](#what-works-unchanged)).
+  that render built-in commands (`visit_block_box`, `visit_headline`, …). Such
+  replacements are not checked or reported, unlike a builder redefinition
+  the AST does not call, and may break when the renderer changes. Which
+  method is used for a built-in command does not follow the order above:
+  - a `render_inline_<name>` named after a built-in inline (`render_inline_b`)
+    is used in every format, over a builder's `inline_b` (outside a block a
+    builder method renders). `render_inline_raw` and `render_inline_embed`
+    are never called: `@<raw>` and `@<embed>` are not rendered as inlines.
+  - a `visit_block_<name>` named after a built-in block (`visit_block_quote`)
+    is used unless review-ext.rb also redefined the command on the builder
+    (`def quote`); the builder's method then wins.
+
+  To change a built-in command, redefine it on the builder instead (see
+  [What works unchanged](#what-works-unchanged)). The structure of the
+  document (headings, paragraphs, list items, …) has no supported hook (see
+  [What is not picked up](#what-is-not-picked-up)).
 - Helpers an extension method calls, such as `escape` and `render_children`,
   are the renderer's own and carry no compatibility promise.
 
