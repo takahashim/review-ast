@@ -60,7 +60,7 @@ redefinitions of built-in commands.
 
 ## What is not picked up
 
-Redefinitions of the structure the AST renders itself are **not** used, because
+Redefinitions of the structure the AST renders itself are not used, because
 the AST does not go through those builder methods:
 
 - structural hooks (`headline`, `paragraph`, `ul_item`, `ol_item`, `dt`, `dd`,
@@ -124,7 +124,7 @@ end
 
 - `visit_block_<name>(node)` receives the `ExtensionBlockNode`: `node.args`,
   `node.lines`, `node.body?`, `node.location`.
-  `node.lines` holds the body's **raw source lines** (`nil` for a
+  `node.lines` holds the body's raw source lines (`nil` for a
   single-line `defsingle` command): the AST does not parse an extension
   block's body, so inline commands in it are not rendered. In the example,
   `@<b>{x}` in a `//mybox` body comes out as the literal text `@<b>{x}`. A
@@ -167,7 +167,7 @@ renderer is internal:
   that render built-in commands (`visit_block_box`, `visit_headline`, …). A
   `render_inline_<name>` named after a built-in inline (`render_inline_b`) is
   used too, in every format (outside a block a builder method renders). Such
-  replacements are **not** checked or reported, unlike a builder redefinition
+  replacements are not checked or reported, unlike a builder redefinition
   the AST does not call, and may break when the renderer changes. To change a
   built-in command, redefine it on the builder instead (see
   [What works unchanged](#what-works-unchanged)). The structure of the
