@@ -95,9 +95,10 @@ Helper methods that only your own extension methods call are not reported.
 
 ## Writing an extension for the AST renderers
 
-A renderer method takes precedence over the builder method, in every format
-(except inside a block a builder method renders; see below), and is the only
-option for Typst (which has no legacy builder). Declare the
+For a command review-ext.rb declared, a renderer method takes precedence over
+the builder method, in every format (except inside a block a builder method
+renders; see below), and is the only option for Typst (which has no legacy
+builder). Declare the
 command as for the legacy path, then define the method in review-ext.rb
 (requiring the renderer first):
 
@@ -154,7 +155,8 @@ end
   compile error (`no such inline op: mykbd`), in every format.
 
 The same applies to `LatexRenderer`, `IdgxmlRenderer`, `PlaintextRenderer`,
-`TopRenderer` and `TypstRenderer`. For a command, the order is:
+`TopRenderer` and `TypstRenderer`. For a command review-ext.rb declared, the
+order is:
 
 1. the renderer's `visit_block_<name>` / `render_inline_<name>`;
 2. the builder method review-ext.rb defined (`name` / `inline_name`);
@@ -168,12 +170,19 @@ review-ext.rb declared are supported extension points. Everything else on a
 renderer is internal:
 
 - Reopening a renderer lets you replace any of its methods, including those
-  that render built-in commands (`visit_block_box`, `visit_headline`, …). A
-  `render_inline_<name>` named after a built-in inline (`render_inline_b`) is
-  used too, in every format (outside a block a builder method renders). Such
+  that render built-in commands (`visit_block_box`, `visit_headline`, …). Such
   replacements are not checked or reported, unlike a builder redefinition
-  the AST does not call, and may break when the renderer changes. To change a
-  built-in command, redefine it on the builder instead (see
+  the AST does not call, and may break when the renderer changes. Which
+  method is used for a built-in command does not follow the order above:
+  - a `render_inline_<name>` named after a built-in inline (`render_inline_b`)
+    is used in every format, over a builder's `inline_b` (outside a block a
+    builder method renders). `render_inline_raw` and `render_inline_embed`
+    are never called: `@<raw>` and `@<embed>` are not rendered as inlines.
+  - a `visit_block_<name>` named after a built-in block (`visit_block_quote`)
+    is used unless review-ext.rb also redefined the command on the builder
+    (`def quote`); the builder's method then wins.
+
+  To change a built-in command, redefine it on the builder instead (see
   [What works unchanged](#what-works-unchanged)). The structure of the
   document (headings, paragraphs, list items, …) has no supported hook (see
   [What is not picked up](#what-is-not-picked-up)).
