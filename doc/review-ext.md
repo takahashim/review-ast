@@ -14,6 +14,12 @@ The AST path loads the same file (it opens the book with Re:VIEW's own
 `Book::Base`), and honours both parts. This page says what is supported, what is
 not, and how to write an extension against the AST renderers directly.
 
+Builder methods are run for backward compatibility only, and this support will
+be removed in a future version, once an extension can be written for the
+renderers alone (the plan is in
+[design-extension-api.ja.md](design-extension-api.ja.md)). Write new
+extensions [for the renderers](#writing-an-extension-for-the-ast-renderers).
+
 ## What works unchanged
 
 | review-ext.rb | Through the AST path |
