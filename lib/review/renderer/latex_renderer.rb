@@ -248,7 +248,7 @@ module ReVIEW
         @nonescape_code = false
         content = render_children(node)
         @nonescape_code = saved
-        render_inline_element(node.inline_type, content, node)
+        dispatch_inline_element(node.inline_type, content, node)
       end
 
       # True when config['highlight']['latex'] is set (any value). LATEXBuilder

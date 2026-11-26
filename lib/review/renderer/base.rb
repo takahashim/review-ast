@@ -269,7 +269,26 @@ module ReVIEW
         return extended if extended
 
         content = render_children(node)
-        render_inline_element(node.inline_type, content, node)
+        dispatch_inline_element(node.inline_type, content, node)
+      end
+
+      # render_inline_element, unless review-ext.rb gave this renderer its own
+      # `render_inline_<type>`: that wins, in every format. (The renderers
+      # dispatch built-in inlines differently -- HTML, LaTeX, IDGXML and Typst
+      # through an inline element handler, TOP through a case -- so the
+      # extension method is looked for here, once, rather than in each.)
+      def dispatch_inline_element(type, content, node)
+        return send(:"render_inline_#{type}", type, content, node) if renderer_extension_inline?(type)
+
+        render_inline_element(type, content, node)
+      end
+
+      # Whether review-ext.rb defined `render_inline_<type>` on this renderer.
+      def renderer_extension_inline?(type)
+        @renderer_extension_inline ||= {}
+        @renderer_extension_inline.fetch(type) do
+          @renderer_extension_inline[type] = LegacyExtensionBridge.extension_method?(self.class, :"render_inline_#{type}")
+        end
       end
 
       # A block command defined in review-ext.rb. A renderer method
@@ -282,14 +301,20 @@ module ReVIEW
         bridge = extension_bridge
         return bridge.render_block(node) if bridge&.block?(node.block_type)
 
-        renderer = self.class.name.split('::').last
-        hint = if legacy_builder_class
-                 "define #{legacy_builder_class.name.split('::').last}##{node.block_type} or #{renderer}##{method_name}"
-               else
-                 "define #{renderer}##{method_name}"
-               end
+        hint = extension_hint(node.block_type, method_name)
         raise ReVIEW::CompileError,
-              "builder does not support command: //#{node.block_type}#{node.location&.format_for_error} (#{hint} in review-ext.rb)"
+              "builder does not support command: //#{node.block_type}#{node.location&.format_for_error} (#{hint})"
+      end
+
+      # What review-ext.rb can define to implement a command for this format:
+      # the builder's method (where the format has a builder) or the
+      # renderer's. The renderer is named by its format's class, not by a
+      # subclass a command makes of it (TOCPrinter::TocRenderer).
+      def extension_hint(builder_method, renderer_method)
+        renderer = method(:format_type).owner.name.split('::').last
+        methods = ["#{renderer}##{renderer_method}"]
+        methods.unshift("#{legacy_builder_class.name.split('::').last}##{builder_method}") if legacy_builder_class
+        "define #{methods.join(' or ')} in review-ext.rb"
       end
 
       # An inline command whose builder method review-ext.rb defined -- a new
@@ -304,7 +329,7 @@ module ReVIEW
 
         type = node.inline_type
         return unless LegacyExtensionBridge.extension_method?(builder_class, :"inline_#{type}")
-        return if LegacyExtensionBridge.extension_method?(self.class, :"render_inline_#{type}")
+        return if renderer_extension_inline?(type)
 
         # The argument as the legacy compiler passes it. A special inline
         # (ruby, href, references ...) keeps parsed fields in args, so only its
@@ -357,7 +382,8 @@ module ReVIEW
       # format), not commands anyone wrote.
       #
       # The same for an inline op (ReVIEW::Compiler#compile_inline): the text
-      # formats have no @<abbr>, HTML no @<pageref>.
+      # formats have no @<abbr>, LaTeX no @<kbd>. review-ext.rb can add one on
+      # either side, so the error names both methods.
       def check_builder_support(node)
         inline = node.is_a?(ReVIEW::AST::InlineNode)
         return unless inline || node.is_a?(ReVIEW::AST::BlockNode)
@@ -366,9 +392,15 @@ module ReVIEW
         return if builder_class.nil? || AST::BookUnitView.markdown?(@chapter)
 
         if inline
+          # A review-ext.rb `render_inline_<type>` on the renderer implements
+          # the op for this format as well as a builder method would.
+          return if renderer_extension_inline?(node.inline_type)
           return if LegacyExtensionBridge.builder_supports_inline?(builder_class, node.inline_type)
 
-          raise ReVIEW::CompileError, "builder does not support inline op: @<#{node.inline_type}>#{node.location&.format_for_error}"
+          type = node.inline_type
+          raise ReVIEW::CompileError,
+                "builder does not support inline op: @<#{type}>#{node.location&.format_for_error} " \
+                "(#{extension_hint("inline_#{type}", "render_inline_#{type}")})"
         end
         return if LegacyExtensionBridge.builder_supports?(builder_class, node.block_type)
 

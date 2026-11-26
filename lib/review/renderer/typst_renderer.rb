@@ -508,12 +508,15 @@ module ReVIEW
 
       # Unknown inlines are an error, not a pass-through. Base's default returns
       # the content unchanged, which would silently drop the command's meaning
-      # (doc/design-typst.md).
+      # (doc/design-typst.md). The error is the one the other formats give for
+      # an inline op they do not implement; with no builder to fall back on,
+      # a `render_inline_<type>` in review-ext.rb is the way to add one.
       def render_inline_element(type, content, node)
         method_name = "render_inline_#{type}"
         unless @inline_element_handler.respond_to?(method_name, true)
-          raise NotImplementedError,
-                "Unknown inline element @<#{type}>#{node&.location&.format_for_error}"
+          raise ReVIEW::CompileError,
+                "builder does not support inline op: @<#{type}>#{node&.location&.format_for_error} " \
+                "(#{extension_hint("inline_#{type}", method_name)})"
         end
 
         @inline_element_handler.send(method_name, type, content, node)

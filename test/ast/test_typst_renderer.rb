@@ -274,7 +274,9 @@ class TestTypstRenderer < Test::Unit::TestCase
   # ------------------------------------------------------------ diagnostics
 
   # Base#render_inline_element passes unknown inlines through unchanged, which
-  # would silently drop the command's meaning; the Typst renderer refuses.
+  # would silently drop the command's meaning; the Typst renderer refuses, with
+  # a compile error (reported in one line) rather than a NotImplementedError
+  # (a ScriptError, which reaches the user as a backtrace).
   def test_unknown_inline_raises_with_position
     chapter = ReVIEW::Book::Chapter.new(@book, 1, 'ch01', 'ch01.re', StringIO.new(''))
     renderer = ReVIEW::Renderer::TypstRenderer.new(chapter)
@@ -283,12 +285,13 @@ class TestTypstRenderer < Test::Unit::TestCase
       inline_type: 'nosuchcommand'
     )
 
-    error = assert_raise(NotImplementedError) do
+    error = assert_raise(ReVIEW::CompileError) do
       renderer.render_inline_element('nosuchcommand', 'text', node)
     end
-    assert_include(error.message, '@<nosuchcommand>')
+    assert_include(error.message, 'builder does not support inline op: @<nosuchcommand>')
     assert_include(error.message, 'line 7')
     assert_include(error.message, 'ch01.re')
+    assert_include(error.message, 'define TypstRenderer#render_inline_nosuchcommand in review-ext.rb')
   end
 
   def test_unknown_node_type_raises

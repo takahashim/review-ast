@@ -57,4 +57,50 @@ class TestIndexVolCommands < Test::Unit::TestCase
     assert_match(/part2\.md \.+ 第II部  部見出し/, out)
     assert_match(/appA \.+ 付録A  付録の見出し$/, out)
   end
+
+  # review-ast-vol on a one-chapter book written here: [stdout, stderr, status].
+  def vol_of(chapter, review_ext: nil)
+    Dir.mktmpdir do |dir|
+      File.write(File.join(dir, 'config.yml'), "review_version: 5.0\nlanguage: ja\nbookname: book\n")
+      File.write(File.join(dir, 'catalog.yml'), "CHAPS:\n  - ch01.re\n")
+      File.write(File.join(dir, 'ch01.re'), chapter)
+      File.write(File.join(dir, 'review-ext.rb'), review_ext) if review_ext
+      env = { 'BUNDLE_GEMFILE' => ENV.fetch('BUNDLE_GEMFILE', File.join(ROOT, 'Gemfile')) }
+      Open3.capture3(env, RbConfig.ruby, '-rbundler/setup', File.join(ROOT, 'bin', 'review-ast-vol'), chdir: dir)
+    end
+  end
+
+  # The title is rendered by PlaintextRenderer, so an inline op review-ext.rb
+  # implements on the renderer alone is rendered in it. Compiled by
+  # PLAINTEXTBuilder, as review-vol does it, this title ended in a
+  # NoMethodError (the builder is bound without a location to report at).
+  def test_vol_title_with_a_renderer_only_inline
+    out, err, status = vol_of("= C @<mykbd>{K} title\n\ntext\n", review_ext: <<~'RUBY')
+      ReVIEW::Compiler.definline :mykbd
+      require 'review/renderer/plaintext_renderer'
+      class ReVIEW::Renderer::PlaintextRenderer
+        def render_inline_mykbd(_type, content, _node)
+          "[kbd #{content}]"
+        end
+      end
+    RUBY
+    assert(status.success?, err)
+    assert_match(/ch01 \.+ 第1章  C \[kbd K\] title$/, out)
+  end
+
+  def test_vol_title_resolves_references
+    out, err, status = vol_of("= Title@<fn>{n1} and @<code>{code}\n\ntext\n\n//footnote[n1][note]\n")
+    assert(status.success?, err)
+    assert_match(/ch01 \.+ 第1章  Title 注1  and code$/, out)
+  end
+
+  # A chapter that does not compile is still measured and listed, with a
+  # warning and its title as written.
+  def test_vol_lists_a_chapter_that_does_not_compile
+    out, err, status = vol_of("= Broken @<b>{title}\n\ntext @<nosuchop>{x}\n")
+    assert(status.success?, err)
+    assert_match(/WARN.*ch01 : no such inline op: nosuchop/, err)
+    assert_match(/ch01 \.+ 第1章  Broken @<b>\{title\}$/, out)
+    assert_not_match(/NoMethodError/, err)
+  end
 end
