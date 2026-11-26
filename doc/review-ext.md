@@ -159,7 +159,7 @@ The same applies to `LatexRenderer`, `IdgxmlRenderer`, `PlaintextRenderer`,
 1. the renderer's `visit_block_<name>` / `render_inline_<name>`;
 2. the builder method review-ext.rb defined (`name` / `inline_name`);
 3. otherwise an error, `builder does not support command: //name` (or
-   `inline op: @<name>`).
+   `inline op: @<name>`), which names the two methods to choose from.
 
 ### Renderer methods are not a stable interface
 

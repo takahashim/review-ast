@@ -167,11 +167,14 @@ class TestReviewExtCompat < Test::Unit::TestCase
     _, err, status = run_in_book('-I', File.join(ROOT, 'lib'), File.join(ROOT, 'bin/review-ast-compile'), '--target', 'plaintext', 'ch01.re')
     assert_false(status.success?)
     assert_match(/builder does not support inline op: @<mykbd>/, err)
+    # Either side can implement it, and the error names both methods.
+    assert_include(err, '(define PLAINTEXTBuilder#inline_mykbd or PlaintextRenderer#render_inline_mykbd in review-ext.rb)')
 
     File.write(File.join(@dir, 'ch01.re'), "= C\n\n//mybox{\nx\n//}\n")
     _, err, status = run_in_book('-I', File.join(ROOT, 'lib'), File.join(ROOT, 'bin/review-ast-compile'), '--target', 'plaintext', 'ch01.re')
     assert_false(status.success?)
     assert_match(%r{builder does not support command: //mybox}, err)
+    assert_include(err, '(define PLAINTEXTBuilder#mybox or PlaintextRenderer#visit_block_mybox in review-ext.rb)')
   end
 
   def test_argument_count_is_checked

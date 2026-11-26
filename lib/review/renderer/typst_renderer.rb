@@ -516,7 +516,7 @@ module ReVIEW
         unless @inline_element_handler.respond_to?(method_name, true)
           raise ReVIEW::CompileError,
                 "builder does not support inline op: @<#{type}>#{node&.location&.format_for_error} " \
-                "(define TypstRenderer##{method_name} in review-ext.rb)"
+                "(#{extension_hint("inline_#{type}", method_name)})"
         end
 
         @inline_element_handler.send(method_name, type, content, node)
