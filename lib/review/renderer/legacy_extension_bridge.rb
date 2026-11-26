@@ -10,6 +10,7 @@ require 'review/compiler'
 require 'review/location'
 require 'review/exception'
 require 'review/logger'
+require 'review/ast/command_table'
 
 module ReVIEW
   module Renderer
@@ -168,26 +169,6 @@ module ReVIEW
           end
         end
 
-        # Whether the builder implements the block command, as
-        # ReVIEW::Compiler#compile_command asks it (respond_to?). A command
-        # ReVIEW::Compiler does not declare is the AST's own (such as //column)
-        # and is not the builder's to support.
-        def builder_supports?(klass, name)
-          @supported ||= {}
-          @supported.fetch([klass, name]) do
-            @supported[[klass, name]] = !ReVIEW::Compiler::SYNTAX.key?(name.to_sym) || klass.public_method_defined?(name.to_sym)
-          end
-        end
-
-        # #builder_supports? for an inline op (ReVIEW::Compiler#compile_inline:
-        # respond_to?("inline_<op>")).
-        def builder_supports_inline?(klass, name)
-          @supported_inline ||= {}
-          @supported_inline.fetch([klass, name]) do
-            @supported_inline[[klass, name]] = !ReVIEW::Compiler::INLINE.key?(name.to_sym) || klass.public_method_defined?(:"inline_#{name}")
-          end
-        end
-
         def unroutable_overrides(klass)
           (klass.instance_methods + klass.private_instance_methods).uniq.select do |name|
             unroutable_name?(klass, name) && extension_method?(klass, name)
@@ -201,34 +182,23 @@ module ReVIEW
         # such as table_begin or image_header) that is not a command, a
         # minicolumn's end or an inline -- the three the bridge routes. A
         # method Re:VIEW does not define is the book's own helper, which only
-        # its own extension methods call.
+        # its own extension methods call. What Re:VIEW defines is read from
+        # the snapshot tools/generate_command_table.rb writes, because by now
+        # review-ext.rb has replaced the methods themselves.
         def unroutable_name?(klass, name)
           name = name.to_sym
           return true if STRUCTURAL_HOOKS.include?(name)
           return false if routable_name?(name)
 
-          review_defined_methods(klass).include?(name)
+          ReVIEW::AST::CommandTable.review_builder_method?(klass, name)
         end
 
         def routable_name?(name)
           text = name.to_s
-          return true if text.start_with?('inline_') || ReVIEW::Compiler::SYNTAX.key?(name)
+          return true if text.start_with?('inline_') || ReVIEW::AST::CommandTable.block?(name)
 
           base = text.sub(/_(?:begin|end)\z/, '')
           base != text && ReVIEW::Compiler::SYNTAX[base.to_sym]&.minicolumn?
-        end
-
-        # The method names (`def name`) in the review gem's source files of the
-        # builder class and its ancestors -- read from the files, because
-        # review-ext.rb has replaced the methods themselves by now.
-        def review_defined_methods(klass)
-          @review_defined_methods ||= {}
-          @review_defined_methods[klass] ||= klass.ancestors.flat_map do |mod|
-            file = mod.name&.start_with?('ReVIEW::') && Object.const_source_location(mod.name)&.first
-            next [] unless file && file.start_with?(GEM_DIRS.first) && File.exist?(file)
-
-            File.read(file).scan(/^\s*def\s+([a-z_]\w*[?!=]?)/).flatten.map(&:to_sym)
-          end.uniq
         end
       end
 

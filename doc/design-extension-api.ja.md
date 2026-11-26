@@ -574,6 +574,24 @@ Markdown の章を含む本でこの索引作りがどう振る舞うかは確�
    ビルダーから「対応する形式」の表と、ビルダーが定義するメソッド名の一覧を生成するツールと、その一致テストを作る。
    コンパイラの独自命令の判定と宣言のないインライン命令の検出、レンダラの `check_builder_support` を命令表に、
    再定義の警告の判定を同梱の一覧に置き換える。出力は変わらない。
+
+   実装状況: 実装済み。
+   - 命令表は `ReVIEW::AST::CommandTable`(`lib/review/ast/command_table.rb`)。
+     ビルダーの情報は `tools/generate_command_table.rb` が `lib/review/ast/command_table_snapshot.rb` に書き出す。
+     gem に同梱されるのは `lib/**/*.rb` だけなので、表は JSON ではなく Ruby のファイルにした。
+   - 表のキーは出力形式名ではなく、レンダラが持つ対応ビルダーのクラス名(`HTMLBuilder` など)にした。
+     形式名はレンダラごとに揃っていない(plaintext の `format_type` は `:text`)うえ、ビルダーのない Typst が自然に対象外になる。
+   - 組み込み命令でも、同梱の表にない形式で review-ext.rb がビルダーにメソッドを足していれば、その形式で使えるとみなす。
+     今の判定(ビルダーに直接聞く)と答えが変わらないようにするためである。
+     Re:VIEW の新しい版でビルダーにメソッドが増えた場合も、同じ理由で今と同じ答えになる。
+   - 引数の個数と本文の規則は、まだ Re:VIEW の表(`ReVIEW::Compiler::SYNTAX`)から読む(`CommandTable.syntax`)。
+     命令表に持たせるのは、3・4 章で宣言を足すときに行う。
+   - Re:VIEW のソースを正規表現で読んでいた処理は、リフレクションで作った一覧に置き換えた。
+     リフレクションはエイリアス・`attr_*`・`define_method` で定義されたメソッドも拾うので、
+     「AST が呼ばない再定義」の警告の対象が少し増えた(`doc_status`、`escape_html` など)。
+   - 一致テストは `test/ast/test_command_table.rb`。
+     同梱の表が生成ツールの出力と一致することは、固定している Re:VIEW の版でだけ確かめる(`REVIEW_HEAD` で別の Re:VIEW を使うときは対象外)。
+     表の答えがビルダーに直接聞いた答えと一致することは、どの Re:VIEW でも確かめる。
 2. 組み込み命令の再定義の互換を外す(9 章)。
    警告に置き換え、`source_command` / `source_arg` などを削除する。
    この手順は 7(差し替え)と同時にしてもよい。

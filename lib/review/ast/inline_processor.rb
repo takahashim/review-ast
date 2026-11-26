@@ -10,6 +10,7 @@ require 'review/ast'
 require_relative 'inline_tokenizer'
 require_relative 'reference_node'
 require_relative 'raw_content_parser'
+require_relative 'command_table'
 
 require 'review/compiler'
 
@@ -145,10 +146,10 @@ module ReVIEW
           end
         else
           # The legacy Compiler#compile_inline rejects an op nobody declared --
-          # the usual typo, @<bb>{...} -- in every format. Ops declared in the
-          # legacy INLINE table (built-ins, and review-ext.rb's definline) get a
+          # the usual typo, @<bb>{...} -- in every format. Declared ops
+          # (CommandTable: built-ins, and review-ext.rb's definline) get a
           # plain InlineNode for the renderer.
-          unless ReVIEW::Compiler::INLINE.key?(command)
+          unless CommandTable.inline?(command)
             raise CompileError, "no such inline op: #{command}#{@ast_compiler.location&.format_for_error}"
           end
 

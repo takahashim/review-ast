@@ -14,6 +14,7 @@ require 'review/renderer/text_formatter'
 require 'review/textutils'
 require 'review/ast/inline_processor'
 require 'review/ast/block_processor'
+require 'review/ast/command_table'
 require 'review/renderer/legacy_extension_bridge'
 require 'review/renderer/graph_image'
 require 'review/ast/image_node'
@@ -384,6 +385,10 @@ module ReVIEW
       # The same for an inline op (ReVIEW::Compiler#compile_inline): the text
       # formats have no @<abbr>, LaTeX no @<kbd>. review-ext.rb can add one on
       # either side, so the error names both methods.
+      #
+      # Which builder implements what is read from AST::CommandTable, not
+      # from the builder: only a command review-ext.rb declared is looked up
+      # on the builder itself (the compatibility layer).
       def check_builder_support(node)
         inline = node.is_a?(ReVIEW::AST::InlineNode)
         return unless inline || node.is_a?(ReVIEW::AST::BlockNode)
@@ -395,14 +400,14 @@ module ReVIEW
           # A review-ext.rb `render_inline_<type>` on the renderer implements
           # the op for this format as well as a builder method would.
           return if renderer_extension_inline?(node.inline_type)
-          return if LegacyExtensionBridge.builder_supports_inline?(builder_class, node.inline_type)
+          return if AST::CommandTable.inline_supported?(node.inline_type, builder_class)
 
           type = node.inline_type
           raise ReVIEW::CompileError,
                 "builder does not support inline op: @<#{type}>#{node.location&.format_for_error} " \
                 "(#{extension_hint("inline_#{type}", "render_inline_#{type}")})"
         end
-        return if LegacyExtensionBridge.builder_supports?(builder_class, node.block_type)
+        return if AST::CommandTable.block_supported?(node.block_type, builder_class)
 
         raise ReVIEW::CompileError, "builder does not support command: //#{node.block_type}#{node.location&.format_for_error}"
       end

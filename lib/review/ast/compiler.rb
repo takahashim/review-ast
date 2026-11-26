@@ -12,6 +12,7 @@ require 'review/loggable'
 require 'review/lineinput'
 require 'review/snapshot_location'
 require 'review/compiler'
+require_relative 'command_table'
 require_relative 'compile_input'
 require_relative 'inline_processor'
 require_relative 'block_processor'
@@ -355,11 +356,11 @@ module ReVIEW
         end
       end
 
-      # A block command the book defined in review-ext.rb (it is in the legacy
-      # compiler's SYNTAX table) that the AST has no handler for. See
+      # A declared block command (CommandTable) that the AST has no handler
+      # for -- in practice one the book defined in review-ext.rb. See
       # ExtensionBlockNode.
       def extension_command?(name)
-        ReVIEW::Compiler::SYNTAX.key?(name) && !block_processor.handles?(name)
+        CommandTable.block?(name) && !block_processor.handles?(name)
       end
 
       # The body of an extension block, read the way ReVIEW::Compiler#read_block
