@@ -36,7 +36,7 @@ AST 経路の出力は、最初からレンダラが作っている。
 1 行目は後方互換のためのもので、価値の高い部分だけを当面残し、将来は廃止する(9 章)。
 問題は 2・3 行目である。
 とくに 2 行目は、「この命令が使えるか」の根拠がビルダーにあるため、ビルダーを持たない命令(レンダラだけで実装した命令)を正しく扱えない。
-review-ext.rb がレンダラにだけ `render_inline_<名前>` を定義すると、ビルダー側にメソッドがないという理由でエラーになっていたのは、この構造が原因である(個別には修正済み)。
+review-ext.rb がレンダラにだけ `render_inline_<名前>` を定義した命令は、ビルダー側にメソッドがないので、この確認から個別に除外している。
 
 ### 目標
 
@@ -55,7 +55,7 @@ review-ext.rb がレンダラにだけ `render_inline_<名前>` を定義する�
   レンダラ向けの拡張の仕組みへ移行できるようになったあとで廃止する(9 章末尾)。
   組み込み命令の再定義の互換は、複雑さと壊れやすさに見合わないので先に外す(9 章)。
 - テストのオラクルとしてのビルダー。
-  旧経路との出力比較(`test/ast/*_comparator`、DVI 比較など)は今後も続ける。
+  旧経路との出力比較(`test/ast/test_*_builder_comparison.rb`、`tools/compare/` の DVI 比較など)は今後も続ける。
   これはテストの中の話で、ライブラリの実行時には関わらない。
 
 ---
@@ -127,7 +127,10 @@ review-ast に命令表 `ReVIEW::AST::CommandTable` を置く。
 - ビルダーにない命令(今後レンダラだけで足す組み込み命令)は、生成した表とは別に、手で書いた表に載せる。
   一致テストの対象は生成した部分だけである。
 - 独自命令は、5 章の API で宣言したものと、互換のために Re:VIEW の表から読み取ったもの(`defblock` などで宣言されたもの)の両方をこの表に載せる。
-  後者の「対応する形式」は、互換層として、review-ext.rb がその形式のビルダーにメソッドを定義しているかで決める(9 章)。
+  後者の「対応する形式」は、review-ext.rb がその形式に描画の手段を定義しているかで決める。
+  手段は、レンダラに定義した `visit_block_<名前>` / `render_inline_<名前>`(開き直し方式)と、互換層としてのビルダーメソッドの二つである(9 章)。
+  どちらも gem の外で定義されたメソッドだけを数える。
+  Typst にはビルダーがないので、レンダラのメソッドだけで決まる。
 - 次の三か所を、この表を引く形に置き換える。
   - コンパイラの独自命令の判定(`AST::Compiler#extension_command?`、`BlockProcessor` の振り分け)。
   - コンパイラの、宣言のないインライン命令の検出。
@@ -235,8 +238,13 @@ AST ネイティブの拡張は本文のインライン命令を描画できず�
   本文の唯一の表現は `children` であり、dump2re は組み込みのブロックと同じく子から書き戻す。
   生の行が要るのはビルダーメソッドへの受け渡しだけであり、`blocks` 形は新しい機能なので互換層の対象にしない。
   互換層(`LegacyExtensionBridge`)が扱うのは `raw` 形の命令だけとする(9 章)。
-- `body` と `children` は省略可能なフィールドの追加なので、`ast_format` は上げずに済む。
-  ただし、`ExtensionBlockNode` は今は「`children` キーを出さない leaf ノード」と [ast-semantics.ja.md](ast-semantics.ja.md) に書かれている。
+- `blocks` 形の導入に合わせて、`ast_format` を 2 に上げる。
+  `blocks` 形のノードは `lines` を持たず、leaf だったノードが `children` を持つ。
+  これは [ast-format.ja.md](ast-format.ja.md) 3 章の「構造の変更」に当たる。
+  `ast_format` 1 の読み手は知らない `body` と `children` を無視するので、`lines` のない `ExtensionBlockNode` を本文のない 1 行命令と読み、本文を失う。
+- `lines` を `children` と併せて出力すれば版を上げずに済むが、この案は採らない。
+  本文の表現が二つになり、食い違ったときにどちらが正しいかを決める必要が生じる。
+- `ExtensionBlockNode` は今は「`children` キーを出さない leaf ノード」と [ast-semantics.ja.md](ast-semantics.ja.md) に書かれている。
   この記述は「`blocks` 形のときだけ `children` を持つ」に改める。
 
 #### コンパイラ側の変更
@@ -311,6 +319,9 @@ end
   Re:VIEW の `defblock` などは呼ばない。この API で宣言した命令はレンダラだけで描画するものであり、旧経路(`review-compile`)は対象にしない。
 - `render_block` / `render_inline` は描画の登録で、命令表の「対応する形式」にも反映される。
   `format:` は `:html`(EPUB・Web を含む)、`:latex`、`:idgxml`、`:plaintext`、`:top`、`:typst` のいずれか、またはその配列。
+  形式の名前は `review-ast-compile --target` の名前と同じにする。
+  レンダラの `format_type` とは別に定める(`PlaintextRenderer#format_type` は `:text` を返す)。
+  形式の名前とレンダラの対応は `ReVIEW::AST::Extension` が表として持ち、`ctx.format`(6 章)も同じ名前を返す。
 - ブロックハンドラもインラインハンドラも、受け取る引数は `(node, ctx)` にそろえる。
 - ブロックハンドラの出力は一つのブロックとして扱い、ブロック間の分離はレンダラが今までどおり付ける([design-improvements.ja.md](design-improvements.ja.md) 項目 2)。
 
@@ -359,7 +370,7 @@ Re:VIEW の大域表に触れないので、5 章の API だけを使うテス�
 
 | メソッド | 意味 |
 |---|---|
-| `format` | 出力形式(`:html` など) |
+| `format` | 出力形式。登録 API の `format:` と同じ名前(`:html`、`:plaintext` など。5 章) |
 | `render_children(node)` | ノードの子を、この形式で描画した文字列 |
 | `render(node)` | 一つのノードを描画した文字列 |
 | `render_caption(node)` | `node.caption_node` を描画した文字列(キャプションがなければ空文字列) |
@@ -572,6 +583,7 @@ Markdown の章を含む本でこの索引作りがどう振る舞うかは確�
    この時点では、描画は現行の `visit_block_<名前>` から `node.caption_node` を使う。
 4. **本文の `blocks` 形**(4 章)と**既定の描画**(7 章)。
    既定の描画のために、Typst の囲みに未知の名前の規則を足す。
+   `ast_format` を 2 に上げる([ast-format.ja.md](ast-format.ja.md) 7 章のチェックリストに従う)。
 5. **登録 API と `ctx`**(5・6 章)。
 6. **[review-ext.md](review-ext.md) の書き直し**。
    新しい API を推奨とし、独自命令の互換の範囲(9 章)と、互換層の書き方から新しい API への対応表を載せる。
@@ -608,6 +620,7 @@ Markdown の章を含む本でこの索引作りがどう振る舞うかは確�
 
 - `test/ast/test_ast_schema.rb`: フィールドを足すたびにスキーマを再生成し、同梱物と一致すること。
 - 命令表: 生成した「対応する形式」の表が、ビルダーの実際と一致すること。
+  レンダラにだけ `visit_block_<名前>` / `render_inline_<名前>` を定義した独自命令が、命令表への置き換えのあとも、その形式で描画できると判定されること。
 - round-trip: 引数の種類と本文の形を宣言した命令を含む章について、dump → 読み戻し → 描画の一致と、dump2re → 再コンパイルの一致。
 - 索引と参照解決: キャプション・`:inline` 引数・`blocks` 形の本文の中の `@<fn>` / `@<list>` が、通常の本文と同じ番号・解決結果になること。
 - `test/ast/test_review_ext_compat.rb`: 独自命令をビルダーメソッドで書いた本で、旧経路と AST 経路の出力が今までどおり一致すること。
