@@ -31,7 +31,7 @@ AST 経路の出力は、最初からレンダラが作っている。
 |---|---|---|---|
 | review-ext.rb のメソッドを呼ぶ | `Renderer::LegacyExtensionBridge` | インスタンスを作り、独自命令・組み込み命令の再定義に出力させる | 後方互換(一部を当面残し、将来は廃止する。9 章) |
 | 命令がその形式で使えるかの確認 | `Renderer::Base#check_builder_support` | クラスを調べる(`respond_to?`、メソッドの定義元) | レンダラだけで作る命令の妨げになる |
-| 個別の判定 | `TopRenderer#em_marked_like_i?`、`Command::VolumePrinter` | クラスを調べる、`compile_inline` を呼ぶ | 実装の都合 |
+| 個別の判定 | `TopRenderer#em_marked_like_i?` | クラスを調べる | 実装の都合 |
 
 1 行目は後方互換のためのもので、価値の高い部分だけを当面残し、将来は廃止する(9 章)。
 問題は 2・3 行目である。
@@ -548,7 +548,6 @@ Markdown の章を含む本でこの索引作りがどう振る舞うかは確�
 |---|---|
 | `check_builder_support` | 2 章の命令表を引く |
 | `TopRenderer#em_marked_like_i?`(`TOPBuilder#inline_em` が `inline_i` の別名かを調べる) | インストールされたビルダーに追従するのをやめ、AST の仕様として一つに決める(新しい Re:VIEW に合わせて `@<i>` と同じ記号で囲む)。旧経路との出力比較では、Re:VIEW 5.11 との差として扱う |
-| `Command::VolumePrinter`(章タイトルを `PLAINTEXTBuilder#compile_inline` で文字列にする) | AST の章タイトル(`ChapterTitle`)を `PlaintextRenderer` で描画する |
 
 ---
 
@@ -587,7 +586,7 @@ Markdown の章を含む本でこの索引作りがどう振る舞うかは確�
 5. 登録 API と `ctx`(5・6 章)。
 6. [review-ext.md](review-ext.md) の書き直し。
    新しい API を推奨とし、独自命令の互換の範囲(9 章)と、互換層の書き方から新しい API への対応表を載せる。
-   互換層の外にあるビルダー依存(`em_marked_like_i?`、`VolumePrinter`)を置き換える。
+   互換層の外にあるビルダー依存(`em_marked_like_i?`)を置き換える。
 7. 組み込み命令の差し替え(8 章)。
 8. 独自命令のビルダーメソッドの互換の廃止(9 章末尾)。
    時期は決めていない。手順 6 より前には行わない。
